@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ImageUploader from "../../../../components/admin/ImageUploader";
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -26,8 +27,21 @@ export default function AddProductPage() {
     });
   }
 
+  function handleImageChange(imageUrl) {
+    setFormData({
+      ...formData,
+      image: imageUrl,
+    });
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
+
+    if (!formData.image) {
+      alert("Please upload a product image first.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     const productData = {
@@ -53,12 +67,13 @@ export default function AddProductPage() {
     }
 
     router.push("/admin/products");
+    router.refresh();
   }
 
   return (
     <main className="min-h-screen bg-[#0b0b0b] px-6 py-10 text-[#f1ece4]">
       <div className="container-custom max-w-3xl">
-        <div className="mb-14 flex items-center justify-between">
+        <div className="mb-14 flex items-center justify-between gap-6">
           <div>
             <p className="mb-4 text-xs uppercase tracking-[0.45em] text-neutral-500">
               Admin / Products / New
@@ -85,7 +100,6 @@ export default function AddProductPage() {
             ["color", "Color"],
             ["price", "Price"],
             ["stock", "Stock"],
-            ["image", "Image URL, e.g. /images/product.jpeg"],
           ].map(([name, placeholder]) => (
             <input
               key={name}
@@ -97,6 +111,8 @@ export default function AddProductPage() {
               className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none placeholder:text-neutral-600"
             />
           ))}
+
+          <ImageUploader value={formData.image} onChange={handleImageChange} />
 
           <textarea
             name="description"
