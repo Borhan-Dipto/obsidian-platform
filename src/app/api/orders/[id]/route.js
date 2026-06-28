@@ -1,5 +1,14 @@
 import clientPromise from "../../../../lib/mongodb";
 
+const allowedStatuses = [
+  "pending",
+  "confirmed",
+  "packed",
+  "shipped",
+  "delivered",
+  "cancelled",
+];
+
 export async function GET(request, context) {
   try {
     const { id } = await context.params;
@@ -7,13 +16,15 @@ export async function GET(request, context) {
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB || "obsidian");
 
-    const product = await db.collection("products").findOne({ id });
+    const order = await db.collection("orders").findOne({
+      orderId: id,
+    });
 
-    if (!product) {
+    if (!order) {
       return Response.json(
         {
           success: false,
-          message: "Product not found.",
+          message: "Order not found.",
         },
         { status: 404 }
       );
@@ -21,15 +32,15 @@ export async function GET(request, context) {
 
     return Response.json({
       success: true,
-      product,
+      order,
     });
   } catch (error) {
-    console.error("GET Product Error:", error);
+    console.error("Order Details Error:", error);
 
     return Response.json(
       {
         success: false,
-        message: "Failed to fetch product.",
+        message: "Failed to fetch order.",
       },
       { status: 500 }
     );
@@ -39,18 +50,26 @@ export async function GET(request, context) {
 export async function PATCH(request, context) {
   try {
     const { id } = await context.params;
-    const updateData = await request.json();
+    const { status } = await request.json();
+
+    if (!allowedStatuses.includes(status)) {
+      return Response.json(
+        {
+          success: false,
+          message: "Invalid order status.",
+        },
+        { status: 400 }
+      );
+    }
 
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB || "obsidian");
 
-    const result = await db.collection("products").updateOne(
-      { id },
+    const result = await db.collection("orders").updateOne(
+      { orderId: id },
       {
         $set: {
-          ...updateData,
-          price: Number(updateData.price),
-          stock: Number(updateData.stock),
+          status,
           updatedAt: new Date(),
         },
       }
@@ -60,7 +79,7 @@ export async function PATCH(request, context) {
       return Response.json(
         {
           success: false,
-          message: "Product not found.",
+          message: "Order not found.",
         },
         { status: 404 }
       );
@@ -68,15 +87,15 @@ export async function PATCH(request, context) {
 
     return Response.json({
       success: true,
-      message: "Product updated successfully.",
+      message: "Order status updated successfully.",
     });
   } catch (error) {
-    console.error("PATCH Product Error:", error);
+    console.error("Order Status Update Error:", error);
 
     return Response.json(
       {
         success: false,
-        message: "Failed to update product.",
+        message: "Failed to update order status.",
       },
       { status: 500 }
     );

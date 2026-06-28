@@ -1,5 +1,5 @@
 import Link from "next/link";
-import DeleteProductButton from "../../../components/admin/DeleteProductButton";
+import ProductSearchTable from "../../../components/admin/ProductSearchTable";
 
 async function getProducts() {
   const res = await fetch("http://localhost:3000/api/products", {
@@ -7,7 +7,6 @@ async function getProducts() {
   });
 
   const data = await res.json();
-
   return data.products || [];
 }
 
@@ -50,58 +49,7 @@ export default async function AdminProductsPage() {
             No products found.
           </div>
         ) : (
-          <div className="overflow-x-auto border border-white/10">
-            <div className="min-w-[1050px]">
-              <div className="grid grid-cols-7 border-b border-white/10 bg-white/5 px-6 py-4 text-xs uppercase tracking-[0.25em] text-neutral-500">
-                <span>ID</span>
-                <span>Name</span>
-                <span>Series</span>
-                <span>Price</span>
-                <span>Stock</span>
-                <span>Color</span>
-                <span>Actions</span>
-              </div>
-
-              {products.map((product) => (
-                <div
-                  key={product._id}
-                  className="grid grid-cols-7 border-b border-white/10 px-6 py-5 text-sm text-neutral-300 last:border-b-0"
-                >
-                  <span>{product.id}</span>
-                  <span>{product.name}</span>
-                  <span>{product.series}</span>
-                  <span>৳ {product.price}</span>
-
-                  <span
-                    className={
-                      product.stock > 0
-                        ? "text-green-400"
-                        : "text-red-400"
-                    }
-                  >
-                    {product.stock > 0
-                      ? `${product.stock} in stock`
-                      : "Out of Stock"}
-                  </span>
-
-                  <span>{product.color}</span>
-
-                  <div className="flex gap-2">
-                    <Link
-                      href={`/admin/products/${product.id}/edit`}
-                      className="border border-blue-500 px-3 py-1 text-xs text-blue-400 transition hover:bg-blue-500 hover:text-white"
-                    >
-                      Edit
-                    </Link>
-
-                    <DeleteProductButton
-                      productId={product.id}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <ProductSearchTable products={products} />
         )}
       </div>
     </main>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
 import { useCart } from "../../context/CartContext";
@@ -11,6 +12,8 @@ export default function CheckoutPage() {
   const { cartItems, cartTotal, clearCart } = useCart();
 
   const WHATSAPP_NUMBER = "8801XXXXXXXXX";
+  const deliveryCharge = 0;
+  const grandTotal = cartTotal + deliveryCharge;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -46,7 +49,9 @@ export default function CheckoutPage() {
         address: formData.address,
       },
       items: cartItems,
-      total: cartTotal,
+      subtotal: cartTotal,
+      deliveryCharge,
+      total: grandTotal,
     };
 
     try {
@@ -69,11 +74,11 @@ export default function CheckoutPage() {
       const orderItems = cartItems
         .map(
           (item) =>
-            `${item.name} × ${item.quantity} = ৳ ${
-              item.price * item.quantity
-            }`
+            `${item.name}%0ASize: ${item.size}%0AQty: ${
+              item.quantity
+            }%0APrice: ৳ ${item.price * item.quantity}`
         )
-        .join("%0A");
+        .join("%0A%0A");
 
       const message =
         `Hello Obsidian,%0A%0AI want to place an order.%0A%0A` +
@@ -83,7 +88,9 @@ export default function CheckoutPage() {
         `Email: ${formData.email || "Not provided"}%0A` +
         `Address: ${formData.address}%0A%0A` +
         `Order Items:%0A${orderItems}%0A%0A` +
-        `Total: ৳ ${cartTotal}%0A%0A` +
+        `Subtotal: ৳ ${cartTotal}%0A` +
+        `Delivery: Calculated later%0A` +
+        `Total: ৳ ${grandTotal}%0A%0A` +
         `Please confirm my order.`;
 
       window.open(
@@ -113,80 +120,121 @@ export default function CheckoutPage() {
             Checkout
           </h1>
 
-          <div className="grid gap-12 md:grid-cols-2">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <input
-                type="text"
-                name="fullName"
-                placeholder="Full Name"
-                value={formData.fullName}
-                onChange={handleChange}
-                required
-                className="w-full border border-black/10 bg-[#eee7dd] px-5 py-4 outline-none"
-              />
+          {cartItems.length === 0 ? (
+            <div className="border border-black/10 bg-[#eee7dd] p-10">
+              <p className="text-lg text-neutral-600">
+                Your cart is currently empty.
+              </p>
 
-              <input
-                type="tel"
-                name="phone"
-                placeholder="Phone Number"
-                value={formData.phone}
-                onChange={handleChange}
-                required
-                className="w-full border border-black/10 bg-[#eee7dd] px-5 py-4 outline-none"
-              />
-
-              <input
-                type="email"
-                name="email"
-                placeholder="Email Address"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full border border-black/10 bg-[#eee7dd] px-5 py-4 outline-none"
-              />
-
-              <textarea
-                name="address"
-                placeholder="Delivery Address"
-                value={formData.address}
-                onChange={handleChange}
-                rows={5}
-                required
-                className="w-full border border-black/10 bg-[#eee7dd] px-5 py-4 outline-none"
-              />
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full bg-black px-8 py-5 text-xs uppercase tracking-[0.35em] text-white transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+              <Link
+                href="/shop"
+                className="mt-8 inline-block border border-black px-8 py-4 text-xs uppercase tracking-[0.3em] transition hover:bg-black hover:text-white"
               >
-                {isSubmitting ? "Submitting Order..." : "Place Order On WhatsApp"}
-              </button>
-            </form>
-
-            <div className="border border-black/10 bg-[#eee7dd] p-8">
-              <h2 className="font-heading text-4xl">Order Summary</h2>
-
-              <div className="mt-8 space-y-5">
-                {cartItems.length === 0 ? (
-                  <p className="text-neutral-600">Your cart is empty.</p>
-                ) : (
-                  cartItems.map((item) => (
-                    <div key={item.id} className="flex justify-between gap-6">
-                      <span>
-                        {item.name} × {item.quantity}
-                      </span>
-
-                      <span>৳ {item.price * item.quantity}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div className="mt-8 border-t border-black/10 pt-6">
-                <h3 className="font-heading text-3xl">Total: ৳ {cartTotal}</h3>
-              </div>
+                Continue Shopping
+              </Link>
             </div>
-          </div>
+          ) : (
+            <div className="grid gap-12 lg:grid-cols-[1fr_420px]">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <input
+                  type="text"
+                  name="fullName"
+                  placeholder="Full Name"
+                  value={formData.fullName}
+                  onChange={handleChange}
+                  required
+                  className="w-full border border-black/10 bg-[#eee7dd] px-5 py-4 outline-none"
+                />
+
+                <input
+                  type="tel"
+                  name="phone"
+                  placeholder="Phone Number"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  required
+                  className="w-full border border-black/10 bg-[#eee7dd] px-5 py-4 outline-none"
+                />
+
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="Email Address"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full border border-black/10 bg-[#eee7dd] px-5 py-4 outline-none"
+                />
+
+                <textarea
+                  name="address"
+                  placeholder="Delivery Address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  rows={5}
+                  required
+                  className="w-full border border-black/10 bg-[#eee7dd] px-5 py-4 outline-none"
+                />
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full bg-black px-8 py-5 text-xs uppercase tracking-[0.35em] text-white transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isSubmitting ? "Submitting Order..." : "Place Order"}
+                </button>
+              </form>
+
+              <aside className="h-fit border border-black/10 bg-[#eee7dd] p-8">
+                <h2 className="font-heading text-4xl">Order Summary</h2>
+
+                <div className="mt-8 space-y-6">
+                  {cartItems.map((item) => (
+                    <div
+                      key={`${item.id}-${item.size}`}
+                      className="flex gap-4 border-b border-black/10 pb-5 last:border-b-0"
+                    >
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="h-20 w-20 object-cover"
+                      />
+
+                      <div className="flex-1">
+                        <p className="font-heading text-2xl">{item.name}</p>
+                        <p className="mt-1 text-sm text-neutral-600">
+                          Size: {item.size}
+                        </p>
+                        <p className="mt-1 text-sm text-neutral-600">
+                          Qty: {item.quantity}
+                        </p>
+                      </div>
+
+                      <p>৳ {item.price * item.quantity}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8 space-y-4 border-t border-black/10 pt-6">
+                  <div className="flex justify-between text-sm">
+                    <span>Subtotal</span>
+                    <span>৳ {cartTotal}</span>
+                  </div>
+
+                  <div className="flex justify-between text-sm">
+                    <span>Delivery</span>
+                    <span>Calculated later</span>
+                  </div>
+
+                  <div className="flex justify-between pt-4">
+                    <span className="font-heading text-3xl">Total</span>
+                    <span className="font-heading text-3xl">
+                      ৳ {grandTotal}
+                    </span>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          )}
         </div>
       </section>
 
