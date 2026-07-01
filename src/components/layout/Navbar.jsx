@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useCart } from "../../context/CartContext";
 
@@ -15,95 +16,81 @@ export default function Navbar() {
   ];
 
   return (
-    <header className="fixed left-0 top-0 z-50 w-full border-b border-black/5 bg-[#f1ece4]/80 backdrop-blur-md">
-      <nav className="container-custom flex h-20 items-center justify-between px-6">
-        <a
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-black/10 bg-[#f1ece4]/90 backdrop-blur-xl">
+      <nav className="mx-auto flex h-20 max-w-[1440px] items-center justify-between px-6 lg:px-10">
+        <Link
           href="/"
-          className="text-[28px] font-light tracking-[0.28em] md:text-[32px]"
+          className="text-2xl font-light tracking-[0.32em] text-[#0b0b0b]"
         >
           OBSIDIAN
-        </a>
+        </Link>
 
-        <div className="hidden items-center gap-12 md:flex">
+        <div className="hidden items-center gap-10 lg:flex">
           {links.map((link) => (
-            <a
-              key={link.label}
+            <Link
+              key={link.href}
               href={link.href}
-              className="text-xs uppercase tracking-[0.25em] transition-opacity hover:opacity-60"
+              className="text-xs uppercase tracking-[0.28em] text-[#0b0b0b] transition hover:opacity-60"
             >
               {link.label}
-            </a>
+            </Link>
           ))}
         </div>
 
-        <div className="hidden items-center gap-8 md:flex">
-          <a
-            href="#"
-            className="text-xs uppercase tracking-[0.2em] transition-opacity hover:opacity-60"
-          >
-            Search
-          </a>
-
-          <a
-            href="#"
-            className="text-xs uppercase tracking-[0.2em] transition-opacity hover:opacity-60"
-          >
-            Account
-          </a>
-
-          <a
+        <div className="hidden items-center gap-7 lg:flex">
+          <Link
             href="/cart"
-            className="text-xs uppercase tracking-[0.2em] transition-opacity hover:opacity-60"
+            className="text-xs uppercase tracking-[0.24em] text-[#0b0b0b] transition hover:opacity-60"
           >
             Cart ({cartCount})
-          </a>
+          </Link>
+
+          <Link
+            href="/admin/login"
+            className="text-xs uppercase tracking-[0.24em] text-[#0b0b0b] transition hover:opacity-60"
+          >
+            Admin
+          </Link>
         </div>
 
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="text-xs uppercase tracking-[0.25em] md:hidden"
+          className="text-xs uppercase tracking-[0.28em] text-[#0b0b0b] lg:hidden"
         >
           {isOpen ? "Close" : "Menu"}
         </button>
       </nav>
 
       {isOpen && (
-        <div className="border-t border-black/5 bg-[#f1ece4] px-6 py-8 md:hidden">
+        <div className="border-t border-black/10 bg-[#f1ece4] px-6 py-8 lg:hidden">
           <div className="flex flex-col gap-6">
             {links.map((link) => (
-              <a
-                key={link.label}
+              <Link
+                key={link.href}
                 href={link.href}
                 onClick={() => setIsOpen(false)}
-                className="text-sm uppercase tracking-[0.28em]"
+                className="text-sm uppercase tracking-[0.28em] text-[#0b0b0b]"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
 
-            <div className="mt-4 border-t border-black/10 pt-6">
-              <a
-                href="#"
-                className="block py-2 text-sm uppercase tracking-[0.25em]"
-              >
-                Search
-              </a>
+            <Link
+              href="/cart"
+              onClick={() => setIsOpen(false)}
+              className="border-t border-black/10 pt-6 text-sm uppercase tracking-[0.28em] text-[#0b0b0b]"
+            >
+              Cart ({cartCount})
+            </Link>
 
-              <a
-                href="#"
-                className="block py-2 text-sm uppercase tracking-[0.25em]"
-              >
-                Account
-              </a>
-
-              <a
-                href="/cart"
-                className="block py-2 text-sm uppercase tracking-[0.25em]"
-              >
-                Cart ({cartCount})
-              </a>
-            </div>
+            <Link
+              href="/admin/login"
+              onClick={() => setIsOpen(false)}
+              className="text-sm uppercase tracking-[0.28em] text-[#0b0b0b]"
+            >
+              Admin
+            </Link>
           </div>
         </div>
       )}
