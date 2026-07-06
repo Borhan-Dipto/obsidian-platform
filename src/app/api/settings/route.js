@@ -112,7 +112,7 @@ function normalizeHomepage(homepage = {}) {
   return normalizedHomepage;
 }
 
-function normalizeSettings(data) {
+function normalizeSettings(data = {}) {
   return mergeSettings({
     type: "store",
 
@@ -207,11 +207,13 @@ export async function PATCH(request) {
 
     const updatedSettings = normalizeSettings(data);
 
+    const { type, _id, createdAt, ...settingsToSave } = updatedSettings;
+
     await db.collection("settings").updateOne(
       { type: "store" },
       {
         $set: {
-          ...updatedSettings,
+          ...settingsToSave,
           updatedAt: new Date(),
         },
         $setOnInsert: {
