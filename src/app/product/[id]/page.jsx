@@ -1,19 +1,19 @@
 import Link from "next/link";
+import clientPromise from "../../../lib/mongodb";
 import ProductActions from "../../../components/product/ProductActions";
 import RelatedProducts from "../../../components/product/RelatedProducts";
 import Navbar from "../../../components/layout/Navbar";
 import Footer from "../../../components/layout/Footer";
 
 async function getProduct(id) {
-  const res = await fetch(`http://localhost:3000/api/products/${id}`, {
-    cache: "no-store",
-  });
+  const client = await clientPromise;
+  const db = client.db(process.env.MONGODB_DB || "obsidian");
 
-  const data = await res.json();
+  const product = await db.collection("products").findOne({ id });
 
-  if (!data.success) return null;
+  if (!product) return null;
 
-  return data.product;
+  return JSON.parse(JSON.stringify(product));
 }
 
 export default async function ProductDetailsPage({ params }) {
@@ -101,6 +101,7 @@ export default async function ProductDetailsPage({ params }) {
 
                 <div className="flex justify-between gap-8">
                   <span className="text-neutral-500">Stock</span>
+
                   {stock > 0 ? (
                     <span>{stock} Available</span>
                   ) : (

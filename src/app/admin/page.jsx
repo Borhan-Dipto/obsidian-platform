@@ -1,21 +1,55 @@
 import Link from "next/link";
+import clientPromise from "../../lib/mongodb";
 import { requireAdminAuth } from "../../lib/adminAuth";
 import AdminLogoutButton from "../../components/admin/AdminLogoutButton";
 
 async function getDashboardStats() {
   try {
-    const res = await fetch("http://localhost:3000/api/admin/stats", {
-      cache: "no-store",
+    const client = await clientPromise;
+    const db = client.db(process.env.MONGODB_DB || "obsidian");
+
+    const orders = await db.collection("orders").find({}).toArray();
+
+    const recentOrders = await db
+      .collection("orders")
+      .find({})
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .toArray();
+
+    const totalProducts = await db.collection("products").countDocuments();
+
+    const lowStockProducts = await db.collection("products").countDocuments({
+      stock: { $lte: 5 },
     });
 
-    const data = await res.json();
+    const totalRevenue = orders
+      .filter((order) => order.status !== "cancelled")
+      .reduce((sum, order) => sum + Number(order.total || 0), 0);
 
-    if (!res.ok || !data.success) {
-      throw new Error("Failed to load dashboard stats.");
-    }
+    const stats = {
+      totalOrders: orders.length,
+      totalRevenue,
+      pendingOrders: orders.filter((order) => order.status === "pending")
+        .length,
+      confirmedOrders: orders.filter((order) => order.status === "confirmed")
+        .length,
+      packedOrders: orders.filter((order) => order.status === "packed").length,
+      shippedOrders: orders.filter((order) => order.status === "shipped")
+        .length,
+      deliveredOrders: orders.filter((order) => order.status === "delivered")
+        .length,
+      cancelledOrders: orders.filter((order) => order.status === "cancelled")
+        .length,
+      totalProducts,
+      lowStockProducts,
+    };
 
-    return data;
-  } catch (error) {
+    return {
+      stats,
+      recentOrders: JSON.parse(JSON.stringify(recentOrders)),
+    };
+  } catch {
     return {
       stats: {
         totalOrders: 0,
@@ -41,6 +75,7 @@ function getStatusClass(status) {
   if (status === "shipped") return "text-cyan-400";
   if (status === "delivered") return "text-green-400";
   if (status === "cancelled") return "text-red-400";
+
   return "text-neutral-400";
 }
 
@@ -72,9 +107,14 @@ export default async function AdminPage() {
       description: "Manage products, prices, images, and stock.",
     },
     {
+      title: "Collections",
+      href: "/admin/collections",
+      description: "Manage collection cards, cover images, and featured series.",
+    },
+    {
       title: "Settings",
       href: "/admin/settings",
-      description: "Update store details, contact, and business settings.",
+      description: "Update store details, contact, delivery, homepage, and SEO.",
     },
   ];
 
@@ -92,8 +132,8 @@ export default async function AdminPage() {
             </h1>
 
             <p className="mt-5 max-w-2xl text-sm leading-7 text-neutral-400">
-              Manage products, orders, inventory, and store operations from one
-              controlled workspace.
+              Manage products, collections, orders, inventory, and store
+              operations from one controlled workspace.
             </p>
           </div>
 
@@ -123,7 +163,7 @@ export default async function AdminPage() {
           ))}
         </section>
 
-        <section className="mt-16 grid gap-8 md:grid-cols-3">
+        <section className="mt-16 grid gap-8 md:grid-cols-2 xl:grid-cols-4">
           {adminLinks.map((item) => (
             <Link
               key={item.href}
@@ -143,9 +183,7 @@ export default async function AdminPage() {
 
         <section className="mt-16 border border-white/10">
           <div className="flex items-center justify-between border-b border-white/10 p-6">
-            <h2 className="font-heading text-3xl font-light">
-              Recent Orders
-            </h2>
+            <h2 className="font-heading text-3xl font-light">Recent Orders</h2>
 
             <Link
               href="/admin/orders"
@@ -165,10 +203,13 @@ export default async function AdminPage() {
                 className="grid gap-3 border-b border-white/10 p-6 text-sm text-neutral-300 transition last:border-b-0 hover:bg-white/5 md:grid-cols-4"
               >
                 <span>{order.orderId}</span>
+
                 <span>{order.customer?.fullName || "Unknown Customer"}</span>
+
                 <span className={`capitalize ${getStatusClass(order.status)}`}>
                   {order.status}
                 </span>
+
                 <span className="md:text-right">৳ {order.total}</span>
               </Link>
             ))

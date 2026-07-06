@@ -1,16 +1,24 @@
 import Link from "next/link";
+import clientPromise from "../../../lib/mongodb";
+import { requireAdminAuth } from "../../../lib/adminAuth";
 import ProductSearchTable from "../../../components/admin/ProductSearchTable";
 
 async function getProducts() {
-  const res = await fetch("http://localhost:3000/api/products", {
-    cache: "no-store",
-  });
+  const client = await clientPromise;
+  const db = client.db(process.env.MONGODB_DB || "obsidian");
 
-  const data = await res.json();
-  return data.products || [];
+  const products = await db
+    .collection("products")
+    .find({})
+    .sort({ createdAt: -1 })
+    .toArray();
+
+  return JSON.parse(JSON.stringify(products));
 }
 
 export default async function AdminProductsPage() {
+  await requireAdminAuth();
+
   const products = await getProducts();
 
   return (

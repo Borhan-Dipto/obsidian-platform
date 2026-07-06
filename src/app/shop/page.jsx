@@ -1,17 +1,19 @@
 import Link from "next/link";
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
+import clientPromise from "../../lib/mongodb";
 
 async function getProducts() {
-  const res = await fetch("http://localhost:3000/api/products", {
-    cache: "no-store",
-  });
+  const client = await clientPromise;
+  const db = client.db(process.env.MONGODB_DB || "obsidian");
 
-  const data = await res.json();
+  const products = await db
+    .collection("products")
+    .find({})
+    .sort({ createdAt: -1 })
+    .toArray();
 
-  if (!data.success) return [];
-
-  return data.products || [];
+  return JSON.parse(JSON.stringify(products));
 }
 
 export default async function ShopPage({ searchParams }) {
