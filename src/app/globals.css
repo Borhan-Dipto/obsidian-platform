@@ -3,10 +3,18 @@
 :root {
   --background: #f1ece4;
   --foreground: #0b0b0b;
+
   --obsidian-black: #0b0b0b;
+  --obsidian-deep: #070707;
+  --obsidian-charcoal: #171717;
+
   --stone-ivory: #f1ece4;
+  --stone-soft: #eee7dd;
+  --stone-muted: #d8d0c4;
+
   --ash-grey: #a8a29e;
-  --charcoal: #171717;
+  --metal-edge: #b8b0a4;
+  --burnt-amber: #b1844a;
 }
 
 @theme inline {
@@ -32,4 +40,343 @@ body {
 
 .font-heading {
   font-family: var(--font-cormorant), serif;
+}
+
+/* OBSIDIAN VISUAL IDENTITY SYSTEM */
+
+.obsidian-brand-text {
+  position: relative;
+  display: inline-block;
+  font-family: var(--font-cormorant), serif;
+  letter-spacing: -0.07em;
+  color: var(--stone-ivory);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.25),
+    0 16px 40px rgba(0, 0, 0, 0.75);
+}
+
+.obsidian-brand-text::before {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  background:
+    linear-gradient(
+      112deg,
+      rgba(241, 236, 228, 0.9) 0%,
+      rgba(184, 176, 164, 0.55) 28%,
+      rgba(241, 236, 228, 0.95) 48%,
+      rgba(120, 113, 108, 0.5) 70%,
+      rgba(241, 236, 228, 0.82) 100%
+    );
+  background-clip: text;
+  -webkit-background-clip: text;
+  opacity: 0.95;
+  pointer-events: none;
+}
+
+.obsidian-brand-text::after {
+  content: "";
+  position: absolute;
+  left: 3%;
+  right: 4%;
+  top: 51%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(241, 236, 228, 0.45),
+    transparent
+  );
+  transform: rotate(-1.2deg);
+  opacity: 0.42;
+  pointer-events: none;
+}
+
+.obsidian-cut-heading {
+  position: relative;
+  display: inline-block;
+  font-family: var(--font-cormorant), serif;
+  letter-spacing: -0.045em;
+}
+
+.obsidian-cut-heading::after {
+  content: "";
+  position: absolute;
+  left: 2%;
+  right: 6%;
+  top: 52%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    currentColor,
+    transparent
+  );
+  opacity: 0.18;
+  transform: rotate(-1.4deg);
+  pointer-events: none;
+}
+
+.obsidian-stone-word {
+  position: relative;
+  display: inline-block;
+  color: transparent;
+  background:
+    linear-gradient(
+      120deg,
+      #f1ece4 0%,
+      #a9a198 22%,
+      #f1ece4 48%,
+      #6f6860 67%,
+      #eee7dd 100%
+    );
+  background-clip: text;
+  -webkit-background-clip: text;
+  text-shadow: 0 20px 55px rgba(0, 0, 0, 0.65);
+}
+
+.obsidian-dark-panel {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 75% 25%, rgba(241, 236, 228, 0.08), transparent 32%),
+    linear-gradient(135deg, #0b0b0b 0%, #070707 48%, #111111 100%);
+  color: var(--stone-ivory);
+}
+
+.obsidian-cream-panel {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 80% 20%, rgba(11, 11, 11, 0.08), transparent 30%),
+    linear-gradient(135deg, #f1ece4 0%, #eee7dd 100%);
+  color: var(--obsidian-black);
+}
+
+.obsidian-grain {
+  position: relative;
+}
+
+.obsidian-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.055;
+  background-image:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mix-blend-mode: overlay;
+}
+
+.obsidian-stone-surface {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(241, 236, 228, 0.12), transparent 24%),
+    linear-gradient(135deg, #111111 0%, #050505 100%);
+}
+
+.obsidian-stone-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.17;
+  background:
+    linear-gradient(118deg, transparent 0 28%, rgba(241, 236, 228, 0.22) 29%, transparent 30% 100%),
+    linear-gradient(42deg, transparent 0 58%, rgba(241, 236, 228, 0.16) 59%, transparent 60% 100%),
+    linear-gradient(150deg, transparent 0 72%, rgba(241, 236, 228, 0.12) 73%, transparent 74% 100%);
+  pointer-events: none;
+}
+
+.obsidian-edge-card {
+  position: relative;
+  border: 1px solid rgba(241, 236, 228, 0.12);
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(241, 236, 228, 0.08);
+}
+
+.obsidian-edge-card::after {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border: 1px solid rgba(241, 236, 228, 0.08);
+  pointer-events: none;
+}
+
+.obsidian-button-dark {
+  position: relative;
+  display: inline-flex;
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--obsidian-black);
+  background: transparent;
+  color: var(--obsidian-black);
+  transition:
+    color 300ms ease,
+    border-color 300ms ease;
+}
+
+.obsidian-button-dark::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-101%);
+  background: var(--obsidian-black);
+  transition: transform 300ms ease;
+}
+
+.obsidian-button-dark:hover {
+  color: var(--stone-ivory);
+}
+
+.obsidian-button-dark:hover::before {
+  transform: translateX(0);
+}
+
+.obsidian-button-dark span {
+  position: relative;
+  z-index: 1;
+}
+
+.obsidian-button-light {
+  position: relative;
+  display: inline-flex;
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(241, 236, 228, 0.75);
+  background: transparent;
+  color: var(--stone-ivory);
+  transition:
+    color 300ms ease,
+    border-color 300ms ease;
+}
+
+.obsidian-button-light::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-101%);
+  background: var(--stone-ivory);
+  transition: transform 300ms ease;
+}
+
+.obsidian-button-light:hover {
+  color: var(--obsidian-black);
+}
+
+.obsidian-button-light:hover::before {
+  transform: translateX(0);
+}
+
+.obsidian-button-light span {
+  position: relative;
+  z-index: 1;
+}
+
+.obsidian-soft-reveal {
+  animation: obsidianSoftReveal 700ms ease both;
+}
+
+.obsidian-float-subtle {
+  animation: obsidianFloatSubtle 7s ease-in-out infinite;
+}
+
+@keyframes obsidianSoftReveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes obsidianFloatSubtle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .obsidian-soft-reveal,
+  .obsidian-float-subtle {
+    animation: none;
+  }
+}
+
+@keyframes heroReveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+
+@keyframes heroReveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes heroCardReveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes heroImageZoom {
+  from {
+    transform: scale(1.045);
+  }
+
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes heroLine {
+  from {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
 }
