@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "../../components/layout/Navbar";
@@ -11,11 +11,26 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { cartItems, cartTotal, clearCart } = useCart();
 
-  const WHATSAPP_NUMBER = "8801814455199";
-  const deliveryCharge = 0;
-  const grandTotal = cartTotal + deliveryCharge;
+  const [settings, setSettings] = useState({
+    store: {
+      name: "OBSIDIAN",
+      currency: "BDT",
+    },
+    contact: {
+      whatsappNumber: "8801814455199",
+    },
+    delivery: {
+      insideDhaka: 80,
+      outsideDhaka: 130,
+    },
+    payment: {
+      cashOnDelivery: true,
+    },
+  });
 
+  const [deliveryArea, setDeliveryArea] = useState("inside_dhaka");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [formData, setFormData] = useState({
     fullName: "",
     phone: "",
@@ -23,6 +38,39 @@ export default function CheckoutPage() {
     address: "",
     note: "",
   });
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const response = await fetch("/api/settings");
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          setSettings(data.settings);
+        }
+      } catch {
+        // fallback settings will be used
+      }
+    }
+
+    loadSettings();
+  }, []);
+
+  const deliveryCharge =
+    deliveryArea === "inside_dhaka"
+      ? Number(settings.delivery?.insideDhaka) || 0
+      : Number(settings.delivery?.outsideDhaka) || 0;
+
+  const grandTotal = cartTotal + deliveryCharge;
+
+  const currency = settings.store?.currency || "BDT";
+  const currencySymbol = currency === "BDT" ? "৳" : currency;
+
+  const whatsappNumber = String(
+    settings.contact?.whatsappNumber || ""
+  ).replace(/\D/g, "");
+
+  const storeName = settings.store?.name || "Obsidian";
 
   function handleChange(e) {
     setFormData((current) => ({
@@ -39,10 +87,18 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (!whatsappNumber) {
+      alert("Store WhatsApp number is missing. Please contact admin.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     const orderPayload = {
-      customer: formData,
+      customer: {
+        ...formData,
+        deliveryArea,
+      },
       items: cartItems,
       subtotal: cartTotal,
       deliveryCharge,
@@ -59,7 +115,7 @@ export default function CheckoutPage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        alert("Order could not be submitted. Please try again.");
+        alert(data.message || "Order could not be submitted. Please try again.");
         setIsSubmitting(false);
         return;
       }
@@ -67,27 +123,32 @@ export default function CheckoutPage() {
       const orderItems = cartItems
         .map(
           (item) =>
-            `${item.name}%0ASize: ${item.size}%0AQty: ${item.quantity}%0APrice: ৳ ${
+            `${item.name}%0ASize: ${item.size}%0AQty: ${
+              item.quantity
+            }%0APrice: ${currencySymbol} ${
               Number(item.price) * Number(item.quantity)
             }`
         )
         .join("%0A%0A");
 
       const message =
-        `Hello Obsidian,%0A%0AI want to place an order.%0A%0A` +
+        `Hello ${storeName},%0A%0AI want to place an order.%0A%0A` +
         `Order ID: ${data.order.id}%0A` +
         `Customer Name: ${formData.fullName}%0A` +
         `Phone: ${formData.phone}%0A` +
         `Email: ${formData.email || "Not provided"}%0A` +
         `Address: ${formData.address}%0A` +
+        `Delivery Area: ${
+          deliveryArea === "inside_dhaka" ? "Inside Dhaka" : "Outside Dhaka"
+        }%0A` +
         `Note: ${formData.note || "No note"}%0A%0A` +
         `Order Items:%0A${orderItems}%0A%0A` +
-        `Subtotal: ৳ ${cartTotal}%0A` +
-        `Delivery: Calculated later%0A` +
-        `Total: ৳ ${grandTotal}%0A%0A` +
+        `Subtotal: ${currencySymbol} ${cartTotal}%0A` +
+        `Delivery: ${currencySymbol} ${deliveryCharge}%0A` +
+        `Total: ${currencySymbol} ${grandTotal}%0A%0A` +
         `Please confirm my order.`;
 
-      window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, "_blank");
+      window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank");
 
       clearCart();
       router.push("/success");
@@ -174,6 +235,34 @@ export default function CheckoutPage() {
                   <p className="mb-7 text-xs uppercase tracking-[0.4em] text-neutral-500">
                     Delivery
                   </p>
+
+                  <div className="mb-7 grid gap-4 md:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryArea("inside_dhaka")}
+                      className={`border px-5 py-4 text-left text-xs uppercase tracking-[0.25em] transition ${
+                        deliveryArea === "inside_dhaka"
+                          ? "border-black bg-black text-[#f1ece4]"
+                          : "border-black/20 text-[#0b0b0b] hover:bg-black hover:text-[#f1ece4]"
+                      }`}
+                    >
+                      Inside Dhaka / {currencySymbol}{" "}
+                      {Number(settings.delivery?.insideDhaka) || 0}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryArea("outside_dhaka")}
+                      className={`border px-5 py-4 text-left text-xs uppercase tracking-[0.25em] transition ${
+                        deliveryArea === "outside_dhaka"
+                          ? "border-black bg-black text-[#f1ece4]"
+                          : "border-black/20 text-[#0b0b0b] hover:bg-black hover:text-[#f1ece4]"
+                      }`}
+                    >
+                      Outside Dhaka / {currencySymbol}{" "}
+                      {Number(settings.delivery?.outsideDhaka) || 0}
+                    </button>
+                  </div>
 
                   <div className="grid gap-6">
                     <div>
@@ -267,7 +356,8 @@ export default function CheckoutPage() {
                       </div>
 
                       <p className="text-sm">
-                        ৳ {Number(item.price) * Number(item.quantity)}
+                        {currencySymbol}{" "}
+                        {Number(item.price) * Number(item.quantity)}
                       </p>
                     </div>
                   ))}
@@ -276,12 +366,16 @@ export default function CheckoutPage() {
                 <div className="mt-7 space-y-5 text-sm">
                   <div className="flex justify-between gap-6">
                     <span className="text-neutral-500">Subtotal</span>
-                    <span>৳ {cartTotal}</span>
+                    <span>
+                      {currencySymbol} {cartTotal}
+                    </span>
                   </div>
 
                   <div className="flex justify-between gap-6">
                     <span className="text-neutral-500">Delivery</span>
-                    <span>Calculated later</span>
+                    <span>
+                      {currencySymbol} {deliveryCharge}
+                    </span>
                   </div>
 
                   <div className="flex justify-between gap-6">
@@ -296,7 +390,7 @@ export default function CheckoutPage() {
                       Total
                     </span>
                     <span className="font-heading text-3xl font-light">
-                      ৳ {grandTotal}
+                      {currencySymbol} {grandTotal}
                     </span>
                   </div>
                 </div>

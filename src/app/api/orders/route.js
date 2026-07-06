@@ -6,6 +6,19 @@ function generateOrderId() {
   return `OBS-${timestamp}${random}`;
 }
 
+function normalizeOrderItems(items) {
+  return items.map((item) => ({
+    id: item.id,
+    name: item.name,
+    series: item.series || "",
+    color: item.color || "",
+    size: item.size || "",
+    quantity: Number(item.quantity) || 1,
+    price: Number(item.price) || 0,
+    image: item.image || "",
+  }));
+}
+
 export async function GET() {
   try {
     const client = await clientPromise;
@@ -39,7 +52,7 @@ export async function POST(request) {
     const orderData = await request.json();
 
     const customer = orderData.customer;
-    const items = orderData.items || [];
+    const items = normalizeOrderItems(orderData.items || []);
 
     if (
       !customer?.fullName ||
@@ -59,9 +72,35 @@ export async function POST(request) {
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB || "obsidian");
 
+    for (const item of items) {
+      const product = await db.collection("products").findOne({ id: item.id });
+
+      if (!product) {
+        return Response.json(
+          {
+            success: false,
+            message: `${item.name} was not found.`,
+          },
+          { status: 404 }
+        );
+      }
+
+      if (Number(product.stock) < Number(item.quantity)) {
+        return Response.json(
+          {
+            success: false,
+            message: `${item.name} does not have enough stock.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const subtotal = Number(orderData.subtotal) || 0;
     const deliveryCharge = Number(orderData.deliveryCharge) || 0;
     const total = Number(orderData.total) || subtotal + deliveryCharge;
+
+    const now = new Date();
 
     const order = {
       orderId: generateOrderId(),
@@ -76,26 +115,30 @@ export async function POST(request) {
         note: customer.note || "",
       },
 
-      items: items.map((item) => ({
-        id: item.id,
-        name: item.name,
-        series: item.series || "",
-        color: item.color || "",
-        size: item.size || "",
-        quantity: Number(item.quantity) || 1,
-        price: Number(item.price) || 0,
-        image: item.image || "",
-      })),
-
+      items,
       subtotal,
       deliveryCharge,
       total,
 
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     };
 
     const result = await db.collection("orders").insertOne(order);
+
+    for (const item of items) {
+      await db.collection("products").updateOne(
+        { id: item.id },
+        {
+          $inc: {
+            stock: -Number(item.quantity),
+          },
+          $set: {
+            updatedAt: new Date(),
+          },
+        }
+      );
+    }
 
     return Response.json(
       {

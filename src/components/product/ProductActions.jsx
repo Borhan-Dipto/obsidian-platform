@@ -62,8 +62,8 @@ export default function ProductActions({ product }) {
               onClick={() => setSelectedSize(size)}
               className={`border px-5 py-3 text-xs uppercase tracking-[0.25em] transition ${
                 selectedSize === size
-                  ? "border-[#f1ece4] bg-[#f1ece4] text-[#0b0b0b]"
-                  : "border-white/20 text-[#f1ece4] hover:bg-white/10"
+                  ? "border-[#0b0b0b] bg-[#0b0b0b] text-[#f1ece4]"
+                  : "border-black/20 text-[#0b0b0b] hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
               }`}
             >
               {size}
@@ -77,11 +77,11 @@ export default function ProductActions({ product }) {
           Quantity
         </p>
 
-        <div className="flex w-fit items-center border border-white/20">
+        <div className="flex w-fit items-center border border-black/20 text-[#0b0b0b]">
           <button
             type="button"
             onClick={decreaseQuantity}
-            className="px-5 py-3 text-xl"
+            className="px-5 py-3 text-xl transition hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
           >
             -
           </button>
@@ -92,7 +92,7 @@ export default function ProductActions({ product }) {
             type="button"
             onClick={increaseQuantity}
             disabled={isOutOfStock || quantity >= stock}
-            className="px-5 py-3 text-xl disabled:cursor-not-allowed disabled:opacity-40"
+            className="px-5 py-3 text-xl transition hover:bg-[#0b0b0b] hover:text-[#f1ece4] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#0b0b0b]"
           >
             +
           </button>
@@ -103,7 +103,7 @@ export default function ProductActions({ product }) {
         type="button"
         onClick={handleAddToCart}
         disabled={isOutOfStock}
-        className="w-full bg-[#f1ece4] py-5 text-[#0b0b0b] uppercase tracking-[0.3em] transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+        className="w-full bg-[#0b0b0b] py-5 text-[#f1ece4] uppercase tracking-[0.3em] transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {isOutOfStock ? "Out Of Stock" : "Add To Cart"}
       </button>

@@ -1,14 +1,58 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
 export default function Footer() {
+  const [settings, setSettings] = useState({
+    store: {
+      name: "OBSIDIAN",
+      tagline: "Built under pressure. Finished with precision.",
+    },
+    contact: {
+      email: "hello@obsidianwear.com",
+      location: "Dhaka, Bangladesh",
+    },
+    social: {
+      facebookUrl: "",
+      instagramUrl: "",
+    },
+  });
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const response = await fetch("/api/settings");
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          setSettings(data.settings);
+        }
+      } catch {
+        // fallback settings will be used
+      }
+    }
+
+    loadSettings();
+  }, []);
+
   return (
     <footer className="bg-[#0b0b0b] px-6 py-16 text-[#f1ece4] md:py-20">
       <div className="container-custom">
         <div className="grid gap-12 sm:grid-cols-2 md:grid-cols-4">
           <div className="sm:col-span-2 md:col-span-1">
-            <h2 className="text-3xl font-light tracking-[0.3em]">OBSIDIAN</h2>
+            <h2 className="text-3xl font-light uppercase tracking-[0.3em]">
+              {settings.store?.name || "OBSIDIAN"}
+            </h2>
 
             <p className="mt-6 max-w-xs text-sm leading-7 text-neutral-400">
-              Built under pressure. Finished with precision.
+              {settings.store?.tagline ||
+                "Built under pressure. Finished with precision."}
             </p>
+
+            <div className="mt-6 space-y-2 text-sm text-neutral-500">
+              {settings.contact?.email && <p>{settings.contact.email}</p>}
+              {settings.contact?.location && <p>{settings.contact.location}</p>}
+            </div>
           </div>
 
           <div>
@@ -17,10 +61,29 @@ export default function Footer() {
             </h3>
 
             <ul className="space-y-3 text-sm text-neutral-300">
-              <li><a href="/shop" className="transition hover:text-white">All Products</a></li>
-              <li><a href="/shop" className="transition hover:text-white">T-Shirts</a></li>
-              <li><a href="/collections/artifact" className="transition hover:text-white">Collections</a></li>
-              <li><a href="/shop" className="transition hover:text-white">New Drop</a></li>
+              <li>
+                <a href="/shop" className="transition hover:text-white">
+                  All Products
+                </a>
+              </li>
+
+              <li>
+                <a href="/shop" className="transition hover:text-white">
+                  T-Shirts
+                </a>
+              </li>
+
+              <li>
+                <a href="/collections" className="transition hover:text-white">
+                  Collections
+                </a>
+              </li>
+
+              <li>
+                <a href="/shop" className="transition hover:text-white">
+                  New Drop
+                </a>
+              </li>
             </ul>
           </div>
 
@@ -30,11 +93,54 @@ export default function Footer() {
             </h3>
 
             <ul className="space-y-3 text-sm text-neutral-300">
-              <li><a href="/about" className="transition hover:text-white">About</a></li>
-              <li><a href="/journal" className="transition hover:text-white">Journal</a></li>
-              <li><a href="/contact" className="transition hover:text-white">Contact</a></li>
-              <li><a href="/size-guide" className="transition hover:text-white">Size Guide</a></li>
+              <li>
+                <a href="/about" className="transition hover:text-white">
+                  About
+                </a>
+              </li>
+
+              <li>
+                <a href="/journal" className="transition hover:text-white">
+                  Journal
+                </a>
+              </li>
+
+              <li>
+                <a href="/contact" className="transition hover:text-white">
+                  Contact
+                </a>
+              </li>
+
+              <li>
+                <a href="/size-guide" className="transition hover:text-white">
+                  Size Guide
+                </a>
+              </li>
             </ul>
+
+            <div className="mt-6 space-y-3 text-sm text-neutral-300">
+              {settings.social?.facebookUrl && (
+                <a
+                  href={settings.social.facebookUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block transition hover:text-white"
+                >
+                  Facebook
+                </a>
+              )}
+
+              {settings.social?.instagramUrl && (
+                <a
+                  href={settings.social.instagramUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block transition hover:text-white"
+                >
+                  Instagram
+                </a>
+              )}
+            </div>
           </div>
 
           <div className="sm:col-span-2 md:col-span-1">
@@ -43,7 +149,8 @@ export default function Footer() {
             </h3>
 
             <p className="mb-6 max-w-sm text-sm leading-7 text-neutral-400">
-              Join the Obsidian community for future drops and stories.
+              Join the {settings.store?.name || "Obsidian"} community for
+              future drops and stories.
             </p>
 
             <div className="flex border border-white/20">
@@ -61,7 +168,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-14 border-t border-white/10 pt-8 text-[10px] uppercase tracking-[0.22em] text-neutral-600 md:mt-16 md:text-xs md:tracking-[0.25em]">
-          © 2026 Obsidian. All rights reserved.
+          © 2026 {settings.store?.name || "Obsidian"}. All rights reserved.
         </div>
       </div>
     </footer>

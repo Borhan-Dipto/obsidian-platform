@@ -5,56 +5,58 @@ export async function GET() {
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB || "obsidian");
 
-    const orders = await db.collection("orders").find({}).toArray();
-    const products = await db.collection("products").find({}).toArray();
+    const ordersCollection = db.collection("orders");
+    const productsCollection = db.collection("products");
 
-    const totalOrders = orders.length;
+    const [
+      totalOrders,
+      pendingOrders,
+      confirmedOrders,
+      packedOrders,
+      shippedOrders,
+      deliveredOrders,
+      cancelledOrders,
+      totalProducts,
+      lowStockProducts,
+      revenueResult,
+      recentOrders,
+    ] = await Promise.all([
+      ordersCollection.countDocuments(),
+      ordersCollection.countDocuments({ status: "pending" }),
+      ordersCollection.countDocuments({ status: "confirmed" }),
+      ordersCollection.countDocuments({ status: "packed" }),
+      ordersCollection.countDocuments({ status: "shipped" }),
+      ordersCollection.countDocuments({ status: "delivered" }),
+      ordersCollection.countDocuments({ status: "cancelled" }),
+      productsCollection.countDocuments(),
+      productsCollection.countDocuments({ stock: { $lt: 10 } }),
 
-    const totalRevenue = orders.reduce(
-      (sum, order) => sum + (Number(order.total) || 0),
-      0
-    );
+      ordersCollection
+        .aggregate([
+          {
+            $group: {
+              _id: null,
+              totalRevenue: {
+                $sum: {
+                  $toDouble: "$total",
+                },
+              },
+            },
+          },
+        ])
+        .toArray(),
 
-    const pendingOrders = orders.filter(
-      (order) => order.status === "pending"
-    ).length;
+      ordersCollection
+        .find({})
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .toArray(),
+    ]);
 
-    const confirmedOrders = orders.filter(
-      (order) => order.status === "confirmed"
-    ).length;
-
-    const packedOrders = orders.filter(
-      (order) => order.status === "packed"
-    ).length;
-
-    const shippedOrders = orders.filter(
-      (order) => order.status === "shipped"
-    ).length;
-
-    const deliveredOrders = orders.filter(
-      (order) => order.status === "delivered"
-    ).length;
-
-    const cancelledOrders = orders.filter(
-      (order) => order.status === "cancelled"
-    ).length;
-
-    const totalProducts = products.length;
-
-    const lowStockProducts = products.filter(
-      (product) => Number(product.stock) < 10
-    ).length;
-
-    const recentOrders = orders
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
-      )
-      .slice(0, 5);
+    const totalRevenue = revenueResult[0]?.totalRevenue || 0;
 
     return Response.json({
       success: true,
-
       stats: {
         totalOrders,
         totalRevenue,
@@ -67,7 +69,6 @@ export async function GET() {
         totalProducts,
         lowStockProducts,
       },
-
       recentOrders,
     });
   } catch (error) {
@@ -78,9 +79,7 @@ export async function GET() {
         success: false,
         message: "Failed to load dashboard stats.",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
 }

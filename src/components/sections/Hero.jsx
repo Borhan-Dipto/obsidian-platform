@@ -21,7 +21,7 @@ export default function Hero() {
 
           <div className="mt-12 flex flex-col gap-4 sm:flex-row">
             <Link
-              href="/collections/artifact"
+              href="/collections"
               className="inline-flex w-fit border border-[#0b0b0b] px-8 py-4 text-xs uppercase tracking-[0.32em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
             >
               View Collection
@@ -39,7 +39,7 @@ export default function Hero() {
         <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#0b0b0b] lg:min-h-[680px]">
           <Image
             src="/images/hero1.jpeg"
-            alt="Obsidian Artifact Series T-shirt"
+            alt="Obsidian Hero"
             fill
             priority
             sizes="(max-width: 1024px) 100vw, 55vw"

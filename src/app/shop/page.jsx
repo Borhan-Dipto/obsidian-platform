@@ -1,38 +1,34 @@
-import Image from "next/image";
 import Link from "next/link";
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
 
-export default function ShopPage() {
-  const products = [
-    {
-      id: "artifact-001",
-      name: "Artifact 001",
-      series: "Artifact Series",
-      color: "Obsidian Black",
-      price: "৳ 799",
-      image: "/images/collection-artifact.jpeg",
-      href: "/product/artifact-001",
-    },
-    {
-      id: "essential-001",
-      name: "Essential 001",
-      series: "Essential Series",
-      color: "Stone Ivory",
-      price: "৳ 799",
-      image: "/images/collection-essential.jpeg",
-      href: "/product/essential-001",
-    },
-    {
-      id: "blueprint-001",
-      name: "Blueprint 001",
-      series: "Blueprint Series",
-      color: "Blueprint White",
-      price: "৳ 799",
-      image: "/images/collection-blueprint.jpeg",
-      href: "/product/blueprint-001",
-    },
+async function getProducts() {
+  const res = await fetch("http://localhost:3000/api/products", {
+    cache: "no-store",
+  });
+
+  const data = await res.json();
+
+  if (!data.success) return [];
+
+  return data.products || [];
+}
+
+export default async function ShopPage({ searchParams }) {
+  const params = await searchParams;
+  const selectedSeries = params?.series || "All";
+
+  const products = await getProducts();
+
+  const seriesList = [
+    "All",
+    ...new Set(products.map((product) => product.series).filter(Boolean)),
   ];
+
+  const filteredProducts =
+    selectedSeries === "All"
+      ? products
+      : products.filter((product) => product.series === selectedSeries);
 
   return (
     <main className="min-h-screen bg-[#f1ece4] text-[#0b0b0b]">
@@ -46,9 +42,15 @@ export default function ShopPage() {
             </p>
 
             <h1 className="font-heading text-6xl font-light leading-none md:text-8xl">
-              Engineered
-              <br />
-              Essentials
+              {selectedSeries === "All" ? (
+                <>
+                  Engineered
+                  <br />
+                  Essentials
+                </>
+              ) : (
+                selectedSeries
+              )}
             </h1>
 
             <p className="mt-8 max-w-xl text-lg leading-8 text-neutral-600">
@@ -57,71 +59,87 @@ export default function ShopPage() {
             </p>
           </div>
 
-          <div className="mt-14 flex flex-col gap-6 border-y border-black/10 py-5 md:flex-row md:items-center md:justify-between">
-            <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">
-              {products.length} Products
-            </p>
+          <div className="mt-14 border-y border-black/10 py-5">
+            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">
+                {filteredProducts.length} Products
+              </p>
 
-            <div className="flex flex-wrap gap-7 text-xs uppercase tracking-[0.28em] text-neutral-600">
-              <button className="transition hover:text-black">Latest</button>
-              <button className="transition hover:text-black">Price</button>
-              <button className="transition hover:text-black">Collection</button>
+              <div className="flex flex-wrap gap-3">
+                {seriesList.map((series) => (
+                  <Link
+                    key={series}
+                    href={
+                      series === "All"
+                        ? "/shop"
+                        : `/shop?series=${encodeURIComponent(series)}`
+                    }
+                    className={`border px-4 py-2 text-xs uppercase tracking-[0.25em] transition ${
+                      selectedSeries === series
+                        ? "border-black bg-black text-[#f1ece4]"
+                        : "border-black/20 text-neutral-600 hover:bg-black hover:text-[#f1ece4]"
+                    }`}
+                  >
+                    {series}
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="mt-12 grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-            {products.map((product) => (
-              <Link
-                key={product.id}
-                href={product.href}
-                className="group block border border-black/10 bg-[#eee7dd] transition duration-300 hover:-translate-y-1 hover:border-black/25"
-              >
-                <div className="relative aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
-                  <Image
-                    src={product.image}
-                    alt={product.name}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 33vw"
-                    className="object-cover object-center transition duration-700 group-hover:scale-105"
-                  />
-
-                  <div className="absolute inset-x-0 bottom-0 translate-y-full bg-[#0b0b0b]/85 px-5 py-4 text-[#f1ece4] backdrop-blur-sm transition duration-300 group-hover:translate-y-0">
-                    <p className="text-xs uppercase tracking-[0.28em]">
-                      View Product
-                    </p>
+          {filteredProducts.length === 0 ? (
+            <div className="mt-12 border border-black/10 bg-[#eee7dd] p-10">
+              <p className="text-neutral-600">No products found.</p>
+            </div>
+          ) : (
+            <div className="mt-12 grid gap-8 md:grid-cols-2 xl:grid-cols-3">
+              {filteredProducts.map((product) => (
+                <Link
+                  key={product.id}
+                  href={`/product/${product.id}`}
+                  className="group block border border-black/10 bg-[#eee7dd] transition duration-300 hover:-translate-y-1 hover:border-black/25"
+                >
+                  <div className="aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="h-full w-full object-cover object-center transition duration-700 group-hover:scale-105"
+                    />
                   </div>
-                </div>
 
-                <div className="p-6">
-                  <div className="flex items-start justify-between gap-6">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.28em] text-neutral-500">
-                        {product.series}
+                  <div className="p-6">
+                    <div className="flex items-start justify-between gap-6">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.28em] text-neutral-500">
+                          {product.series}
+                        </p>
+
+                        <h2 className="mt-3 font-heading text-3xl font-light">
+                          {product.name}
+                        </h2>
+                      </div>
+
+                      <p className="shrink-0 text-sm text-neutral-700">
+                        ৳ {product.price}
                       </p>
-
-                      <h2 className="mt-3 font-heading text-3xl font-light">
-                        {product.name}
-                      </h2>
                     </div>
 
-                    <p className="shrink-0 text-sm text-neutral-700">
-                      {product.price}
-                    </p>
-                  </div>
+                    <div className="mt-6 flex items-center justify-between border-t border-black/10 pt-5">
+                      <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">
+                        {product.color}
+                      </p>
 
-                  <div className="mt-6 flex items-center justify-between border-t border-black/10 pt-5">
-                    <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">
-                      {product.color}
-                    </p>
-
-                    <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">
-                      Details →
-                    </p>
+                      <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">
+                        {Number(product.stock) > 0
+                          ? `${product.stock} In Stock`
+                          : "Out of Stock"}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

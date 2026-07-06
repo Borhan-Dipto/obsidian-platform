@@ -1,16 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCart } from "../../context/CartContext";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [storeName, setStoreName] = useState("OBSIDIAN");
   const { cartCount } = useCart();
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const response = await fetch("/api/settings");
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          setStoreName(data.settings?.store?.name || "OBSIDIAN");
+        }
+      } catch {
+        setStoreName("OBSIDIAN");
+      }
+    }
+
+    loadSettings();
+  }, []);
 
   const links = [
     { label: "Shop", href: "/shop" },
-    { label: "Collections", href: "/collections/artifact" },
+    { label: "Collections", href: "/collections" },
     { label: "Journal", href: "/journal" },
     { label: "About", href: "/about" },
   ];
@@ -20,9 +38,9 @@ export default function Navbar() {
       <nav className="mx-auto flex h-20 max-w-[1440px] items-center justify-between px-6 lg:px-10">
         <Link
           href="/"
-          className="text-2xl font-light tracking-[0.32em] text-[#0b0b0b]"
+          className="text-2xl font-light uppercase tracking-[0.32em] text-[#0b0b0b]"
         >
-          OBSIDIAN
+          {storeName}
         </Link>
 
         <div className="hidden items-center gap-10 lg:flex">
