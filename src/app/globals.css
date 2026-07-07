@@ -100,24 +100,6 @@ body {
   letter-spacing: -0.045em;
 }
 
-.obsidian-cut-heading::after {
-  content: "";
-  position: absolute;
-  left: 2%;
-  right: 6%;
-  top: 52%;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    currentColor,
-    transparent
-  );
-  opacity: 0.18;
-  transform: rotate(-1.4deg);
-  pointer-events: none;
-}
-
 .obsidian-stone-word {
   position: relative;
   display: inline-block;
@@ -378,5 +360,86 @@ body {
   to {
     opacity: 1;
     transform: scaleX(1);
+  }
+}
+
+
+@keyframes heroReveal {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+    filter: blur(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes heroCardReveal {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.94);
+    filter: blur(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes heroImageZoom {
+  from {
+    transform: scale(1.08);
+    filter: brightness(0.88) contrast(1.08);
+  }
+
+  to {
+    transform: scale(1);
+    filter: brightness(1) contrast(1);
+  }
+}
+
+@keyframes heroLine {
+  from {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes obsidianFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(34px);
+    filter: blur(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes obsidianScaleIn {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+    filter: blur(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
   }
 }
