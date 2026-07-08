@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function Footer() {
@@ -62,59 +63,62 @@ export default function Footer() {
 
             <ul className="space-y-3 text-sm text-neutral-300">
               <li>
-                <a href="/shop" className="transition hover:text-white">
+                <Link href="/shop" className="transition hover:text-white">
                   All Products
-                </a>
+                </Link>
               </li>
 
               <li>
-                <a href="/shop" className="transition hover:text-white">
-                  T-Shirts
-                </a>
-              </li>
-
-              <li>
-                <a href="/collections" className="transition hover:text-white">
+                <Link href="/collections" className="transition hover:text-white">
                   Collections
-                </a>
+                </Link>
               </li>
 
               <li>
-                <a href="/shop" className="transition hover:text-white">
+                <Link
+                  href="/shop?series=Artifact%20Series"
+                  className="transition hover:text-white"
+                >
                   New Drop
-                </a>
+                </Link>
+              </li>
+
+              <li>
+                <Link href="/track-order" className="transition hover:text-white">
+                  Track Order
+                </Link>
               </li>
             </ul>
           </div>
 
           <div>
             <h3 className="mb-5 text-xs uppercase tracking-[0.35em] text-neutral-500">
-              Company
+              Support
             </h3>
 
             <ul className="space-y-3 text-sm text-neutral-300">
               <li>
-                <a href="/about" className="transition hover:text-white">
-                  About
-                </a>
-              </li>
-
-              <li>
-                <a href="/journal" className="transition hover:text-white">
-                  Journal
-                </a>
-              </li>
-
-              <li>
-                <a href="/contact" className="transition hover:text-white">
+                <Link href="/contact" className="transition hover:text-white">
                   Contact
-                </a>
+                </Link>
               </li>
 
               <li>
-                <a href="/size-guide" className="transition hover:text-white">
+                <Link href="/size-guide" className="transition hover:text-white">
                   Size Guide
-                </a>
+                </Link>
+              </li>
+
+              <li>
+                <Link href="/track-order" className="transition hover:text-white">
+                  Order Status
+                </Link>
+              </li>
+
+              <li>
+                <Link href="/about" className="transition hover:text-white">
+                  About
+                </Link>
               </li>
             </ul>
 

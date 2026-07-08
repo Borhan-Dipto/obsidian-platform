@@ -12,20 +12,10 @@ export default function CheckoutPage() {
   const { cartItems, cartTotal, clearCart } = useCart();
 
   const [settings, setSettings] = useState({
-    store: {
-      name: "OBSIDIAN",
-      currency: "BDT",
-    },
-    contact: {
-      whatsappNumber: "8801814455199",
-    },
-    delivery: {
-      insideDhaka: 80,
-      outsideDhaka: 130,
-    },
-    payment: {
-      cashOnDelivery: true,
-    },
+    store: { name: "OBSIDIAN", currency: "BDT" },
+    contact: { whatsappNumber: "8801814455199" },
+    delivery: { insideDhaka: 80, outsideDhaka: 130 },
+    payment: { cashOnDelivery: true },
   });
 
   const [deliveryArea, setDeliveryArea] = useState("inside_dhaka");
@@ -62,14 +52,12 @@ export default function CheckoutPage() {
       : Number(settings.delivery?.outsideDhaka) || 0;
 
   const grandTotal = cartTotal + deliveryCharge;
-
   const currency = settings.store?.currency || "BDT";
   const currencySymbol = currency === "BDT" ? "৳" : currency;
-
-  const whatsappNumber = String(
-    settings.contact?.whatsappNumber || ""
-  ).replace(/\D/g, "");
-
+  const whatsappNumber = String(settings.contact?.whatsappNumber || "").replace(
+    /\D/g,
+    ""
+  );
   const storeName = settings.store?.name || "Obsidian";
 
   function handleChange(e) {
@@ -87,18 +75,41 @@ export default function CheckoutPage() {
       return;
     }
 
+    const phoneDigits = formData.phone.replace(/\D/g, "");
+
+    if (!formData.fullName.trim()) {
+      alert("Please enter your full name.");
+      return;
+    }
+
+    if (phoneDigits.length < 10 || phoneDigits.length > 14) {
+      alert("Please enter a valid phone number.");
+      return;
+    }
+
+    if (!formData.address.trim()) {
+      alert("Please enter your full delivery address.");
+      return;
+    }
+
     if (!whatsappNumber) {
       alert("Store WhatsApp number is missing. Please contact admin.");
       return;
     }
 
+    const cleanFormData = {
+      fullName: formData.fullName.trim(),
+      phone: phoneDigits,
+      email: formData.email.trim(),
+      address: formData.address.trim(),
+      note: formData.note.trim(),
+      deliveryArea,
+    };
+
     setIsSubmitting(true);
 
     const orderPayload = {
-      customer: {
-        ...formData,
-        deliveryArea,
-      },
+      customer: cleanFormData,
       items: cartItems,
       subtotal: cartTotal,
       deliveryCharge,
@@ -134,14 +145,14 @@ export default function CheckoutPage() {
       const message =
         `Hello ${storeName},%0A%0AI want to place an order.%0A%0A` +
         `Order ID: ${data.order.id}%0A` +
-        `Customer Name: ${formData.fullName}%0A` +
-        `Phone: ${formData.phone}%0A` +
-        `Email: ${formData.email || "Not provided"}%0A` +
-        `Address: ${formData.address}%0A` +
+        `Customer Name: ${cleanFormData.fullName}%0A` +
+        `Phone: ${cleanFormData.phone}%0A` +
+        `Email: ${cleanFormData.email || "Not provided"}%0A` +
+        `Address: ${cleanFormData.address}%0A` +
         `Delivery Area: ${
           deliveryArea === "inside_dhaka" ? "Inside Dhaka" : "Outside Dhaka"
         }%0A` +
-        `Note: ${formData.note || "No note"}%0A%0A` +
+        `Note: ${cleanFormData.note || "No note"}%0A%0A` +
         `Order Items:%0A${orderItems}%0A%0A` +
         `Subtotal: ${currencySymbol} ${cartTotal}%0A` +
         `Delivery: ${currencySymbol} ${deliveryCharge}%0A` +
@@ -151,7 +162,7 @@ export default function CheckoutPage() {
       window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank");
 
       clearCart();
-      router.push("/success");
+      router.push(`/success?orderId=${data.order.id}`);
     } catch {
       alert("Something went wrong. Please try again.");
       setIsSubmitting(false);

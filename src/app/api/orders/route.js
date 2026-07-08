@@ -7,14 +7,16 @@ function generateOrderId() {
 }
 
 function normalizeOrderItems(items) {
+  if (!Array.isArray(items)) return [];
+
   return items.map((item) => ({
     id: item.id,
     name: item.name,
     series: item.series || "",
     color: item.color || "",
     size: item.size || "",
-    quantity: Number(item.quantity) || 1,
-    price: Number(item.price) || 0,
+    quantity: Math.max(1, Number(item.quantity) || 1),
+    price: Math.max(0, Number(item.price) || 0),
     image: item.image || "",
   }));
 }
@@ -51,19 +53,31 @@ export async function POST(request) {
   try {
     const orderData = await request.json();
 
-    const customer = orderData.customer;
+    const customer = orderData.customer || {};
     const items = normalizeOrderItems(orderData.items || []);
 
-    if (
-      !customer?.fullName ||
-      !customer?.phone ||
-      !customer?.address ||
-      items.length === 0
-    ) {
+    const fullName = String(customer.fullName || "").trim();
+    const phone = String(customer.phone || "").replace(/\D/g, "");
+    const email = String(customer.email || "").trim();
+    const address = String(customer.address || "").trim();
+    const deliveryArea = customer.deliveryArea || "inside_dhaka";
+    const note = String(customer.note || "").trim();
+
+    if (!fullName || !phone || !address || items.length === 0) {
       return Response.json(
         {
           success: false,
-          message: "Invalid order data.",
+          message: "Please provide valid customer and order details.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (phone.length < 10 || phone.length > 14) {
+      return Response.json(
+        {
+          success: false,
+          message: "Please provide a valid phone number.",
         },
         { status: 400 }
       );
@@ -85,7 +99,7 @@ export async function POST(request) {
         );
       }
 
-      if (Number(product.stock) < Number(item.quantity)) {
+      if (Number(product.stock || 0) < Number(item.quantity)) {
         return Response.json(
           {
             success: false,
@@ -108,11 +122,12 @@ export async function POST(request) {
       paymentMethod: "cash_on_delivery",
 
       customer: {
-        fullName: customer.fullName,
-        phone: customer.phone,
-        email: customer.email || "",
-        address: customer.address,
-        note: customer.note || "",
+        fullName,
+        phone,
+        email,
+        address,
+        deliveryArea,
+        note,
       },
 
       items,

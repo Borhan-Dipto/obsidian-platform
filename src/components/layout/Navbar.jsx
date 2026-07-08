@@ -29,7 +29,7 @@ export default function Navbar() {
   const links = [
     { label: "Shop", href: "/shop" },
     { label: "Collections", href: "/collections" },
-    { label: "Journal", href: "/journal" },
+    { label: "Track Order", href: "/track-order" },
     { label: "About", href: "/about" },
   ];
 
