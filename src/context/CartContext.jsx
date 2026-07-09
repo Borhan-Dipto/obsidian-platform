@@ -32,6 +32,7 @@ function normalizeWishlistItem(item) {
 export function CartProvider({ children }) {
   const [cartItems, setCartItems] = useState([]);
   const [wishlistItems, setWishlistItems] = useState([]);
+  const [isMiniCartOpen, setIsMiniCartOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -58,6 +59,14 @@ export function CartProvider({ children }) {
   useEffect(() => {
     localStorage.setItem("obsidian-wishlist", JSON.stringify(wishlistItems));
   }, [wishlistItems]);
+
+  function openMiniCart() {
+    setIsMiniCartOpen(true);
+  }
+
+  function closeMiniCart() {
+    setIsMiniCartOpen(false);
+  }
 
   function addToCart(product) {
     const safeProduct = normalizeCartItem(product);
@@ -91,7 +100,9 @@ export function CartProvider({ children }) {
           result = {
             success: false,
             reason: "stock_limit",
-            message: `Only ${stock} item${stock === 1 ? "" : "s"} available in this size.`,
+            message: `Only ${stock} item${
+              stock === 1 ? "" : "s"
+            } available in this size.`,
           };
 
           return currentItems.map((item) =>
@@ -112,7 +123,9 @@ export function CartProvider({ children }) {
         result = {
           success: false,
           reason: "stock_limit",
-          message: `Only ${stock} item${stock === 1 ? "" : "s"} available in this size.`,
+          message: `Only ${stock} item${
+            stock === 1 ? "" : "s"
+          } available in this size.`,
         };
 
         return [...currentItems, { ...safeProduct, quantity: stock, stock }];
@@ -134,11 +147,6 @@ export function CartProvider({ children }) {
 
   function updateQuantity(productId, size, quantity) {
     const requestedQuantity = Number(quantity) || 1;
-    let result = {
-      success: true,
-      reason: "updated",
-      message: "Quantity updated.",
-    };
 
     if (requestedQuantity <= 0) {
       removeFromCart(productId, size);
@@ -148,6 +156,12 @@ export function CartProvider({ children }) {
         message: "Item removed from cart.",
       };
     }
+
+    let result = {
+      success: true,
+      reason: "updated",
+      message: "Quantity updated.",
+    };
 
     setCartItems((currentItems) =>
       currentItems.map((item) => {
@@ -159,7 +173,9 @@ export function CartProvider({ children }) {
           result = {
             success: false,
             reason: "stock_limit",
-            message: `Only ${stock} item${stock === 1 ? "" : "s"} available.`,
+            message: `Only ${stock} item${
+              stock === 1 ? "" : "s"
+            } available.`,
           };
 
           return { ...item, quantity: stock };
@@ -226,12 +242,17 @@ export function CartProvider({ children }) {
         clearCart,
         cartCount,
         cartTotal,
+
         wishlistItems,
         wishlistCount: wishlistItems.length,
         toggleWishlist,
         isInWishlist,
         removeFromWishlist,
         clearWishlist,
+
+        isMiniCartOpen,
+        openMiniCart,
+        closeMiniCart,
       }}
     >
       {children}

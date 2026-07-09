@@ -8,7 +8,7 @@ import WishlistButton from "./WishlistButton";
 const sizes = ["S", "M", "L", "XL", "XXL"];
 
 export default function ProductActions({ product }) {
-  const { addToCart } = useCart();
+  const { addToCart, openMiniCart } = useCart();
   const { showToast } = useToast();
 
   const [selectedSize, setSelectedSize] = useState("");
@@ -44,7 +44,7 @@ export default function ProductActions({ product }) {
       return;
     }
 
-    addToCart({
+    const result = addToCart({
       id: product.id,
       name: product.name,
       series: product.series,
@@ -56,13 +56,24 @@ export default function ProductActions({ product }) {
       quantity,
     });
 
+    if (!result?.success) {
+      showToast({
+        type: "error",
+        title: "Stock Limit",
+        message: result?.message || "Requested quantity is not available.",
+        actionLabel: "View Cart",
+        actionHref: "/cart",
+      });
+      return;
+    }
+
     showToast({
       type: "success",
       title: "Added To Cart",
       message: `${product.name} / Size ${selectedSize} × ${quantity}`,
-      actionLabel: "View Cart",
-      actionHref: "/cart",
     });
+
+    openMiniCart();
   }
 
   return (
@@ -88,6 +99,12 @@ export default function ProductActions({ product }) {
             </button>
           ))}
         </div>
+
+        {stock > 0 && stock <= 5 && (
+          <p className="mt-4 text-xs uppercase tracking-[0.25em] text-[#b1844a]">
+            Only {stock} left
+          </p>
+        )}
       </div>
 
       <div>

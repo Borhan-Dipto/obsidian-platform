@@ -7,7 +7,7 @@ import { useCart } from "../../context/CartContext";
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [storeName, setStoreName] = useState("OBSIDIAN");
-  const { cartCount, wishlistCount } = useCart();
+  const { cartCount, wishlistCount, openMiniCart } = useCart();
 
   useEffect(() => {
     async function loadSettings() {
@@ -63,12 +63,13 @@ export default function Navbar() {
             Wishlist ({wishlistCount || 0})
           </Link>
 
-          <Link
-            href="/cart"
+          <button
+            type="button"
+            onClick={openMiniCart}
             className="text-xs uppercase tracking-[0.24em] text-[#0b0b0b] transition hover:opacity-60"
           >
             Cart ({cartCount})
-          </Link>
+          </button>
 
           <Link
             href="/admin/login"
@@ -109,13 +110,16 @@ export default function Navbar() {
               Wishlist ({wishlistCount || 0})
             </Link>
 
-            <Link
-              href="/cart"
-              onClick={() => setIsOpen(false)}
-              className="text-sm uppercase tracking-[0.28em] text-[#0b0b0b]"
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                openMiniCart();
+              }}
+              className="text-left text-sm uppercase tracking-[0.28em] text-[#0b0b0b]"
             >
               Cart ({cartCount})
-            </Link>
+            </button>
 
             <Link
               href="/admin/login"
