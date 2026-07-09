@@ -17,9 +17,35 @@ async function getProducts() {
   return JSON.parse(JSON.stringify(products));
 }
 
+function createShopUrl({
+  series = "All",
+  q = "",
+  color = "All",
+  availability = "All",
+  sort = "newest",
+}) {
+  const params = new URLSearchParams();
+
+  if (series && series !== "All") params.set("series", series);
+  if (q) params.set("q", q);
+  if (color && color !== "All") params.set("color", color);
+  if (availability && availability !== "All") {
+    params.set("availability", availability);
+  }
+  if (sort && sort !== "newest") params.set("sort", sort);
+
+  const query = params.toString();
+  return query ? `/shop?${query}` : "/shop";
+}
+
 export default async function ShopPage({ searchParams }) {
   const params = await searchParams;
+
   const selectedSeries = params?.series || "All";
+  const searchQuery = (params?.q || "").trim();
+  const selectedColor = params?.color || "All";
+  const selectedAvailability = params?.availability || "All";
+  const selectedSort = params?.sort || "newest";
 
   const products = await getProducts();
 
@@ -28,10 +54,50 @@ export default async function ShopPage({ searchParams }) {
     ...new Set(products.map((product) => product.series).filter(Boolean)),
   ];
 
-  const filteredProducts =
-    selectedSeries === "All"
-      ? products
-      : products.filter((product) => product.series === selectedSeries);
+  const colorList = [
+    "All",
+    ...new Set(products.map((product) => product.color).filter(Boolean)),
+  ];
+
+  let filteredProducts = products.filter((product) => {
+    const stock = Number(product.stock) || 0;
+
+    const matchesSeries =
+      selectedSeries === "All" || product.series === selectedSeries;
+
+    const matchesColor =
+      selectedColor === "All" || product.color === selectedColor;
+
+    const matchesAvailability =
+      selectedAvailability === "All" ||
+      (selectedAvailability === "in_stock" && stock > 0) ||
+      (selectedAvailability === "out_of_stock" && stock <= 0);
+
+    const searchableText = `${product.name || ""} ${product.series || ""} ${
+      product.color || ""
+    } ${product.description || ""}`.toLowerCase();
+
+    const matchesSearch =
+      !searchQuery || searchableText.includes(searchQuery.toLowerCase());
+
+    return matchesSeries && matchesColor && matchesAvailability && matchesSearch;
+  });
+
+  filteredProducts = [...filteredProducts].sort((a, b) => {
+    if (selectedSort === "price_low") {
+      return Number(a.price || 0) - Number(b.price || 0);
+    }
+
+    if (selectedSort === "price_high") {
+      return Number(b.price || 0) - Number(a.price || 0);
+    }
+
+    if (selectedSort === "name_az") {
+      return String(a.name || "").localeCompare(String(b.name || ""));
+    }
+
+    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+  });
 
   return (
     <main className="min-h-screen bg-[#f1ece4] text-[#0b0b0b]">
@@ -57,33 +123,91 @@ export default async function ShopPage({ searchParams }) {
             </h1>
 
             <p className="mt-8 max-w-xl text-lg leading-8 text-neutral-600">
-              Every piece is built under pressure and finished with precision.
-              Minimal forms. Maximum intention.
+              Search, filter, and discover OBSIDIAN pieces built under pressure
+              and finished with precision.
             </p>
           </div>
 
-          <div className="mt-14 border-y border-black/10 py-5">
-            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div className="mt-14 border-y border-black/10 py-6">
+            <form className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr_auto]">
+              <input
+                type="text"
+                name="q"
+                defaultValue={searchQuery}
+                placeholder="Search product, color, series..."
+                className="border border-black/15 bg-[#eee7dd] px-5 py-4 text-sm outline-none transition placeholder:text-neutral-500 focus:border-black"
+              />
+
+              <select
+                name="series"
+                defaultValue={selectedSeries}
+                className="border border-black/15 bg-[#eee7dd] px-5 py-4 text-xs uppercase tracking-[0.2em] outline-none focus:border-black"
+              >
+                {seriesList.map((series) => (
+                  <option key={series} value={series}>
+                    {series}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                name="color"
+                defaultValue={selectedColor}
+                className="border border-black/15 bg-[#eee7dd] px-5 py-4 text-xs uppercase tracking-[0.2em] outline-none focus:border-black"
+              >
+                {colorList.map((color) => (
+                  <option key={color} value={color}>
+                    {color}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                name="sort"
+                defaultValue={selectedSort}
+                className="border border-black/15 bg-[#eee7dd] px-5 py-4 text-xs uppercase tracking-[0.2em] outline-none focus:border-black"
+              >
+                <option value="newest">Newest</option>
+                <option value="price_low">Price Low</option>
+                <option value="price_high">Price High</option>
+                <option value="name_az">Name A-Z</option>
+              </select>
+
+              <button
+                type="submit"
+                className="bg-[#0b0b0b] px-8 py-4 text-xs uppercase tracking-[0.28em] text-[#f1ece4] transition hover:opacity-85"
+              >
+                Apply
+              </button>
+            </form>
+
+            <div className="mt-6 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
               <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">
                 {filteredProducts.length} Products
               </p>
 
               <div className="flex flex-wrap gap-3">
-                {seriesList.map((series) => (
+                {["All", "in_stock", "out_of_stock"].map((availability) => (
                   <Link
-                    key={series}
-                    href={
-                      series === "All"
-                        ? "/shop"
-                        : `/shop?series=${encodeURIComponent(series)}`
-                    }
+                    key={availability}
+                    href={createShopUrl({
+                      series: selectedSeries,
+                      q: searchQuery,
+                      color: selectedColor,
+                      availability,
+                      sort: selectedSort,
+                    })}
                     className={`border px-4 py-2 text-xs uppercase tracking-[0.25em] transition ${
-                      selectedSeries === series
+                      selectedAvailability === availability
                         ? "border-black bg-black text-[#f1ece4]"
                         : "border-black/20 text-neutral-600 hover:bg-black hover:text-[#f1ece4]"
                     }`}
                   >
-                    {series}
+                    {availability === "All"
+                      ? "All"
+                      : availability === "in_stock"
+                        ? "In Stock"
+                        : "Sold Out"}
                   </Link>
                 ))}
 
@@ -93,13 +217,34 @@ export default async function ShopPage({ searchParams }) {
                 >
                   Wishlist
                 </Link>
+
+                <Link
+                  href="/shop"
+                  className="border border-black/20 px-4 py-2 text-xs uppercase tracking-[0.25em] text-neutral-600 transition hover:bg-black hover:text-[#f1ece4]"
+                >
+                  Reset
+                </Link>
               </div>
             </div>
           </div>
 
           {filteredProducts.length === 0 ? (
-            <div className="mt-12 border border-black/10 bg-[#eee7dd] p-10">
-              <p className="text-neutral-600">No products found.</p>
+            <div className="mt-12 border border-black/10 bg-[#eee7dd] p-10 md:p-14">
+              <h2 className="font-heading text-4xl font-light">
+                No products found.
+              </h2>
+
+              <p className="mt-4 max-w-xl text-base leading-8 text-neutral-600">
+                Try adjusting your search, series, color, availability, or sort
+                option.
+              </p>
+
+              <Link
+                href="/shop"
+                className="mt-10 inline-flex border border-[#0b0b0b] px-8 py-4 text-xs uppercase tracking-[0.3em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
+              >
+                Reset Shop
+              </Link>
             </div>
           ) : (
             <div className="mt-12 grid gap-8 md:grid-cols-2 xl:grid-cols-3">
