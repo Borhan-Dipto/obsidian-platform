@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useCart } from "../../context/CartContext";
+import { useToast } from "../../context/ToastContext";
 import WishlistButton from "./WishlistButton";
 
 const sizes = ["S", "M", "L", "XL", "XXL"];
 
 export default function ProductActions({ product }) {
   const { addToCart } = useCart();
+  const { showToast } = useToast();
 
   const [selectedSize, setSelectedSize] = useState("");
   const [quantity, setQuantity] = useState(1);
@@ -25,12 +27,20 @@ export default function ProductActions({ product }) {
 
   function handleAddToCart() {
     if (isOutOfStock) {
-      alert("This product is out of stock.");
+      showToast({
+        type: "error",
+        title: "Out Of Stock",
+        message: "This piece is currently unavailable.",
+      });
       return;
     }
 
     if (!selectedSize) {
-      alert("Please select a size.");
+      showToast({
+        type: "error",
+        title: "Select Size",
+        message: "Please select a size before adding this piece to cart.",
+      });
       return;
     }
 
@@ -46,7 +56,13 @@ export default function ProductActions({ product }) {
       quantity,
     });
 
-    alert("Product added to cart.");
+    showToast({
+      type: "success",
+      title: "Added To Cart",
+      message: `${product.name} / Size ${selectedSize} × ${quantity}`,
+      actionLabel: "View Cart",
+      actionHref: "/cart",
+    });
   }
 
   return (

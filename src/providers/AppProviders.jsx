@@ -1,7 +1,12 @@
 "use client";
 
 import { CartProvider } from "@/context/CartContext";
+import { ToastProvider } from "@/context/ToastContext";
 
 export default function AppProviders({ children }) {
-  return <CartProvider>{children}</CartProvider>;
+  return (
+    <ToastProvider>
+      <CartProvider>{children}</CartProvider>
+    </ToastProvider>
+  );
 }
