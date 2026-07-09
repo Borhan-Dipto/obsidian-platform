@@ -7,7 +7,7 @@ import { useCart } from "../../context/CartContext";
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [storeName, setStoreName] = useState("OBSIDIAN");
-  const { cartCount } = useCart();
+  const { cartCount, wishlistCount } = useCart();
 
   useEffect(() => {
     async function loadSettings() {
@@ -57,6 +57,13 @@ export default function Navbar() {
 
         <div className="hidden items-center gap-7 lg:flex">
           <Link
+            href="/wishlist"
+            className="text-xs uppercase tracking-[0.24em] text-[#0b0b0b] transition hover:opacity-60"
+          >
+            Wishlist ({wishlistCount || 0})
+          </Link>
+
+          <Link
             href="/cart"
             className="text-xs uppercase tracking-[0.24em] text-[#0b0b0b] transition hover:opacity-60"
           >
@@ -95,9 +102,17 @@ export default function Navbar() {
             ))}
 
             <Link
-              href="/cart"
+              href="/wishlist"
               onClick={() => setIsOpen(false)}
               className="border-t border-black/10 pt-6 text-sm uppercase tracking-[0.28em] text-[#0b0b0b]"
+            >
+              Wishlist ({wishlistCount || 0})
+            </Link>
+
+            <Link
+              href="/cart"
+              onClick={() => setIsOpen(false)}
+              className="text-sm uppercase tracking-[0.28em] text-[#0b0b0b]"
             >
               Cart ({cartCount})
             </Link>

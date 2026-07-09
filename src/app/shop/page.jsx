@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
+import WishlistButton from "../../components/product/WishlistButton";
 import clientPromise from "../../lib/mongodb";
 
 async function getProducts() {
@@ -85,6 +86,13 @@ export default async function ShopPage({ searchParams }) {
                     {series}
                   </Link>
                 ))}
+
+                <Link
+                  href="/wishlist"
+                  className="border border-black/20 px-4 py-2 text-xs uppercase tracking-[0.25em] text-neutral-600 transition hover:bg-black hover:text-[#f1ece4]"
+                >
+                  Wishlist
+                </Link>
               </div>
             </div>
           </div>
@@ -101,12 +109,20 @@ export default async function ShopPage({ searchParams }) {
                   href={`/product/${product.id}`}
                   className="group block border border-black/10 bg-[#eee7dd] transition duration-300 hover:-translate-y-1 hover:border-black/25"
                 >
-                  <div className="aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
+                  <div className="relative aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
+                    <WishlistButton product={product} compact />
+
                     <img
                       src={product.image}
                       alt={product.name}
                       className="h-full w-full object-cover object-center transition duration-700 group-hover:scale-105"
                     />
+
+                    {Number(product.stock) <= 0 && (
+                      <div className="absolute left-4 top-4 z-10 bg-[#0b0b0b] px-4 py-2 text-[10px] uppercase tracking-[0.28em] text-[#f1ece4]">
+                        Sold Out
+                      </div>
+                    )}
                   </div>
 
                   <div className="p-6">

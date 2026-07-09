@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useCart } from "../../context/CartContext";
+import WishlistButton from "./WishlistButton";
 
 const sizes = ["S", "M", "L", "XL", "XXL"];
 
@@ -40,6 +41,7 @@ export default function ProductActions({ product }) {
       color: product.color,
       price: Number(product.price),
       image: product.image,
+      stock: Number(product.stock || 0),
       size: selectedSize,
       quantity,
     });
@@ -99,14 +101,18 @@ export default function ProductActions({ product }) {
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={handleAddToCart}
-        disabled={isOutOfStock}
-        className="w-full bg-[#0b0b0b] py-5 text-[#f1ece4] uppercase tracking-[0.3em] transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        {isOutOfStock ? "Out Of Stock" : "Add To Cart"}
-      </button>
+      <div className="grid gap-3 sm:grid-cols-[1fr_0.72fr]">
+        <button
+          type="button"
+          onClick={handleAddToCart}
+          disabled={isOutOfStock}
+          className="w-full bg-[#0b0b0b] py-5 text-[#f1ece4] uppercase tracking-[0.3em] transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {isOutOfStock ? "Out Of Stock" : "Add To Cart"}
+        </button>
+
+        <WishlistButton product={product} />
+      </div>
     </div>
   );
 }
