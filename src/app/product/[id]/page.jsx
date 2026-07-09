@@ -2,6 +2,8 @@ import Link from "next/link";
 import clientPromise from "../../../lib/mongodb";
 import ProductActions from "../../../components/product/ProductActions";
 import RelatedProducts from "../../../components/product/RelatedProducts";
+import RecentlyViewedProducts from "../../../components/product/RecentlyViewedProducts";
+import ProductImageZoom from "../../../components/product/ProductImageZoom";
 import Navbar from "../../../components/layout/Navbar";
 import Footer from "../../../components/layout/Footer";
 
@@ -68,13 +70,7 @@ export default async function ProductDetailsPage({ params }) {
 
           <div className="grid gap-14 lg:grid-cols-[1.1fr_0.9fr] lg:gap-20">
             <div className="space-y-6">
-              <div className="overflow-hidden border border-black/10 bg-[#eee7dd]">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="aspect-[4/5] w-full object-cover object-center transition duration-700 hover:scale-105"
-                />
-              </div>
+              <ProductImageZoom src={product.image} alt={product.name} />
             </div>
 
             <div className="lg:sticky lg:top-32 lg:self-start">
@@ -153,6 +149,7 @@ export default async function ProductDetailsPage({ params }) {
         </div>
       </section>
 
+      <RecentlyViewedProducts product={product} />
       <RelatedProducts currentProductId={product.id} />
 
       <Footer />
