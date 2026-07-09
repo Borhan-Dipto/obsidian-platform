@@ -4,11 +4,45 @@ import Link from "next/link";
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
 import { useCart } from "../../context/CartContext";
+import { useToast } from "../../context/ToastContext";
 
 export default function CartPage() {
   const { cartItems, removeFromCart, updateQuantity, cartTotal } = useCart();
+  const { showToast } = useToast();
 
-  const totalItems = cartItems.reduce((total, item) => total + item.quantity, 0);
+  const totalItems = cartItems.reduce(
+    (total, item) => total + Number(item.quantity || 0),
+    0
+  );
+
+  function handleQuantityChange(item, nextQuantity) {
+    const result = updateQuantity(item.id, item.size, nextQuantity);
+
+    if (!result?.success) {
+      showToast({
+        type: "error",
+        title: "Stock Limit",
+        message: result.message || "Quantity adjusted to available stock.",
+      });
+      return;
+    }
+
+    if (result?.reason === "removed") {
+      showToast({
+        title: "Removed",
+        message: `${item.name} removed from cart.`,
+      });
+    }
+  }
+
+  function handleRemove(item) {
+    removeFromCart(item.id, item.size);
+
+    showToast({
+      title: "Removed",
+      message: `${item.name} removed from cart.`,
+    });
+  }
 
   return (
     <main className="min-h-screen bg-[#f1ece4] text-[#0b0b0b]">
@@ -51,82 +85,105 @@ export default function CartPage() {
           ) : (
             <div className="grid gap-10 lg:grid-cols-[1fr_390px]">
               <div className="space-y-5">
-                {cartItems.map((item) => (
-                  <article
-                    key={`${item.id}-${item.size}`}
-                    className="grid gap-6 border border-black/10 bg-[#eee7dd] p-5 md:grid-cols-[140px_1fr_auto] md:items-center md:p-6"
-                  >
-                    <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#0b0b0b] md:w-[140px]">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="h-full w-full object-cover object-center"
-                      />
-                    </div>
+                {cartItems.map((item) => {
+                  const stock = Number(item.stock || 0);
+                  const quantity = Number(item.quantity || 1);
+                  const reachedLimit = stock > 0 && quantity >= stock;
 
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.28em] text-neutral-500">
-                        {item.series}
-                      </p>
-
-                      <h2 className="mt-3 font-heading text-3xl font-light">
-                        {item.name}
-                      </h2>
-
-                      <div className="mt-5 grid gap-2 text-sm text-neutral-600 sm:grid-cols-2">
-                        <p>Color: {item.color}</p>
-                        <p>Size: {item.size}</p>
-                        <p>Unit Price: ৳ {item.price}</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-5 md:text-right">
-                      <div className="flex w-fit items-center border border-black/20 md:ml-auto">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateQuantity(item.id, item.size, item.quantity - 1)
-                          }
-                          className="px-4 py-3 text-sm transition hover:bg-black hover:text-[#f1ece4]"
-                        >
-                          -
-                        </button>
-
-                        <span className="min-w-12 text-center text-sm">
-                          {item.quantity}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateQuantity(item.id, item.size, item.quantity + 1)
-                          }
-                          className="px-4 py-3 text-sm transition hover:bg-black hover:text-[#f1ece4]"
-                        >
-                          +
-                        </button>
+                  return (
+                    <article
+                      key={`${item.id}-${item.size}`}
+                      className="grid gap-6 border border-black/10 bg-[#eee7dd] p-5 md:grid-cols-[140px_1fr_auto] md:items-center md:p-6"
+                    >
+                      <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#0b0b0b] md:w-[140px]">
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="h-full w-full object-cover object-center"
+                        />
                       </div>
 
                       <div>
-                        <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">
-                          Subtotal
+                        <p className="text-xs uppercase tracking-[0.28em] text-neutral-500">
+                          {item.series}
                         </p>
 
-                        <p className="mt-2 font-heading text-3xl font-light">
-                          ৳ {Number(item.price) * Number(item.quantity)}
-                        </p>
+                        <h2 className="mt-3 font-heading text-3xl font-light">
+                          {item.name}
+                        </h2>
+
+                        <div className="mt-5 grid gap-2 text-sm text-neutral-600 sm:grid-cols-2">
+                          <p>Color: {item.color}</p>
+                          <p>Size: {item.size}</p>
+                          <p>Unit Price: ৳ {item.price}</p>
+                          <p>
+                            Stock:{" "}
+                            {stock > 0 ? `${stock} Available` : "Out of Stock"}
+                          </p>
+                        </div>
+
+                        {stock > 0 && stock <= 5 && (
+                          <p className="mt-4 w-fit bg-[#0b0b0b] px-4 py-2 text-[10px] uppercase tracking-[0.24em] text-[#f1ece4]">
+                            Only {stock} left
+                          </p>
+                        )}
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => removeFromCart(item.id, item.size)}
-                        className="text-xs uppercase tracking-[0.25em] text-neutral-500 transition hover:text-red-700"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </article>
-                ))}
+                      <div className="space-y-5 md:text-right">
+                        <div className="flex w-fit items-center border border-black/20 md:ml-auto">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleQuantityChange(item, quantity - 1)
+                            }
+                            className="px-4 py-3 text-sm transition hover:bg-black hover:text-[#f1ece4]"
+                          >
+                            -
+                          </button>
+
+                          <span className="min-w-12 text-center text-sm">
+                            {quantity}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleQuantityChange(item, quantity + 1)
+                            }
+                            disabled={reachedLimit}
+                            className="px-4 py-3 text-sm transition hover:bg-black hover:text-[#f1ece4] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#0b0b0b]"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        {reachedLimit && (
+                          <p className="text-xs leading-6 text-neutral-500">
+                            Maximum available quantity selected.
+                          </p>
+                        )}
+
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">
+                            Subtotal
+                          </p>
+
+                          <p className="mt-2 font-heading text-3xl font-light">
+                            ৳ {Number(item.price) * quantity}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemove(item)}
+                          className="text-xs uppercase tracking-[0.25em] text-neutral-500 transition hover:text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
 
               <aside className="h-fit border border-black/10 bg-[#eee7dd] p-8 lg:sticky lg:top-28">

@@ -5,10 +5,14 @@ import { createContext, useContext, useEffect, useState } from "react";
 const CartContext = createContext(null);
 
 function normalizeCartItem(item) {
+  const stock = Number(item.stock || 0);
+  const quantity = Number(item.quantity) || 1;
+
   return {
     ...item,
     price: Number(item.price) || 0,
-    quantity: Number(item.quantity) || 1,
+    stock,
+    quantity: stock > 0 ? Math.min(quantity, stock) : quantity,
     size: item.size || "M",
   };
 }
@@ -57,6 +61,21 @@ export function CartProvider({ children }) {
 
   function addToCart(product) {
     const safeProduct = normalizeCartItem(product);
+    const stock = Number(safeProduct.stock || 0);
+
+    if (stock <= 0) {
+      return {
+        success: false,
+        reason: "out_of_stock",
+        message: "This piece is currently out of stock.",
+      };
+    }
+
+    let result = {
+      success: true,
+      reason: "added",
+      message: "Added to cart.",
+    };
 
     setCartItems((currentItems) => {
       const existingItem = currentItems.find(
@@ -64,20 +83,45 @@ export function CartProvider({ children }) {
       );
 
       if (existingItem) {
+        const currentQuantity = Number(existingItem.quantity) || 1;
+        const requestedQuantity = Number(safeProduct.quantity) || 1;
+        const nextQuantity = currentQuantity + requestedQuantity;
+
+        if (nextQuantity > stock) {
+          result = {
+            success: false,
+            reason: "stock_limit",
+            message: `Only ${stock} item${stock === 1 ? "" : "s"} available in this size.`,
+          };
+
+          return currentItems.map((item) =>
+            item.id === safeProduct.id && item.size === safeProduct.size
+              ? { ...item, quantity: stock, stock }
+              : item
+          );
+        }
+
         return currentItems.map((item) =>
           item.id === safeProduct.id && item.size === safeProduct.size
-            ? {
-                ...item,
-                quantity:
-                  (Number(item.quantity) || 1) +
-                  (Number(safeProduct.quantity) || 1),
-              }
+            ? { ...item, quantity: nextQuantity, stock }
             : item
         );
       }
 
+      if (Number(safeProduct.quantity) > stock) {
+        result = {
+          success: false,
+          reason: "stock_limit",
+          message: `Only ${stock} item${stock === 1 ? "" : "s"} available in this size.`,
+        };
+
+        return [...currentItems, { ...safeProduct, quantity: stock, stock }];
+      }
+
       return [...currentItems, safeProduct];
     });
+
+    return result;
   }
 
   function removeFromCart(productId, size) {
@@ -89,20 +133,43 @@ export function CartProvider({ children }) {
   }
 
   function updateQuantity(productId, size, quantity) {
-    const safeQuantity = Number(quantity) || 1;
+    const requestedQuantity = Number(quantity) || 1;
+    let result = {
+      success: true,
+      reason: "updated",
+      message: "Quantity updated.",
+    };
 
-    if (safeQuantity <= 0) {
+    if (requestedQuantity <= 0) {
       removeFromCart(productId, size);
-      return;
+      return {
+        success: true,
+        reason: "removed",
+        message: "Item removed from cart.",
+      };
     }
 
     setCartItems((currentItems) =>
-      currentItems.map((item) =>
-        item.id === productId && item.size === size
-          ? { ...item, quantity: safeQuantity }
-          : item
-      )
+      currentItems.map((item) => {
+        if (item.id !== productId || item.size !== size) return item;
+
+        const stock = Number(item.stock || 0);
+
+        if (stock > 0 && requestedQuantity > stock) {
+          result = {
+            success: false,
+            reason: "stock_limit",
+            message: `Only ${stock} item${stock === 1 ? "" : "s"} available.`,
+          };
+
+          return { ...item, quantity: stock };
+        }
+
+        return { ...item, quantity: requestedQuantity };
+      })
     );
+
+    return result;
   }
 
   function clearCart() {
