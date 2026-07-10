@@ -2,6 +2,7 @@ import Link from "next/link";
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
 import WishlistButton from "../../components/product/WishlistButton";
+import QuickViewButton from "../../components/product/QuickViewButton";
 import clientPromise from "../../lib/mongodb";
 
 async function getProducts() {
@@ -26,15 +27,28 @@ function createShopUrl({
 }) {
   const params = new URLSearchParams();
 
-  if (series && series !== "All") params.set("series", series);
-  if (q) params.set("q", q);
-  if (color && color !== "All") params.set("color", color);
+  if (series && series !== "All") {
+    params.set("series", series);
+  }
+
+  if (q) {
+    params.set("q", q);
+  }
+
+  if (color && color !== "All") {
+    params.set("color", color);
+  }
+
   if (availability && availability !== "All") {
     params.set("availability", availability);
   }
-  if (sort && sort !== "newest") params.set("sort", sort);
+
+  if (sort && sort !== "newest") {
+    params.set("sort", sort);
+  }
 
   const query = params.toString();
+
   return query ? `/shop?${query}` : "/shop";
 }
 
@@ -42,7 +56,7 @@ export default async function ShopPage({ searchParams }) {
   const params = await searchParams;
 
   const selectedSeries = params?.series || "All";
-  const searchQuery = (params?.q || "").trim();
+  const searchQuery = String(params?.q || "").trim();
   const selectedColor = params?.color || "All";
   const selectedAvailability = params?.availability || "All";
   const selectedSort = params?.sort || "newest";
@@ -73,14 +87,25 @@ export default async function ShopPage({ searchParams }) {
       (selectedAvailability === "in_stock" && stock > 0) ||
       (selectedAvailability === "out_of_stock" && stock <= 0);
 
-    const searchableText = `${product.name || ""} ${product.series || ""} ${
-      product.color || ""
-    } ${product.description || ""}`.toLowerCase();
+    const searchableText = [
+      product.name,
+      product.series,
+      product.color,
+      product.description,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
 
     const matchesSearch =
       !searchQuery || searchableText.includes(searchQuery.toLowerCase());
 
-    return matchesSeries && matchesColor && matchesAvailability && matchesSearch;
+    return (
+      matchesSeries &&
+      matchesColor &&
+      matchesAvailability &&
+      matchesSearch
+    );
   });
 
   filteredProducts = [...filteredProducts].sort((a, b) => {
@@ -175,7 +200,7 @@ export default async function ShopPage({ searchParams }) {
 
               <button
                 type="submit"
-                className="bg-[#0b0b0b] px-8 py-4 text-xs uppercase tracking-[0.28em] text-[#f1ece4] transition hover:opacity-85"
+                className="bg-[#0b0b0b] px-8 py-4 text-xs font-semibold uppercase tracking-[0.28em] text-[#f1ece4] transition duration-300 hover:-translate-y-0.5 hover:shadow-lg"
               >
                 Apply
               </button>
@@ -230,7 +255,11 @@ export default async function ShopPage({ searchParams }) {
 
           {filteredProducts.length === 0 ? (
             <div className="mt-12 border border-black/10 bg-[#eee7dd] p-10 md:p-14">
-              <h2 className="font-heading text-4xl font-light">
+              <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">
+                No Results
+              </p>
+
+              <h2 className="mt-5 font-heading text-4xl font-light">
                 No products found.
               </h2>
 
@@ -248,59 +277,78 @@ export default async function ShopPage({ searchParams }) {
             </div>
           ) : (
             <div className="mt-12 grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-              {filteredProducts.map((product) => (
-                <Link
-                  key={product.id}
-                  href={`/product/${product.id}`}
-                  className="group block border border-black/10 bg-[#eee7dd] transition duration-300 hover:-translate-y-1 hover:border-black/25"
-                >
-                  <div className="relative aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
-                    <WishlistButton product={product} compact />
+              {filteredProducts.map((product) => {
+                const stock = Number(product.stock) || 0;
 
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="h-full w-full object-cover object-center transition duration-700 group-hover:scale-105"
-                    />
+                return (
+                  <article
+                    key={product.id}
+                    className="group overflow-hidden border border-black/10 bg-[#eee7dd] transition duration-500 hover:-translate-y-1 hover:border-black/25 hover:shadow-2xl hover:shadow-black/10"
+                  >
+                    <div className="relative aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
+                      <WishlistButton product={product} compact />
 
-                    {Number(product.stock) <= 0 && (
-                      <div className="absolute left-4 top-4 z-10 bg-[#0b0b0b] px-4 py-2 text-[10px] uppercase tracking-[0.28em] text-[#f1ece4]">
-                        Sold Out
+                      <Link
+                        href={`/product/${product.id}`}
+                        className="block h-full w-full"
+                      >
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          loading="lazy"
+                          className="h-full w-full object-cover object-center transition duration-1000 ease-out group-hover:scale-105"
+                        />
+                      </Link>
+
+                      <QuickViewButton product={product} />
+
+                      {stock <= 0 && (
+                        <div className="absolute left-4 top-4 z-10 bg-[#0b0b0b] px-4 py-2 text-[10px] uppercase tracking-[0.28em] text-[#f1ece4]">
+                          Sold Out
+                        </div>
+                      )}
+
+                      {stock > 0 && stock <= 5 && (
+                        <div className="absolute left-4 top-4 z-10 border border-[#f1ece4]/20 bg-black/45 px-4 py-2 text-[9px] uppercase tracking-[0.25em] text-[#f1ece4] backdrop-blur-md">
+                          Only {stock} Left
+                        </div>
+                      )}
+
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent opacity-0 transition duration-500 group-hover:opacity-100" />
+                    </div>
+
+                    <div className="p-6">
+                      <div className="flex items-start justify-between gap-6">
+                        <div className="min-w-0">
+                          <p className="truncate text-xs uppercase tracking-[0.28em] text-neutral-500">
+                            {product.series}
+                          </p>
+
+                          <Link href={`/product/${product.id}`}>
+                            <h2 className="mt-3 font-heading text-3xl font-light leading-none transition duration-300 group-hover:opacity-65">
+                              {product.name}
+                            </h2>
+                          </Link>
+                        </div>
+
+                        <p className="shrink-0 text-sm text-neutral-700">
+                          ৳ {product.price}
+                        </p>
                       </div>
-                    )}
-                  </div>
 
-                  <div className="p-6">
-                    <div className="flex items-start justify-between gap-6">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.28em] text-neutral-500">
-                          {product.series}
+                      <div className="mt-6 flex items-center justify-between gap-4 border-t border-black/10 pt-5">
+                        <p className="truncate text-xs uppercase tracking-[0.25em] text-neutral-500">
+                          {product.color}
                         </p>
 
-                        <h2 className="mt-3 font-heading text-3xl font-light">
-                          {product.name}
-                        </h2>
+                        <p className="shrink-0 text-xs uppercase tracking-[0.25em] text-neutral-500">
+                          {stock > 0 ? `${stock} In Stock` : "Out of Stock"}
+                        </p>
                       </div>
-
-                      <p className="shrink-0 text-sm text-neutral-700">
-                        ৳ {product.price}
-                      </p>
                     </div>
-
-                    <div className="mt-6 flex items-center justify-between border-t border-black/10 pt-5">
-                      <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">
-                        {product.color}
-                      </p>
-
-                      <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">
-                        {Number(product.stock) > 0
-                          ? `${product.stock} In Stock`
-                          : "Out of Stock"}
-                      </p>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
         </div>
