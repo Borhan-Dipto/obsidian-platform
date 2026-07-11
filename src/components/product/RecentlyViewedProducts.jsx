@@ -1,20 +1,27 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "obsidian-recently-viewed";
 const MAX_RECENT_ITEMS = 6;
+const FALLBACK_IMAGE = "/images/collection-artifact.jpeg";
 
 function normalizeProduct(product) {
+  const safeImage =
+    typeof product?.image === "string" && product.image.trim()
+      ? product.image.trim()
+      : FALLBACK_IMAGE;
+
   return {
-    id: product.id,
-    name: product.name || "Obsidian Product",
-    series: product.series || "Obsidian",
-    color: product.color || "",
-    price: Number(product.price) || 0,
-    image: product.image || "",
-    stock: Number(product.stock) || 0,
+    id: product?.id || "",
+    name: product?.name || "Obsidian Product",
+    series: product?.series || "Obsidian",
+    color: product?.color || "Obsidian Black",
+    price: Number(product?.price) || 0,
+    image: safeImage,
+    stock: Number(product?.stock) || 0,
   };
 }
 
@@ -68,7 +75,7 @@ export default function RecentlyViewedProducts({ product }) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedItems));
     } catch {
-      // Recently viewed will still work for the current session.
+      // Recently viewed will continue working for the current session.
     }
 
     setRecentItems(previousProducts.slice(0, MAX_RECENT_ITEMS));
@@ -110,29 +117,31 @@ export default function RecentlyViewedProducts({ product }) {
             <Link
               key={item.id}
               href={`/product/${item.id}`}
-              className="group block overflow-hidden border border-black/10 bg-[#eee7dd] transition duration-500 hover:-translate-y-1 hover:border-black/25 hover:shadow-xl hover:shadow-black/5"
+              aria-label={`View ${item.name}`}
+              className="group block overflow-hidden border border-black/10 bg-[#eee7dd] transition duration-500 hover:-translate-y-1 hover:border-black/25 hover:shadow-xl hover:shadow-black/10"
             >
               <div className="relative aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
-                {item.image ? (
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    loading="lazy"
-                    className="h-full w-full object-cover object-center transition duration-700 ease-out group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-[0.3em] text-[#f1ece4]/50">
-                    Image Unavailable
-                  </div>
-                )}
+                <Image
+                  src={item.image || FALLBACK_IMAGE}
+                  alt={item.name}
+                  fill
+                  sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, (max-width: 1279px) 33vw, 17vw"
+                  className="object-cover object-center transition-transform duration-700 ease-out will-change-transform group-hover:scale-105"
+                />
 
                 {item.stock <= 0 && (
-                  <div className="absolute left-3 top-3 bg-[#0b0b0b]/85 px-3 py-2 text-[9px] uppercase tracking-[0.24em] text-[#f1ece4] backdrop-blur-sm">
+                  <div className="absolute left-3 top-3 z-10 bg-[#0b0b0b]/85 px-3 py-2 text-[9px] uppercase tracking-[0.24em] text-[#f1ece4] backdrop-blur-sm">
                     Sold Out
                   </div>
                 )}
 
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 transition duration-500 group-hover:opacity-100" />
+                {item.stock > 0 && item.stock <= 5 && (
+                  <div className="absolute left-3 top-3 z-10 border border-[#f1ece4]/20 bg-black/45 px-3 py-2 text-[9px] uppercase tracking-[0.24em] text-[#f1ece4] backdrop-blur-sm">
+                    Only {item.stock} Left
+                  </div>
+                )}
+
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent opacity-0 transition duration-500 group-hover:opacity-100" />
               </div>
 
               <div className="p-4">
@@ -143,6 +152,10 @@ export default function RecentlyViewedProducts({ product }) {
                 <h3 className="mt-2 line-clamp-2 font-heading text-2xl font-light leading-[0.95]">
                   {item.name}
                 </h3>
+
+                <p className="mt-3 truncate text-xs text-neutral-500">
+                  {item.color}
+                </p>
 
                 <div className="mt-4 flex items-center justify-between gap-3 border-t border-black/10 pt-4">
                   <p className="text-sm text-neutral-700">৳ {item.price}</p>
