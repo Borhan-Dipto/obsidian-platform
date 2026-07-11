@@ -1,8 +1,18 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect } from "react";
 import { useCart } from "../../context/CartContext";
+import { useToast } from "../../context/ToastContext";
+
+const FALLBACK_IMAGE = "/images/collection-artifact.jpeg";
+
+function getSafeImage(image) {
+  return typeof image === "string" && image.trim()
+    ? image.trim()
+    : FALLBACK_IMAGE;
+}
 
 export default function MiniCartDrawer() {
   const {
@@ -14,8 +24,12 @@ export default function MiniCartDrawer() {
     removeFromCart,
   } = useCart();
 
+  const { showToast } = useToast();
+
   useEffect(() => {
     if (!isMiniCartOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
 
     function handleKeyDown(event) {
       if (event.key === "Escape") {
@@ -27,15 +41,31 @@ export default function MiniCartDrawer() {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow = "";
+      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isMiniCartOpen, closeMiniCart]);
 
-  if (!isMiniCartOpen) return null;
+  if (!isMiniCartOpen) {
+    return null;
+  }
+
+  function handleRemove(item) {
+    removeFromCart(item.id, item.size);
+
+    showToast({
+      title: "Removed",
+      message: `${item.name} removed from cart.`,
+    });
+  }
 
   return (
-    <div className="fixed inset-0 z-[9998]">
+    <div
+      className="fixed inset-0 z-[9998]"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Shopping bag"
+    >
       <button
         type="button"
         aria-label="Close cart drawer"
@@ -58,7 +88,8 @@ export default function MiniCartDrawer() {
           <button
             type="button"
             onClick={closeMiniCart}
-            className="text-2xl leading-none text-neutral-500 transition hover:text-black"
+            aria-label="Close shopping bag"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-black/10 text-2xl leading-none text-neutral-500 transition duration-300 hover:rotate-90 hover:bg-black hover:text-[#f1ece4]"
           >
             ×
           </button>
@@ -66,7 +97,11 @@ export default function MiniCartDrawer() {
 
         {cartItems.length === 0 ? (
           <div className="flex flex-1 flex-col justify-center px-6">
-            <h3 className="font-heading text-4xl font-light">
+            <p className="text-[10px] uppercase tracking-[0.35em] text-neutral-500">
+              Empty Bag
+            </p>
+
+            <h3 className="mt-4 font-heading text-4xl font-light">
               Your cart is empty.
             </h3>
 
@@ -78,7 +113,7 @@ export default function MiniCartDrawer() {
             <Link
               href="/shop"
               onClick={closeMiniCart}
-              className="mt-8 flex justify-center bg-[#0b0b0b] px-8 py-5 text-xs uppercase tracking-[0.3em] text-[#f1ece4]"
+              className="mt-8 flex justify-center bg-[#0b0b0b] px-8 py-5 text-xs uppercase tracking-[0.3em] text-[#f1ece4] transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
             >
               Shop Now
             </Link>
@@ -87,57 +122,69 @@ export default function MiniCartDrawer() {
           <>
             <div className="flex-1 overflow-y-auto px-6 py-6">
               <div className="space-y-5">
-                {cartItems.map((item) => (
-                  <article
-                    key={`${item.id}-${item.size}`}
-                    className="grid grid-cols-[92px_1fr] gap-4 border-b border-black/10 pb-5"
-                  >
-                    <Link
-                      href={`/product/${item.id}`}
-                      onClick={closeMiniCart}
-                      className="block aspect-[4/5] overflow-hidden bg-[#0b0b0b]"
+                {cartItems.map((item) => {
+                  const quantity = Number(item.quantity || 1);
+                  const subtotal =
+                    Number(item.price || 0) * Number(quantity || 0);
+
+                  return (
+                    <article
+                      key={`${item.id}-${item.size}`}
+                      className="grid grid-cols-[92px_1fr] gap-4 border-b border-black/10 pb-5"
                     >
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="h-full w-full object-cover object-center"
-                      />
-                    </Link>
-
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-500">
-                        {item.series}
-                      </p>
-
                       <Link
                         href={`/product/${item.id}`}
                         onClick={closeMiniCart}
-                        className="mt-2 block font-heading text-2xl font-light leading-none"
+                        className="relative block aspect-[4/5] overflow-hidden bg-[#0b0b0b]"
+                        aria-label={`View ${item.name}`}
                       >
-                        {item.name}
+                        <Image
+                          src={getSafeImage(item.image)}
+                          alt={item.name || "Obsidian product"}
+                          fill
+                          sizes="92px"
+                          className="object-cover object-center transition-transform duration-700 hover:scale-105"
+                        />
                       </Link>
 
-                      <div className="mt-4 space-y-1 text-sm text-neutral-600">
-                        <p>Size: {item.size}</p>
-                        <p>Qty: {item.quantity}</p>
-                        <p>৳ {Number(item.price) * Number(item.quantity)}</p>
-                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-500">
+                          {item.series || "Obsidian"}
+                        </p>
 
-                      <button
-                        type="button"
-                        onClick={() => removeFromCart(item.id, item.size)}
-                        className="mt-4 text-[10px] uppercase tracking-[0.24em] text-neutral-500 transition hover:text-red-700"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </article>
-                ))}
+                        <Link
+                          href={`/product/${item.id}`}
+                          onClick={closeMiniCart}
+                          className="mt-2 block font-heading text-2xl font-light leading-none transition hover:opacity-60"
+                        >
+                          {item.name}
+                        </Link>
+
+                        <div className="mt-4 space-y-1 text-sm text-neutral-600">
+                          <p>Color: {item.color || "Obsidian Black"}</p>
+                          <p>Size: {item.size}</p>
+                          <p>Qty: {quantity}</p>
+                          <p className="pt-1 font-medium text-[#0b0b0b]">
+                            ৳ {subtotal}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemove(item)}
+                          className="mt-4 text-[10px] uppercase tracking-[0.24em] text-neutral-500 transition hover:text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="border-t border-black/10 px-6 py-6">
-              <div className="mb-5 flex justify-between">
+            <div className="border-t border-black/10 bg-[#eee7dd] px-6 py-6">
+              <div className="mb-5 flex items-center justify-between">
                 <span className="text-xs uppercase tracking-[0.3em] text-neutral-500">
                   Subtotal
                 </span>
@@ -147,10 +194,14 @@ export default function MiniCartDrawer() {
                 </span>
               </div>
 
+              <p className="mb-5 text-xs leading-6 text-neutral-500">
+                Delivery charge will be calculated during checkout.
+              </p>
+
               <Link
                 href="/checkout"
                 onClick={closeMiniCart}
-                className="flex w-full justify-center bg-[#0b0b0b] px-8 py-5 text-xs uppercase tracking-[0.35em] text-[#f1ece4] transition hover:opacity-85"
+                className="flex w-full justify-center bg-[#0b0b0b] px-8 py-5 text-xs uppercase tracking-[0.35em] text-[#f1ece4] transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
               >
                 Checkout
               </Link>

@@ -1,10 +1,19 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
 import { useCart } from "../../context/CartContext";
 import { useToast } from "../../context/ToastContext";
+
+const FALLBACK_IMAGE = "/images/collection-artifact.jpeg";
+
+function getSafeImage(image) {
+  return typeof image === "string" && image.trim()
+    ? image.trim()
+    : FALLBACK_IMAGE;
+}
 
 export default function CartPage() {
   const { cartItems, removeFromCart, updateQuantity, cartTotal } = useCart();
@@ -22,7 +31,7 @@ export default function CartPage() {
       showToast({
         type: "error",
         title: "Stock Limit",
-        message: result.message || "Quantity adjusted to available stock.",
+        message: result?.message || "Quantity adjusted to available stock.",
       });
       return;
     }
@@ -89,33 +98,43 @@ export default function CartPage() {
                   const stock = Number(item.stock || 0);
                   const quantity = Number(item.quantity || 1);
                   const reachedLimit = stock > 0 && quantity >= stock;
+                  const itemSubtotal =
+                    Number(item.price || 0) * Number(quantity || 0);
 
                   return (
                     <article
                       key={`${item.id}-${item.size}`}
-                      className="grid gap-6 border border-black/10 bg-[#eee7dd] p-5 md:grid-cols-[140px_1fr_auto] md:items-center md:p-6"
+                      className="grid gap-6 border border-black/10 bg-[#eee7dd] p-5 transition duration-300 hover:border-black/20 md:grid-cols-[140px_1fr_auto] md:items-center md:p-6"
                     >
-                      <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#0b0b0b] md:w-[140px]">
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="h-full w-full object-cover object-center"
+                      <Link
+                        href={`/product/${item.id}`}
+                        className="relative aspect-[4/5] w-full overflow-hidden bg-[#0b0b0b] md:w-[140px]"
+                        aria-label={`View ${item.name}`}
+                      >
+                        <Image
+                          src={getSafeImage(item.image)}
+                          alt={item.name || "Obsidian product"}
+                          fill
+                          sizes="(max-width: 767px) 100vw, 140px"
+                          className="object-cover object-center transition-transform duration-700 hover:scale-105"
                         />
-                      </div>
+                      </Link>
 
                       <div>
                         <p className="text-xs uppercase tracking-[0.28em] text-neutral-500">
-                          {item.series}
+                          {item.series || "Obsidian"}
                         </p>
 
-                        <h2 className="mt-3 font-heading text-3xl font-light">
-                          {item.name}
-                        </h2>
+                        <Link href={`/product/${item.id}`}>
+                          <h2 className="mt-3 font-heading text-3xl font-light transition hover:opacity-60">
+                            {item.name}
+                          </h2>
+                        </Link>
 
                         <div className="mt-5 grid gap-2 text-sm text-neutral-600 sm:grid-cols-2">
-                          <p>Color: {item.color}</p>
+                          <p>Color: {item.color || "Obsidian Black"}</p>
                           <p>Size: {item.size}</p>
-                          <p>Unit Price: ৳ {item.price}</p>
+                          <p>Unit Price: ৳ {Number(item.price) || 0}</p>
                           <p>
                             Stock:{" "}
                             {stock > 0 ? `${stock} Available` : "Out of Stock"}
@@ -136,9 +155,10 @@ export default function CartPage() {
                             onClick={() =>
                               handleQuantityChange(item, quantity - 1)
                             }
-                            className="px-4 py-3 text-sm transition hover:bg-black hover:text-[#f1ece4]"
+                            aria-label={`Decrease quantity of ${item.name}`}
+                            className="flex h-12 w-12 items-center justify-center text-lg transition hover:bg-black hover:text-[#f1ece4]"
                           >
-                            -
+                            −
                           </button>
 
                           <span className="min-w-12 text-center text-sm">
@@ -150,8 +170,9 @@ export default function CartPage() {
                             onClick={() =>
                               handleQuantityChange(item, quantity + 1)
                             }
-                            disabled={reachedLimit}
-                            className="px-4 py-3 text-sm transition hover:bg-black hover:text-[#f1ece4] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#0b0b0b]"
+                            disabled={reachedLimit || stock <= 0}
+                            aria-label={`Increase quantity of ${item.name}`}
+                            className="flex h-12 w-12 items-center justify-center text-lg transition hover:bg-black hover:text-[#f1ece4] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#0b0b0b]"
                           >
                             +
                           </button>
@@ -169,7 +190,7 @@ export default function CartPage() {
                           </p>
 
                           <p className="mt-2 font-heading text-3xl font-light">
-                            ৳ {Number(item.price) * quantity}
+                            ৳ {itemSubtotal}
                           </p>
                         </div>
 
@@ -208,7 +229,7 @@ export default function CartPage() {
 
                   <div className="flex justify-between gap-6">
                     <span className="text-neutral-500">Delivery</span>
-                    <span>Calculated later</span>
+                    <span>Calculated at checkout</span>
                   </div>
 
                   <div className="flex justify-between gap-6">
@@ -219,6 +240,7 @@ export default function CartPage() {
 
                 <div className="mt-7 flex justify-between gap-6">
                   <span className="font-heading text-3xl font-light">Total</span>
+
                   <span className="font-heading text-3xl font-light">
                     ৳ {cartTotal}
                   </span>
@@ -226,7 +248,7 @@ export default function CartPage() {
 
                 <Link
                   href="/checkout"
-                  className="mt-8 flex w-full justify-center bg-[#0b0b0b] px-8 py-5 text-xs uppercase tracking-[0.35em] text-[#f1ece4] transition hover:opacity-85"
+                  className="mt-8 flex w-full justify-center bg-[#0b0b0b] px-8 py-5 text-xs uppercase tracking-[0.35em] text-[#f1ece4] transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
                 >
                   Checkout
                 </Link>
@@ -240,7 +262,7 @@ export default function CartPage() {
 
                 <div className="mt-8 space-y-3 border-t border-black/10 pt-6 text-sm text-neutral-600">
                   <p>✓ Cash on Delivery</p>
-                  <p>✓ 2-5 Days Delivery</p>
+                  <p>✓ 2–5 Days Delivery</p>
                   <p>✓ Easy Exchange Support</p>
                 </div>
               </aside>
