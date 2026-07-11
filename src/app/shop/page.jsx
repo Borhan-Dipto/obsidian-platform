@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
@@ -50,6 +51,14 @@ function createShopUrl({
   const query = params.toString();
 
   return query ? `/shop?${query}` : "/shop";
+}
+
+function getProductImage(product) {
+  if (typeof product?.image === "string" && product.image.trim()) {
+    return product.image.trim();
+  }
+
+  return "/images/collection-artifact.jpeg";
 }
 
 export default async function ShopPage({ searchParams }) {
@@ -166,7 +175,7 @@ export default async function ShopPage({ searchParams }) {
               <select
                 name="series"
                 defaultValue={selectedSeries}
-                className="border border-black/15 bg-[#eee7dd] px-5 py-4 text-xs uppercase tracking-[0.2em] outline-none focus:border-black"
+                className="border border-black/15 bg-[#eee7dd] px-5 py-4 text-xs uppercase tracking-[0.2em] outline-none transition focus:border-black"
               >
                 {seriesList.map((series) => (
                   <option key={series} value={series}>
@@ -178,7 +187,7 @@ export default async function ShopPage({ searchParams }) {
               <select
                 name="color"
                 defaultValue={selectedColor}
-                className="border border-black/15 bg-[#eee7dd] px-5 py-4 text-xs uppercase tracking-[0.2em] outline-none focus:border-black"
+                className="border border-black/15 bg-[#eee7dd] px-5 py-4 text-xs uppercase tracking-[0.2em] outline-none transition focus:border-black"
               >
                 {colorList.map((color) => (
                   <option key={color} value={color}>
@@ -190,7 +199,7 @@ export default async function ShopPage({ searchParams }) {
               <select
                 name="sort"
                 defaultValue={selectedSort}
-                className="border border-black/15 bg-[#eee7dd] px-5 py-4 text-xs uppercase tracking-[0.2em] outline-none focus:border-black"
+                className="border border-black/15 bg-[#eee7dd] px-5 py-4 text-xs uppercase tracking-[0.2em] outline-none transition focus:border-black"
               >
                 <option value="newest">Newest</option>
                 <option value="price_low">Price Low</option>
@@ -277,8 +286,9 @@ export default async function ShopPage({ searchParams }) {
             </div>
           ) : (
             <div className="mt-12 grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-              {filteredProducts.map((product) => {
+              {filteredProducts.map((product, index) => {
                 const stock = Number(product.stock) || 0;
+                const productImage = getProductImage(product);
 
                 return (
                   <article
@@ -290,13 +300,16 @@ export default async function ShopPage({ searchParams }) {
 
                       <Link
                         href={`/product/${product.id}`}
-                        className="block h-full w-full"
+                        className="relative block h-full w-full"
+                        aria-label={`View ${product.name}`}
                       >
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          loading="lazy"
-                          className="h-full w-full object-cover object-center transition duration-1000 ease-out group-hover:scale-105"
+                        <Image
+                          src={productImage}
+                          alt={product.name || "Obsidian product"}
+                          fill
+                          priority={index < 3}
+                          sizes="(max-width: 767px) 100vw, (max-width: 1279px) 50vw, 33vw"
+                          className="object-cover object-center transition-transform duration-1000 ease-out will-change-transform group-hover:scale-105"
                         />
                       </Link>
 
@@ -321,7 +334,7 @@ export default async function ShopPage({ searchParams }) {
                       <div className="flex items-start justify-between gap-6">
                         <div className="min-w-0">
                           <p className="truncate text-xs uppercase tracking-[0.28em] text-neutral-500">
-                            {product.series}
+                            {product.series || "Obsidian"}
                           </p>
 
                           <Link href={`/product/${product.id}`}>
@@ -332,13 +345,13 @@ export default async function ShopPage({ searchParams }) {
                         </div>
 
                         <p className="shrink-0 text-sm text-neutral-700">
-                          ৳ {product.price}
+                          ৳ {Number(product.price) || 0}
                         </p>
                       </div>
 
                       <div className="mt-6 flex items-center justify-between gap-4 border-t border-black/10 pt-5">
                         <p className="truncate text-xs uppercase tracking-[0.25em] text-neutral-500">
-                          {product.color}
+                          {product.color || "Obsidian Black"}
                         </p>
 
                         <p className="shrink-0 text-xs uppercase tracking-[0.25em] text-neutral-500">
