@@ -37,10 +37,22 @@ const navigationItems = [
     icon: "05",
   },
   {
+    label: "About CMS",
+    href: "/admin/content/about",
+    description: "Brand Story",
+    icon: "06",
+  },
+  {
+    label: "Contact CMS",
+    href: "/admin/content/contact",
+    description: "Support Content",
+    icon: "07",
+  },
+  {
     label: "Settings",
     href: "/admin/settings",
     description: "Configuration",
-    icon: "06",
+    icon: "08",
   },
 ];
 
@@ -63,7 +75,7 @@ export default function AdminShell({ children }) {
   useEffect(() => {
     if (!isMobileMenuOpen) {
       document.body.style.overflow = "";
-      return;
+      return undefined;
     }
 
     document.body.style.overflow = "hidden";
@@ -113,7 +125,10 @@ export default function AdminShell({ children }) {
 
             <div className="mt-4 space-y-2">
               {navigationItems.map((item) => {
-                const isActive = isNavigationItemActive(pathname, item.href);
+                const isActive = isNavigationItemActive(
+                  pathname,
+                  item.href
+                );
 
                 return (
                   <Link
@@ -128,7 +143,9 @@ export default function AdminShell({ children }) {
                   >
                     <span
                       className={`text-[9px] tracking-[0.25em] ${
-                        isActive ? "text-neutral-500" : "text-neutral-600"
+                        isActive
+                          ? "text-neutral-500"
+                          : "text-neutral-600"
                       }`}
                     >
                       {item.icon}
@@ -141,7 +158,9 @@ export default function AdminShell({ children }) {
 
                       <span
                         className={`mt-1 block text-[10px] ${
-                          isActive ? "text-neutral-600" : "text-neutral-600"
+                          isActive
+                            ? "text-neutral-600"
+                            : "text-neutral-600"
                         }`}
                       >
                         {item.description}
@@ -220,7 +239,9 @@ export default function AdminShell({ children }) {
             </div>
           </header>
 
-          <div className="min-h-[calc(100vh-5rem)]">{children}</div>
+          <div className="min-h-[calc(100vh-5rem)]">
+            {children}
+          </div>
         </div>
       </div>
 
@@ -264,17 +285,21 @@ export default function AdminShell({ children }) {
             >
               <div className="space-y-2">
                 {navigationItems.map((item) => {
-                  const isActive = isNavigationItemActive(pathname, item.href);
+                  const isActive = isNavigationItemActive(
+                    pathname,
+                    item.href
+                  );
 
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
                       aria-current={isActive ? "page" : undefined}
-                      className={`grid grid-cols-[34px_1fr_auto] items-center gap-3 border px-4 py-4 ${
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`grid grid-cols-[34px_1fr_auto] items-center gap-3 border px-4 py-4 transition ${
                         isActive
                           ? "border-white/15 bg-[#f1ece4] text-[#0b0b0b]"
-                          : "border-transparent text-neutral-400"
+                          : "border-transparent text-neutral-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-[#f1ece4]"
                       }`}
                     >
                       <span className="text-[9px] tracking-[0.25em] opacity-50">
@@ -303,7 +328,7 @@ export default function AdminShell({ children }) {
                 href="/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex w-full items-center justify-between border border-white/10 px-5 py-4 text-[10px] uppercase tracking-[0.28em] text-neutral-400"
+                className="flex w-full items-center justify-between border border-white/10 px-5 py-4 text-[10px] uppercase tracking-[0.28em] text-neutral-400 transition hover:bg-white/5 hover:text-[#f1ece4]"
               >
                 View Store
                 <span aria-hidden="true">↗</span>
