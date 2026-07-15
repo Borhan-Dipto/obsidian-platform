@@ -31,10 +31,16 @@ const navigationItems = [
     icon: "04",
   },
   {
+    label: "Homepage CMS",
+    href: "/admin/content/homepage",
+    description: "Storefront Content",
+    icon: "05",
+  },
+  {
     label: "Settings",
     href: "/admin/settings",
     description: "Configuration",
-    icon: "05",
+    icon: "06",
   },
 ];
 
