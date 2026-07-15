@@ -1,6 +1,10 @@
 import Link from "next/link";
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
+import { getContactContent } from "../../lib/getCmsContent";
+import clientPromise from "../../lib/mongodb";
+
+export const dynamic = "force-dynamic";
 
 const SITE_NAME = "OBSIDIAN";
 
@@ -8,91 +12,362 @@ const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
   "https://obsidianwearbd.store";
 
-const PAGE_URL = `${SITE_URL}/contact`;
+const DEFAULT_DESCRIPTION =
+  "Contact OBSIDIAN for product questions, order support, collaborations, and general inquiries.";
 
-const PAGE_DESCRIPTION =
-  "Contact OBSIDIAN for product questions, order support, collaborations, and general inquiries. Reach our team by email or WhatsApp.";
+const DEFAULT_SOCIAL_IMAGE = "/images/hero1.jpeg";
 
-const SOCIAL_IMAGE = "/images/hero1.jpeg";
-
-const CONTACT_EMAIL = "contact@obsidianwearbd.store";
-const CONTACT_PHONE = "+8801814455199";
-const WHATSAPP_NUMBER = "8801814455199";
-const LOCATION = "Dhaka, Bangladesh";
-
-const WHATSAPP_MESSAGE = encodeURIComponent(
-  "Hello OBSIDIAN, I would like to know more about your products."
-);
-
-const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MESSAGE}`;
-
-export const metadata = {
-  title: "Contact",
-
-  description: PAGE_DESCRIPTION,
-
-  alternates: {
-    canonical: "/contact",
+const DEFAULT_SETTINGS = {
+  store: {
+    name: "OBSIDIAN",
   },
 
-  openGraph: {
-    type: "website",
-    locale: "en_BD",
-    url: "/contact",
-    siteName: SITE_NAME,
-    title: `Contact ${SITE_NAME}`,
-    description: PAGE_DESCRIPTION,
-    images: [
-      {
-        url: SOCIAL_IMAGE,
-        width: 1200,
-        height: 630,
-        alt: `Contact ${SITE_NAME}`,
-      },
-    ],
-  },
-
-  twitter: {
-    card: "summary_large_image",
-    title: `Contact ${SITE_NAME}`,
-    description: PAGE_DESCRIPTION,
-    images: [SOCIAL_IMAGE],
-  },
-
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-      "max-video-preview": -1,
-    },
+  contact: {
+    email: "contact@obsidianwearbd.store",
+    phone: "+8801814455199",
+    whatsappNumber: "8801814455199",
+    location: "Dhaka, Bangladesh",
   },
 };
+
+function normalizeText(value, fallback = "") {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const normalizedValue = value.trim();
+
+  return normalizedValue || fallback;
+}
+
+function getAbsoluteUrl(value) {
+  const normalizedValue = normalizeText(value);
+
+  if (!normalizedValue) {
+    return "";
+  }
+
+  if (
+    normalizedValue.startsWith("http://") ||
+    normalizedValue.startsWith("https://")
+  ) {
+    return normalizedValue;
+  }
+
+  return `${SITE_URL}${
+    normalizedValue.startsWith("/")
+      ? normalizedValue
+      : `/${normalizedValue}`
+  }`;
+}
+
+function normalizePhoneNumber(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[^\d+]/g, "");
+}
+
+function normalizeWhatsAppNumber(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\D/g, "");
+}
+
+function formatPhoneNumber(value) {
+  const normalizedValue = normalizePhoneNumber(value);
+
+  if (!normalizedValue) {
+    return "";
+  }
+
+  if (
+    normalizedValue.startsWith("+880") &&
+    normalizedValue.length === 14
+  ) {
+    return `${normalizedValue.slice(0, 4)} ${normalizedValue.slice(
+      4,
+      8
+    )}-${normalizedValue.slice(8)}`;
+  }
+
+  return normalizedValue;
+}
 
 function serializeJsonLd(data) {
   return JSON.stringify(data).replace(/</g, "\\u003c");
 }
 
-export default function ContactPage() {
+async function getStoreSettings() {
+  try {
+    const client = await clientPromise;
+
+    const db = client.db(
+      process.env.MONGODB_DB || "obsidian"
+    );
+
+    const settings = await db
+      .collection("settings")
+      .findOne({
+        type: "store",
+      });
+
+    return {
+      store: {
+        ...DEFAULT_SETTINGS.store,
+        ...(settings?.store || {}),
+      },
+
+      contact: {
+        ...DEFAULT_SETTINGS.contact,
+        ...(settings?.contact || {}),
+      },
+    };
+  } catch (error) {
+    console.error(
+      "Contact page settings loading error:",
+      error
+    );
+
+    return DEFAULT_SETTINGS;
+  }
+}
+
+export async function generateMetadata() {
+  const contactContent = await getContactContent();
+
+  const seo = contactContent?.seo || {};
+
+  const title = normalizeText(
+    seo.title,
+    "Contact"
+  );
+
+  const description = normalizeText(
+    seo.description,
+    DEFAULT_DESCRIPTION
+  );
+
+  const canonical = normalizeText(
+    seo.canonical,
+    "/contact"
+  );
+
+  const socialImage = normalizeText(
+    seo.ogImage,
+    DEFAULT_SOCIAL_IMAGE
+  );
+
+  const allowIndexing =
+    seo.index !== false;
+
+  const keywords = normalizeText(
+    seo.keywords
+  )
+    .split(",")
+    .map((keyword) => keyword.trim())
+    .filter(Boolean);
+
+  return {
+    title,
+
+    description,
+
+    keywords,
+
+    alternates: {
+      canonical,
+    },
+
+    openGraph: {
+      type: "website",
+      locale: "en_BD",
+      url: canonical,
+      siteName: SITE_NAME,
+      title: `${title} | ${SITE_NAME}`,
+      description,
+      images: [
+        {
+          url: socialImage,
+          width: 1200,
+          height: 630,
+          alt: `Contact ${SITE_NAME}`,
+        },
+      ],
+    },
+
+    twitter: {
+      card: "summary_large_image",
+      title: `${title} | ${SITE_NAME}`,
+      description,
+      images: [socialImage],
+    },
+
+    robots: {
+      index: allowIndexing,
+      follow: allowIndexing,
+
+      googleBot: {
+        index: allowIndexing,
+        follow: allowIndexing,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
+    },
+  };
+}
+
+export default async function ContactPage() {
+  const [contactContent, settings] =
+    await Promise.all([
+      getContactContent(),
+      getStoreSettings(),
+    ]);
+
+  const content =
+    contactContent?.content || {};
+
+  const seo =
+    contactContent?.seo || {};
+
+  const storeName = normalizeText(
+    settings.store?.name,
+    DEFAULT_SETTINGS.store.name
+  );
+
+  const email = normalizeText(
+    settings.contact?.email,
+    DEFAULT_SETTINGS.contact.email
+  );
+
+  const phone = normalizePhoneNumber(
+    settings.contact?.phone ||
+      DEFAULT_SETTINGS.contact.phone
+  );
+
+  const whatsappNumber =
+    normalizeWhatsAppNumber(
+      settings.contact?.whatsappNumber ||
+        DEFAULT_SETTINGS.contact.whatsappNumber
+    );
+
+  const location = normalizeText(
+    settings.contact?.location,
+    DEFAULT_SETTINGS.contact.location
+  );
+
+  const eyebrow = normalizeText(
+    content.eyebrow,
+    "Contact"
+  );
+
+  const title = normalizeText(
+    content.title,
+    "Reach Obsidian"
+  );
+
+  const description = normalizeText(
+    content.description,
+    "For product questions, order support, collaborations, or general inquiries, contact the OBSIDIAN team."
+  );
+
+  const supportTitle = normalizeText(
+    content.supportTitle,
+    "Order Support"
+  );
+
+  const supportDescription =
+    normalizeText(
+      content.supportDescription,
+      "Get help with order confirmation, delivery, exchange, or product availability."
+    );
+
+  const collaborationTitle =
+    normalizeText(
+      content.collaborationTitle,
+      "Collaborations"
+    );
+
+  const collaborationDescription =
+    normalizeText(
+      content.collaborationDescription,
+      "Contact us for creative partnerships, campaigns, wholesale, and brand opportunities."
+    );
+
+  const whatsappButtonText =
+    normalizeText(
+      content.whatsappButtonText,
+      "Message On WhatsApp"
+    );
+
+  const emailButtonText = normalizeText(
+    content.emailButtonText,
+    "Send An Email"
+  );
+
+  const whatsappMessage = normalizeText(
+    content.whatsappMessage,
+    "Hello OBSIDIAN, I would like to know more about your products."
+  );
+
+  const whatsappUrl = whatsappNumber
+    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
+        whatsappMessage
+      )}`
+    : "";
+
+  const formattedPhone =
+    formatPhoneNumber(phone);
+
+  const pageDescription =
+    normalizeText(
+      seo.description,
+      DEFAULT_DESCRIPTION
+    );
+
+  const canonicalPath =
+    normalizeText(
+      seo.canonical,
+      "/contact"
+    );
+
+  const pageUrl =
+    getAbsoluteUrl(canonicalPath);
+
+  const socialImage = getAbsoluteUrl(
+    normalizeText(
+      seo.ogImage,
+      DEFAULT_SOCIAL_IMAGE
+    )
+  );
+
   const contactPageJsonLd = {
     "@context": "https://schema.org",
     "@type": "ContactPage",
-    "@id": `${PAGE_URL}#webpage`,
-    url: PAGE_URL,
-    name: `Contact ${SITE_NAME}`,
-    description: PAGE_DESCRIPTION,
+    "@id": `${pageUrl}#webpage`,
+    url: pageUrl,
+    name: `Contact ${storeName}`,
+    description: pageDescription,
+
+    primaryImageOfPage: socialImage
+      ? {
+          "@type": "ImageObject",
+          url: socialImage,
+        }
+      : undefined,
+
     isPartOf: {
       "@id": `${SITE_URL}/#website`,
     },
+
     about: {
       "@id": `${SITE_URL}/#organization`,
     },
+
     breadcrumb: {
-      "@id": `${PAGE_URL}#breadcrumb`,
+      "@id": `${pageUrl}#breadcrumb`,
     },
+
     inLanguage: "en-BD",
   };
 
@@ -100,36 +375,48 @@ export default function ContactPage() {
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": `${SITE_URL}/#organization`,
-    name: SITE_NAME,
+    name: storeName,
     url: SITE_URL,
+
     logo: {
       "@type": "ImageObject",
       url: `${SITE_URL}/favicon.ico`,
     },
-    email: CONTACT_EMAIL,
-    telephone: CONTACT_PHONE,
+
+    email: email || undefined,
+    telephone: phone || undefined,
+
     address: {
       "@type": "PostalAddress",
-      addressLocality: "Dhaka",
+      addressLocality: location,
       addressCountry: "BD",
     },
+
     contactPoint: [
       {
         "@type": "ContactPoint",
         contactType: "customer support",
-        telephone: CONTACT_PHONE,
-        email: CONTACT_EMAIL,
+        telephone:
+          phone || undefined,
+        email:
+          email || undefined,
         areaServed: "BD",
-        availableLanguage: ["English", "Bengali"],
+        availableLanguage: [
+          "English",
+          "Bengali",
+        ],
       },
     ],
-    slogan: "Built Under Pressure. Finished With Precision.",
+
+    slogan:
+      "Built Under Pressure. Finished With Precision.",
   };
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    "@id": `${PAGE_URL}#breadcrumb`,
+    "@id": `${pageUrl}#breadcrumb`,
+
     itemListElement: [
       {
         "@type": "ListItem",
@@ -137,11 +424,12 @@ export default function ContactPage() {
         name: "Home",
         item: SITE_URL,
       },
+
       {
         "@type": "ListItem",
         position: 2,
         name: "Contact",
-        item: PAGE_URL,
+        item: pageUrl,
       },
     ],
   };
@@ -151,21 +439,27 @@ export default function ContactPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: serializeJsonLd(contactPageJsonLd),
+          __html: serializeJsonLd(
+            contactPageJsonLd
+          ),
         }}
       />
 
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: serializeJsonLd(organizationJsonLd),
+          __html: serializeJsonLd(
+            organizationJsonLd
+          ),
         }}
       />
 
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: serializeJsonLd(breadcrumbJsonLd),
+          __html: serializeJsonLd(
+            breadcrumbJsonLd
+          ),
         }}
       />
 
@@ -177,55 +471,65 @@ export default function ContactPage() {
             aria-label="Breadcrumb"
             className="mb-12 flex items-center gap-3 text-[10px] uppercase tracking-[0.28em] text-neutral-500"
           >
-            <Link href="/" className="transition hover:text-black">
+            <Link
+              href="/"
+              className="transition hover:text-black"
+            >
               Home
             </Link>
 
-            <span aria-hidden="true">/</span>
+            <span aria-hidden="true">
+              /
+            </span>
 
-            <span className="text-[#0b0b0b]" aria-current="page">
+            <span
+              className="text-[#0b0b0b]"
+              aria-current="page"
+            >
               Contact
             </span>
           </nav>
 
           <div className="grid gap-16 lg:grid-cols-[1.1fr_0.9fr] lg:gap-24">
             <div>
-              <p className="mb-6 text-xs uppercase tracking-[0.45em] text-neutral-500">
-                Contact
-              </p>
+              {eyebrow ? (
+                <p className="mb-6 text-xs uppercase tracking-[0.45em] text-neutral-500">
+                  {eyebrow}
+                </p>
+              ) : null}
 
-              <h1 className="max-w-4xl font-heading text-6xl font-light leading-none md:text-8xl">
-                Reach
-                <br />
-                Obsidian
-              </h1>
+              {title ? (
+                <h1 className="max-w-4xl font-heading text-6xl font-light leading-none md:text-8xl">
+                  {title}
+                </h1>
+              ) : null}
 
-              <p className="mt-8 max-w-xl text-lg leading-8 text-neutral-700">
-                For product questions, order support, collaborations, or general
-                inquiries, contact the OBSIDIAN team. We will respond as soon as
-                possible.
-              </p>
+              {description ? (
+                <p className="mt-8 max-w-xl text-lg leading-8 text-neutral-700">
+                  {description}
+                </p>
+              ) : null}
 
               <div className="mt-12 grid gap-6 sm:grid-cols-2">
                 <div className="border-t border-black/10 pt-6">
                   <p className="text-[10px] uppercase tracking-[0.32em] text-neutral-500">
-                    Order Support
+                    {supportTitle}
                   </p>
 
                   <p className="mt-4 text-sm leading-7 text-neutral-700">
-                    Get help with order confirmation, delivery, exchange, or
-                    product availability.
+                    {supportDescription}
                   </p>
                 </div>
 
                 <div className="border-t border-black/10 pt-6">
                   <p className="text-[10px] uppercase tracking-[0.32em] text-neutral-500">
-                    Collaborations
+                    {collaborationTitle}
                   </p>
 
                   <p className="mt-4 text-sm leading-7 text-neutral-700">
-                    Contact us for creative partnerships, campaigns, wholesale,
-                    and brand opportunities.
+                    {
+                      collaborationDescription
+                    }
                   </p>
                 </div>
               </div>
@@ -237,61 +541,95 @@ export default function ContactPage() {
               </p>
 
               <div className="divide-y divide-black/10">
-                <div className="pb-8">
-                  <p className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
-                    Email
-                  </p>
+                {email ? (
+                  <div className="pb-8">
+                    <p className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
+                      Email
+                    </p>
 
-                  <a
-                    href={`mailto:${CONTACT_EMAIL}`}
-                    className="break-all text-lg transition hover:opacity-60"
-                  >
-                    {CONTACT_EMAIL}
-                  </a>
-                </div>
+                    <a
+                      href={`mailto:${email}`}
+                      className="break-all text-lg transition hover:opacity-60"
+                    >
+                      {email}
+                    </a>
+                  </div>
+                ) : null}
 
-                <div className="py-8">
-                  <p className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
-                    WhatsApp
-                  </p>
+                {whatsappNumber ? (
+                  <div className="py-8">
+                    <p className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
+                      WhatsApp
+                    </p>
 
-                  <a
-                    href={WHATSAPP_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-lg transition hover:opacity-60"
-                  >
-                    +880 1814-455199
-                  </a>
-                </div>
+                    <a
+                      href={whatsappUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-lg transition hover:opacity-60"
+                    >
+                      {formattedPhone ||
+                        `+${whatsappNumber}`}
+                    </a>
+                  </div>
+                ) : null}
 
-                <div className="pt-8">
-                  <p className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
-                    Location
-                  </p>
+                {phone &&
+                phone !==
+                  `+${whatsappNumber}` ? (
+                  <div className="py-8">
+                    <p className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
+                      Phone
+                    </p>
 
-                  <p className="text-lg">{LOCATION}</p>
-                </div>
+                    <a
+                      href={`tel:${phone}`}
+                      className="text-lg transition hover:opacity-60"
+                    >
+                      {formattedPhone ||
+                        phone}
+                    </a>
+                  </div>
+                ) : null}
+
+                {location ? (
+                  <div className="pt-8">
+                    <p className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
+                      Location
+                    </p>
+
+                    <p className="text-lg">
+                      {location}
+                    </p>
+                  </div>
+                ) : null}
               </div>
 
-              <a
-                href={WHATSAPP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-12 flex w-full justify-center bg-[#0b0b0b] px-8 py-5 text-xs font-semibold uppercase tracking-[0.3em] text-[#f1ece4] transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
-              >
-                Message On WhatsApp
-              </a>
+              {whatsappNumber &&
+              whatsappButtonText ? (
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-12 flex w-full justify-center bg-[#0b0b0b] px-8 py-5 text-xs font-semibold uppercase tracking-[0.3em] text-[#f1ece4] transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+                >
+                  {whatsappButtonText}
+                </a>
+              ) : null}
 
-              <a
-                href={`mailto:${CONTACT_EMAIL}`}
-                className="mt-4 flex w-full justify-center border border-[#0b0b0b] px-8 py-4 text-xs uppercase tracking-[0.3em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
-              >
-                Send An Email
-              </a>
+              {email &&
+              emailButtonText ? (
+                <a
+                  href={`mailto:${email}`}
+                  className="mt-4 flex w-full justify-center border border-[#0b0b0b] px-8 py-4 text-xs uppercase tracking-[0.3em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
+                >
+                  {emailButtonText}
+                </a>
+              ) : null}
 
               <p className="mt-6 text-center text-xs leading-6 text-neutral-500">
-                Customer support is available for orders across Bangladesh.
+                Customer support is available
+                for orders across Bangladesh.
               </p>
             </aside>
           </div>
@@ -306,12 +644,14 @@ export default function ContactPage() {
             </p>
 
             <h2 className="max-w-3xl font-heading text-5xl font-light leading-none md:text-6xl">
-              Discover Pieces Built With Precision
+              Discover Pieces Built With
+              Precision
             </h2>
 
             <p className="mt-6 max-w-xl text-base leading-8 text-neutral-600">
-              Explore premium essentials designed with structure, restraint, and
-              quiet confidence.
+              Explore premium essentials
+              designed with structure,
+              restraint, and quiet confidence.
             </p>
           </div>
 
