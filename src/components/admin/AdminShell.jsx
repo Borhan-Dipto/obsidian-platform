@@ -49,10 +49,16 @@ const navigationItems = [
     icon: "07",
   },
   {
-    label: "Settings",
-    href: "/admin/settings",
-    description: "Configuration",
+    label: "Journal CMS",
+    href: "/admin/content/journal",
+    description: "Stories & Editorial",
     icon: "08",
+  },
+  {
+  label: "Settings",
+  href: "/admin/settings",
+  description: "Configuration",
+  icon: "09",
   },
 ];
 
