@@ -194,3 +194,7 @@ export async function getContactContent() {
 export async function getJournalContent() {
   return getCmsContent("journal");
 }
+
+export async function getCollectionsContent() {
+  return getCmsContent("collections");
+}

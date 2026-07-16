@@ -90,6 +90,7 @@ const DEFAULT_FOOTER = {
       title: "Shop",
       order: 1,
       isActive: true,
+
       links: [
         {
           id: "footer-all-products",
@@ -130,6 +131,7 @@ const DEFAULT_FOOTER = {
       title: "Support",
       order: 2,
       isActive: true,
+
       links: [
         {
           id: "footer-contact",
@@ -423,6 +425,7 @@ const DEFAULT_ABOUT_PAGE = {
       type: "heroText",
       order: 1,
       isEnabled: true,
+
       content: {
         eyebrow: "About Obsidian",
         title: "Built Under Pressure. Finished With Precision.",
@@ -435,6 +438,7 @@ const DEFAULT_ABOUT_PAGE = {
       type: "splitText",
       order: 2,
       isEnabled: true,
+
       content: {
         eyebrow: "Our Philosophy",
         title: "Substance Over Noise",
@@ -447,6 +451,7 @@ const DEFAULT_ABOUT_PAGE = {
       type: "darkText",
       order: 3,
       isEnabled: true,
+
       content: {
         eyebrow: "Why Obsidian",
         title: "Formed By Nature. Refined By Pressure.",
@@ -459,6 +464,7 @@ const DEFAULT_ABOUT_PAGE = {
       type: "text",
       order: 4,
       isEnabled: true,
+
       content: {
         eyebrow: "Origin",
         title: "Designed In Bangladesh",
@@ -533,12 +539,98 @@ const DEFAULT_JOURNAL_PAGE = {
     description:
       "Reflections on design, resilience, craftsmanship, and the ideas that shape every OBSIDIAN collection.",
 
+    posts: [
+      {
+        id: "meaning-of-obsidian",
+        title: "The Meaning Of Obsidian",
+        description:
+          "A reflection on pressure, resilience, and the identity behind the OBSIDIAN brand.",
+        category: "Brand Story",
+        readingTime: "3 Min Read",
+        href: "",
+        order: 1,
+        isActive: true,
+      },
+      {
+        id: "artifact-series",
+        title: "The Artifact Series",
+        description:
+          "How ancient visual language became the foundation of our first collection.",
+        category: "Collection Notes",
+        readingTime: "4 Min Read",
+        href: "",
+        order: 2,
+        isActive: true,
+      },
+      {
+        id: "built-under-pressure",
+        title: "Built Under Pressure",
+        description:
+          "Why we believe character, design, and purpose are formed slowly.",
+        category: "Philosophy",
+        readingTime: "3 Min Read",
+        href: "",
+        order: 3,
+        isActive: true,
+      },
+    ],
+
+    emptyStateTitle: "No journal stories yet.",
+    emptyStateDescription:
+      "New stories about design, collections, and the OBSIDIAN philosophy will appear here.",
+
     ctaEyebrow: "Explore Obsidian",
     ctaTitle: "Discover The Pieces Behind The Stories",
     ctaDescription:
       "Explore garments shaped by restraint, structure, and quiet confidence.",
     ctaText: "Explore Shop",
     ctaHref: "/shop",
+  },
+};
+
+const DEFAULT_COLLECTIONS_PAGE = {
+  key: "collections",
+  schemaVersion: CMS_SCHEMA_VERSION,
+  status: "published",
+
+  title: "Collections",
+  slug: "collections",
+
+  seo: {
+    title: "Collections",
+    description:
+      "Explore OBSIDIAN collections shaped around pressure, precision, minimal form, and quiet strength.",
+    keywords:
+      "obsidian collections, premium fashion Bangladesh, menswear collections",
+    ogImage: "/images/collection-artifact.jpeg",
+    canonical: "/collections",
+    index: true,
+  },
+
+  content: {
+    eyebrow: "Collections",
+    title: "All Collections",
+    description:
+      "Explore the core OBSIDIAN series—each shaped around pressure, precision, restraint, and quiet strength.",
+
+    metaLabel: "Built Under Pressure",
+
+    showCollectionCount: true,
+    showSeriesIndex: true,
+    showFeaturedBadge: true,
+    showDescription: true,
+
+    seriesLabelPrefix: "Series",
+    featuredBadgeText: "Featured",
+    cardHoverButtonText: "View Products",
+    cardFooterText: "Explore Collection",
+
+    emptyStateEyebrow: "Collections",
+    emptyStateTitle: "No collections are available right now.",
+    emptyStateDescription:
+      "New OBSIDIAN collections are being prepared. Explore the current product selection while the next series takes shape.",
+    emptyStateButtonText: "Explore Shop",
+    emptyStateButtonHref: "/shop",
   },
 };
 
@@ -549,6 +641,7 @@ const CMS_DEFAULTS = {
   about: DEFAULT_ABOUT_PAGE,
   contact: DEFAULT_CONTACT_PAGE,
   journal: DEFAULT_JOURNAL_PAGE,
+  collections: DEFAULT_COLLECTIONS_PAGE,
 };
 
 const PUBLIC_CMS_KEYS = Object.freeze(Object.keys(CMS_DEFAULTS));
@@ -588,7 +681,6 @@ function deepMerge(defaultValue, savedValue) {
 
   if (isPlainObject(defaultValue)) {
     const mergedValue = {};
-
     const savedObject = isPlainObject(savedValue) ? savedValue : {};
 
     const keys = new Set([
@@ -627,20 +719,24 @@ function normalizeActiveItems(items = []) {
     .filter((item) => item && item.isActive !== false)
     .sort(
       (firstItem, secondItem) =>
-        normalizeOrder(firstItem.order) - normalizeOrder(secondItem.order)
+        normalizeOrder(firstItem.order) -
+        normalizeOrder(secondItem.order)
     );
 }
 
 function getCmsDefault(key) {
-  if (!PUBLIC_CMS_KEYS.includes(key)) {
+  const normalizedKey = String(key || "").trim().toLowerCase();
+
+  if (!PUBLIC_CMS_KEYS.includes(normalizedKey)) {
     return null;
   }
 
-  return cloneValue(CMS_DEFAULTS[key]);
+  return cloneValue(CMS_DEFAULTS[normalizedKey]);
 }
 
 function mergeCmsContent(key, storedContent = {}) {
-  const defaultContent = getCmsDefault(key);
+  const normalizedKey = String(key || "").trim().toLowerCase();
+  const defaultContent = getCmsDefault(normalizedKey);
 
   if (!defaultContent) {
     return null;
@@ -650,17 +746,24 @@ function mergeCmsContent(key, storedContent = {}) {
 
   return {
     ...mergedContent,
-    key,
+    key: normalizedKey,
     schemaVersion: CMS_SCHEMA_VERSION,
   };
 }
 
 function isSupportedCmsKey(key) {
-  return PUBLIC_CMS_KEYS.includes(String(key || "").trim());
+  const normalizedKey = String(key || "").trim().toLowerCase();
+
+  return PUBLIC_CMS_KEYS.includes(normalizedKey);
 }
 
 function createCmsDocument(key, content = {}) {
-  const mergedContent = mergeCmsContent(key, content);
+  const normalizedKey = String(key || "").trim().toLowerCase();
+
+  const mergedContent = mergeCmsContent(
+    normalizedKey,
+    content
+  );
 
   if (!mergedContent) {
     return null;
@@ -670,7 +773,7 @@ function createCmsDocument(key, content = {}) {
 
   return {
     ...mergedContent,
-    key,
+    key: normalizedKey,
     schemaVersion: CMS_SCHEMA_VERSION,
     createdAt: now,
     updatedAt: now,
@@ -687,6 +790,7 @@ export {
   DEFAULT_ABOUT_PAGE,
   DEFAULT_CONTACT_PAGE,
   DEFAULT_JOURNAL_PAGE,
+  DEFAULT_COLLECTIONS_PAGE,
   cloneValue,
   deepMerge,
   normalizeActiveItems,
