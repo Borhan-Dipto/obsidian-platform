@@ -55,10 +55,16 @@ const navigationItems = [
     icon: "08",
   },
   {
+  label: "Collections CMS",
+  href: "/admin/content/collections",
+  description: "Page Content",
+  icon: "09",
+  },
+  {
   label: "Settings",
   href: "/admin/settings",
   description: "Configuration",
-  icon: "09",
+  icon: "10",
   },
 ];
 
