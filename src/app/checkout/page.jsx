@@ -12,14 +12,42 @@ export default function CheckoutPage() {
   const { cartItems, cartTotal, clearCart } = useCart();
 
   const [settings, setSettings] = useState({
-    store: { name: "OBSIDIAN", currency: "BDT" },
-    contact: { whatsappNumber: "8801814455199" },
-    delivery: { insideDhaka: 80, outsideDhaka: 130 },
-    payment: { cashOnDelivery: true },
+    store: {
+      name: "OBSIDIAN",
+      currency: "BDT",
+    },
+    contact: {
+      whatsappNumber: "8801814455199",
+    },
+    delivery: {
+      insideDhaka: 80,
+      outsideDhaka: 130,
+    },
+    payment: {
+      cashOnDelivery: true,
+    },
   });
 
-  const [deliveryArea, setDeliveryArea] = useState("inside_dhaka");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deliveryArea, setDeliveryArea] =
+    useState("inside_dhaka");
+
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
+
+  const [couponCode, setCouponCode] =
+    useState("");
+
+  const [appliedCoupon, setAppliedCoupon] =
+    useState(null);
+
+  const [couponMessage, setCouponMessage] =
+    useState("");
+
+  const [couponMessageType, setCouponMessageType] =
+    useState("");
+
+  const [isApplyingCoupon, setIsApplyingCoupon] =
+    useState(false);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -39,7 +67,7 @@ export default function CheckoutPage() {
           setSettings(data.settings);
         }
       } catch {
-        // fallback settings will be used
+        // Fallback settings will be used.
       }
     }
 
@@ -51,49 +79,210 @@ export default function CheckoutPage() {
       ? Number(settings.delivery?.insideDhaka) || 0
       : Number(settings.delivery?.outsideDhaka) || 0;
 
-  const grandTotal = cartTotal + deliveryCharge;
-  const currency = settings.store?.currency || "BDT";
-  const currencySymbol = currency === "BDT" ? "৳" : currency;
-  const whatsappNumber = String(settings.contact?.whatsappNumber || "").replace(
-    /\D/g,
-    ""
+  const discountAmount = Number(
+    appliedCoupon?.pricing?.discountAmount || 0
   );
-  const storeName = settings.store?.name || "Obsidian";
 
-  function handleChange(e) {
+  const grandTotal = Math.max(
+    0,
+    cartTotal + deliveryCharge - discountAmount
+  );
+
+  const currency =
+    settings.store?.currency || "BDT";
+
+  const currencySymbol =
+    currency === "BDT" ? "৳" : currency;
+
+  const whatsappNumber = String(
+    settings.contact?.whatsappNumber || ""
+  ).replace(/\D/g, "");
+
+  const storeName =
+    settings.store?.name || "Obsidian";
+
+  const totalItems = cartItems.reduce(
+    (total, item) =>
+      total + Number(item.quantity || 0),
+    0
+  );
+
+  function handleChange(event) {
+    const { name, value } = event.target;
+
     setFormData((current) => ({
       ...current,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  function resetCoupon() {
+    setAppliedCoupon(null);
+    setCouponMessage("");
+    setCouponMessageType("");
+  }
+
+  function handleDeliveryAreaChange(area) {
+    setDeliveryArea(area);
+
+    if (appliedCoupon) {
+      resetCoupon();
+
+      setCouponMessage(
+        "Delivery area changed. Please apply the coupon again."
+      );
+
+      setCouponMessageType("info");
+    }
+  }
+
+  function handleCouponInputChange(event) {
+    const value = event.target.value.toUpperCase();
+
+    setCouponCode(value);
+
+    if (appliedCoupon) {
+      setAppliedCoupon(null);
+    }
+
+    setCouponMessage("");
+    setCouponMessageType("");
+  }
+
+  async function handleApplyCoupon() {
+    const normalizedCode = couponCode
+      .trim()
+      .toUpperCase();
+
+    if (!normalizedCode) {
+      setCouponMessage(
+        "Please enter a coupon code."
+      );
+
+      setCouponMessageType("error");
+      return;
+    }
+
+    if (cartItems.length === 0 || cartTotal <= 0) {
+      setCouponMessage(
+        "Add products to your cart before applying a coupon."
+      );
+
+      setCouponMessageType("error");
+      return;
+    }
+
+    setIsApplyingCoupon(true);
+    setCouponMessage("");
+    setCouponMessageType("");
+
+    try {
+      const response = await fetch(
+        "/api/coupons/validate",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            couponCode: normalizedCode,
+            subtotal: cartTotal,
+            deliveryArea,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setAppliedCoupon(null);
+
+        setCouponMessage(
+          data.message ||
+            "Coupon could not be applied."
+        );
+
+        setCouponMessageType("error");
+        return;
+      }
+
+      setCouponCode(data.coupon.code);
+
+      setAppliedCoupon({
+        coupon: data.coupon,
+        pricing: data.pricing,
+      });
+
+      setCouponMessage(
+        data.message ||
+          "Coupon applied successfully."
+      );
+
+      setCouponMessageType("success");
+    } catch {
+      setAppliedCoupon(null);
+
+      setCouponMessage(
+        "Coupon could not be validated. Please try again."
+      );
+
+      setCouponMessageType("error");
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  }
+
+  function handleRemoveCoupon() {
+    setAppliedCoupon(null);
+    setCouponCode("");
+
+    setCouponMessage(
+      "Coupon removed from your order."
+    );
+
+    setCouponMessageType("info");
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
 
     if (cartItems.length === 0) {
       alert("Your cart is empty.");
       return;
     }
 
-    const phoneDigits = formData.phone.replace(/\D/g, "");
+    const phoneDigits =
+      formData.phone.replace(/\D/g, "");
 
     if (!formData.fullName.trim()) {
       alert("Please enter your full name.");
       return;
     }
 
-    if (phoneDigits.length < 10 || phoneDigits.length > 14) {
-      alert("Please enter a valid phone number.");
+    if (
+      phoneDigits.length < 10 ||
+      phoneDigits.length > 14
+    ) {
+      alert(
+        "Please enter a valid phone number."
+      );
+
       return;
     }
 
     if (!formData.address.trim()) {
-      alert("Please enter your full delivery address.");
+      alert(
+        "Please enter your full delivery address."
+      );
+
       return;
     }
 
     if (!whatsappNumber) {
-      alert("Store WhatsApp number is missing. Please contact admin.");
+      alert(
+        "Store WhatsApp number is missing. Please contact admin."
+      );
+
       return;
     }
 
@@ -111,68 +300,131 @@ export default function CheckoutPage() {
     const orderPayload = {
       customer: cleanFormData,
       items: cartItems,
-      subtotal: cartTotal,
-      deliveryCharge,
-      total: grandTotal,
+      couponCode:
+        appliedCoupon?.coupon?.code || "",
     };
 
     try {
       const response = await fetch("/api/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(orderPayload),
       });
 
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        alert(data.message || "Order could not be submitted. Please try again.");
+        alert(
+          data.message ||
+            "Order could not be submitted. Please try again."
+        );
+
         setIsSubmitting(false);
         return;
       }
 
-      const orderItems = cartItems
+      const finalOrder = data.order || {};
+      const finalItems =
+        finalOrder.items || cartItems;
+
+      const finalPricing =
+        data.pricing ||
+        finalOrder.pricing || {
+          subtotal: cartTotal,
+          deliveryCharge,
+          discountAmount,
+          total: grandTotal,
+        };
+
+      const finalSubtotal = Number(
+        finalPricing.subtotal || 0
+      );
+
+      const finalDeliveryCharge = Number(
+        finalPricing.deliveryCharge || 0
+      );
+
+      const finalDiscountAmount = Number(
+        finalPricing.discountAmount || 0
+      );
+
+      const finalTotal = Number(
+        finalPricing.total || 0
+      );
+
+      const finalCouponCode =
+        finalOrder.coupon?.code ||
+        appliedCoupon?.coupon?.code ||
+        "";
+
+      const orderItems = finalItems
         .map(
           (item) =>
-            `${item.name}%0ASize: ${item.size}%0AQty: ${
-              item.quantity
-            }%0APrice: ${currencySymbol} ${
-              Number(item.price) * Number(item.quantity)
+            `${item.name}%0A` +
+            `Size: ${item.size || "N/A"}%0A` +
+            `Qty: ${item.quantity}%0A` +
+            `Price: ${currencySymbol} ${
+              Number(item.price) *
+              Number(item.quantity)
             }`
         )
         .join("%0A%0A");
 
+      const couponLine = finalCouponCode
+        ? `Coupon: ${finalCouponCode}%0A`
+        : "";
+
+      const discountLine =
+        finalDiscountAmount > 0
+          ? `Discount: -${currencySymbol} ${finalDiscountAmount}%0A`
+          : "";
+
       const message =
-        `Hello ${storeName},%0A%0AI want to place an order.%0A%0A` +
+        `Hello ${storeName},%0A%0A` +
+        `I want to place an order.%0A%0A` +
         `Order ID: ${data.order.id}%0A` +
         `Customer Name: ${cleanFormData.fullName}%0A` +
         `Phone: ${cleanFormData.phone}%0A` +
-        `Email: ${cleanFormData.email || "Not provided"}%0A` +
+        `Email: ${
+          cleanFormData.email || "Not provided"
+        }%0A` +
         `Address: ${cleanFormData.address}%0A` +
         `Delivery Area: ${
-          deliveryArea === "inside_dhaka" ? "Inside Dhaka" : "Outside Dhaka"
+          deliveryArea === "inside_dhaka"
+            ? "Inside Dhaka"
+            : "Outside Dhaka"
         }%0A` +
-        `Note: ${cleanFormData.note || "No note"}%0A%0A` +
+        `Note: ${
+          cleanFormData.note || "No note"
+        }%0A%0A` +
         `Order Items:%0A${orderItems}%0A%0A` +
-        `Subtotal: ${currencySymbol} ${cartTotal}%0A` +
-        `Delivery: ${currencySymbol} ${deliveryCharge}%0A` +
-        `Total: ${currencySymbol} ${grandTotal}%0A%0A` +
+        `Subtotal: ${currencySymbol} ${finalSubtotal}%0A` +
+        `Delivery: ${currencySymbol} ${finalDeliveryCharge}%0A` +
+        couponLine +
+        discountLine +
+        `Total: ${currencySymbol} ${finalTotal}%0A%0A` +
         `Please confirm my order.`;
 
-      window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank");
+      window.open(
+        `https://wa.me/${whatsappNumber}?text=${message}`,
+        "_blank"
+      );
 
       clearCart();
-      router.push(`/success?orderId=${data.order.id}`);
+
+      router.push(
+        `/success?orderId=${data.order.id}`
+      );
     } catch {
-      alert("Something went wrong. Please try again.");
+      alert(
+        "Something went wrong. Please try again."
+      );
+
       setIsSubmitting(false);
     }
   }
-
-  const totalItems = cartItems.reduce(
-    (total, item) => total + Number(item.quantity || 0),
-    0
-  );
 
   return (
     <main className="min-h-screen bg-[#f1ece4] text-[#0b0b0b]">
@@ -190,7 +442,10 @@ export default function CheckoutPage() {
             </h1>
 
             <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">
-              {totalItems} {totalItems === 1 ? "Item" : "Items"}
+              {totalItems}{" "}
+              {totalItems === 1
+                ? "Item"
+                : "Items"}
             </p>
           </div>
 
@@ -201,7 +456,8 @@ export default function CheckoutPage() {
               </h2>
 
               <p className="mt-4 max-w-xl text-base leading-8 text-neutral-600">
-                Add an Obsidian piece to your cart before checkout.
+                Add an Obsidian piece to your
+                cart before checkout.
               </p>
 
               <Link
@@ -213,7 +469,10 @@ export default function CheckoutPage() {
             </div>
           ) : (
             <div className="grid gap-10 lg:grid-cols-[1fr_420px]">
-              <form onSubmit={handleSubmit} className="space-y-7">
+              <form
+                onSubmit={handleSubmit}
+                className="space-y-7"
+              >
                 <div className="border border-black/10 bg-[#eee7dd] p-7 md:p-9">
                   <p className="mb-7 text-xs uppercase tracking-[0.4em] text-neutral-500">
                     Customer Details
@@ -221,24 +480,53 @@ export default function CheckoutPage() {
 
                   <div className="grid gap-6">
                     {[
-                      ["fullName", "Full Name", "text", true],
-                      ["phone", "Phone Number", "tel", true],
-                      ["email", "Email Optional", "email", false],
-                    ].map(([name, label, type, required]) => (
-                      <div key={name}>
-                        <label className="mb-2 block text-xs uppercase tracking-[0.28em] text-neutral-500">
-                          {label}
-                        </label>
-                        <input
-                          type={type}
-                          name={name}
-                          value={formData[name]}
-                          onChange={handleChange}
-                          required={required}
-                          className="w-full border-b border-black/20 bg-transparent py-2.5 text-base outline-none transition focus:border-black"
-                        />
-                      </div>
-                    ))}
+                      [
+                        "fullName",
+                        "Full Name",
+                        "text",
+                        true,
+                      ],
+                      [
+                        "phone",
+                        "Phone Number",
+                        "tel",
+                        true,
+                      ],
+                      [
+                        "email",
+                        "Email Optional",
+                        "email",
+                        false,
+                      ],
+                    ].map(
+                      ([
+                        name,
+                        label,
+                        type,
+                        required,
+                      ]) => (
+                        <div key={name}>
+                          <label className="mb-2 block text-xs uppercase tracking-[0.28em] text-neutral-500">
+                            {label}
+                          </label>
+
+                          <input
+                            type={type}
+                            name={name}
+                            value={
+                              formData[name]
+                            }
+                            onChange={
+                              handleChange
+                            }
+                            required={
+                              required
+                            }
+                            className="w-full border-b border-black/20 bg-transparent py-2.5 text-base outline-none transition focus:border-black"
+                          />
+                        </div>
+                      )
+                    )}
                   </div>
                 </div>
 
@@ -250,28 +538,46 @@ export default function CheckoutPage() {
                   <div className="mb-7 grid gap-4 md:grid-cols-2">
                     <button
                       type="button"
-                      onClick={() => setDeliveryArea("inside_dhaka")}
+                      onClick={() =>
+                        handleDeliveryAreaChange(
+                          "inside_dhaka"
+                        )
+                      }
                       className={`border px-5 py-4 text-left text-xs uppercase tracking-[0.25em] transition ${
-                        deliveryArea === "inside_dhaka"
+                        deliveryArea ===
+                        "inside_dhaka"
                           ? "border-black bg-black text-[#f1ece4]"
                           : "border-black/20 text-[#0b0b0b] hover:bg-black hover:text-[#f1ece4]"
                       }`}
                     >
-                      Inside Dhaka / {currencySymbol}{" "}
-                      {Number(settings.delivery?.insideDhaka) || 0}
+                      Inside Dhaka /{" "}
+                      {currencySymbol}{" "}
+                      {Number(
+                        settings.delivery
+                          ?.insideDhaka
+                      ) || 0}
                     </button>
 
                     <button
                       type="button"
-                      onClick={() => setDeliveryArea("outside_dhaka")}
+                      onClick={() =>
+                        handleDeliveryAreaChange(
+                          "outside_dhaka"
+                        )
+                      }
                       className={`border px-5 py-4 text-left text-xs uppercase tracking-[0.25em] transition ${
-                        deliveryArea === "outside_dhaka"
+                        deliveryArea ===
+                        "outside_dhaka"
                           ? "border-black bg-black text-[#f1ece4]"
                           : "border-black/20 text-[#0b0b0b] hover:bg-black hover:text-[#f1ece4]"
                       }`}
                     >
-                      Outside Dhaka / {currencySymbol}{" "}
-                      {Number(settings.delivery?.outsideDhaka) || 0}
+                      Outside Dhaka /{" "}
+                      {currencySymbol}{" "}
+                      {Number(
+                        settings.delivery
+                          ?.outsideDhaka
+                      ) || 0}
                     </button>
                   </div>
 
@@ -280,6 +586,7 @@ export default function CheckoutPage() {
                       <label className="mb-2 block text-xs uppercase tracking-[0.28em] text-neutral-500">
                         Full Delivery Address
                       </label>
+
                       <textarea
                         name="address"
                         value={formData.address}
@@ -294,6 +601,7 @@ export default function CheckoutPage() {
                       <label className="mb-2 block text-xs uppercase tracking-[0.28em] text-neutral-500">
                         Order Note Optional
                       </label>
+
                       <textarea
                         name="note"
                         value={formData.note}
@@ -318,14 +626,20 @@ export default function CheckoutPage() {
 
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={
+                      isSubmitting ||
+                      isApplyingCoupon
+                    }
                     className="mt-7 w-full bg-[#0b0b0b] px-8 py-5 text-xs uppercase tracking-[0.35em] text-[#f1ece4] transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {isSubmitting ? "Submitting Order..." : "Place Order"}
+                    {isSubmitting
+                      ? "Submitting Order..."
+                      : "Place Order"}
                   </button>
 
                   <p className="mt-4 text-center text-xs leading-6 text-neutral-500">
-                    Orders are reviewed manually before confirmation.
+                    Orders are reviewed manually
+                    before confirmation.
                   </p>
                 </div>
               </form>
@@ -341,7 +655,10 @@ export default function CheckoutPage() {
 
                 <div className="mt-8 space-y-6 border-y border-black/10 py-6">
                   {cartItems.map((item) => (
-                    <div key={`${item.id}-${item.size}`} className="flex gap-5">
+                    <div
+                      key={`${item.id}-${item.size}`}
+                      className="flex gap-5"
+                    >
                       <img
                         src={item.image}
                         alt={item.name}
@@ -358,40 +675,180 @@ export default function CheckoutPage() {
                         </h3>
 
                         <p className="mt-2 text-sm text-neutral-600">
-                          {item.color || "Obsidian Black"}
+                          {item.color ||
+                            "Obsidian Black"}
                         </p>
 
                         <p className="mt-1 text-sm text-neutral-600">
-                          Size {item.size} / Qty {item.quantity}
+                          Size {item.size} / Qty{" "}
+                          {item.quantity}
                         </p>
                       </div>
 
                       <p className="text-sm">
                         {currencySymbol}{" "}
-                        {Number(item.price) * Number(item.quantity)}
+                        {Number(item.price) *
+                          Number(
+                            item.quantity
+                          )}
                       </p>
                     </div>
                   ))}
                 </div>
 
+                <div className="mt-7 border-b border-black/10 pb-7">
+                  <p className="mb-4 text-xs uppercase tracking-[0.3em] text-neutral-500">
+                    Coupon
+                  </p>
+
+                  {appliedCoupon ? (
+                    <div className="border border-black bg-[#0b0b0b] p-5 text-[#f1ece4]">
+                      <div className="flex items-start justify-between gap-5">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-400">
+                            Applied Code
+                          </p>
+
+                          <p className="mt-2 text-lg uppercase tracking-[0.2em]">
+                            {
+                              appliedCoupon
+                                .coupon.code
+                            }
+                          </p>
+
+                          <p className="mt-2 text-sm text-neutral-300">
+                            You saved{" "}
+                            {currencySymbol}{" "}
+                            {discountAmount}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={
+                            handleRemoveCoupon
+                          }
+                          className="text-[10px] uppercase tracking-[0.25em] text-neutral-400 underline underline-offset-4 transition hover:text-white"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex">
+                      <input
+                        type="text"
+                        value={couponCode}
+                        onChange={
+                          handleCouponInputChange
+                        }
+                        onKeyDown={(event) => {
+                          if (
+                            event.key ===
+                            "Enter"
+                          ) {
+                            event.preventDefault();
+                            handleApplyCoupon();
+                          }
+                        }}
+                        placeholder="ENTER CODE"
+                        autoComplete="off"
+                        className="min-w-0 flex-1 border border-black/20 bg-transparent px-4 py-4 text-xs uppercase tracking-[0.2em] outline-none transition placeholder:text-neutral-400 focus:border-black"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={
+                          handleApplyCoupon
+                        }
+                        disabled={
+                          isApplyingCoupon
+                        }
+                        className="border border-l-0 border-black bg-[#0b0b0b] px-5 text-[10px] uppercase tracking-[0.25em] text-[#f1ece4] transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isApplyingCoupon
+                          ? "Checking"
+                          : "Apply"}
+                      </button>
+                    </div>
+                  )}
+
+                  {couponMessage ? (
+                    <p
+                      className={`mt-3 text-xs leading-5 ${
+                        couponMessageType ===
+                        "error"
+                          ? "text-red-700"
+                          : couponMessageType ===
+                              "success"
+                            ? "text-green-800"
+                            : "text-neutral-500"
+                      }`}
+                    >
+                      {couponMessage}
+                    </p>
+                  ) : null}
+                </div>
+
                 <div className="mt-7 space-y-5 text-sm">
                   <div className="flex justify-between gap-6">
-                    <span className="text-neutral-500">Subtotal</span>
+                    <span className="text-neutral-500">
+                      Subtotal
+                    </span>
+
                     <span>
-                      {currencySymbol} {cartTotal}
+                      {currencySymbol}{" "}
+                      {cartTotal}
                     </span>
                   </div>
 
                   <div className="flex justify-between gap-6">
-                    <span className="text-neutral-500">Delivery</span>
+                    <span className="text-neutral-500">
+                      Delivery
+                    </span>
+
                     <span>
-                      {currencySymbol} {deliveryCharge}
+                      {currencySymbol}{" "}
+                      {deliveryCharge}
                     </span>
                   </div>
 
+                  {discountAmount > 0 ? (
+                    <div className="flex justify-between gap-6">
+                      <span className="text-neutral-500">
+                        Discount
+                      </span>
+
+                      <span className="font-medium">
+                        -{currencySymbol}{" "}
+                        {discountAmount}
+                      </span>
+                    </div>
+                  ) : null}
+
+                  {appliedCoupon ? (
+                    <div className="flex justify-between gap-6">
+                      <span className="text-neutral-500">
+                        Coupon
+                      </span>
+
+                      <span className="uppercase tracking-[0.12em]">
+                        {
+                          appliedCoupon.coupon
+                            .code
+                        }
+                      </span>
+                    </div>
+                  ) : null}
+
                   <div className="flex justify-between gap-6">
-                    <span className="text-neutral-500">Payment</span>
-                    <span>Cash on Delivery</span>
+                    <span className="text-neutral-500">
+                      Payment
+                    </span>
+
+                    <span>
+                      Cash on Delivery
+                    </span>
                   </div>
                 </div>
 
@@ -400,16 +857,29 @@ export default function CheckoutPage() {
                     <span className="font-heading text-3xl font-light">
                       Total
                     </span>
+
                     <span className="font-heading text-3xl font-light">
-                      {currencySymbol} {grandTotal}
+                      {currencySymbol}{" "}
+                      {grandTotal}
                     </span>
                   </div>
+
+                  {discountAmount > 0 ? (
+                    <p className="mt-3 text-right text-xs text-neutral-500">
+                      You save {currencySymbol}{" "}
+                      {discountAmount} on this
+                      order.
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="mt-7 space-y-2 border-t border-black/10 pt-6 text-sm text-neutral-600">
                   <p>✓ 2-5 Days Delivery</p>
                   <p>✓ Cash on Delivery</p>
-                  <p>✓ Order confirmation via WhatsApp</p>
+                  <p>
+                    ✓ Order confirmation via
+                    WhatsApp
+                  </p>
                 </div>
 
                 <Link
