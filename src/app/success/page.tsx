@@ -2,12 +2,17 @@ import Link from "next/link";
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
 
-export default function SuccessPage({
+type SuccessPageProps = {
+  searchParams?: Promise<{
+    orderId?: string;
+  }>;
+};
+
+export default async function SuccessPage({
   searchParams,
-}: {
-  searchParams?: { orderId?: string };
-}) {
-  const orderId = searchParams?.orderId;
+}: SuccessPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const orderId = resolvedSearchParams?.orderId;
 
   return (
     <main className="min-h-screen bg-[#f1ece4] text-[#0b0b0b]">
