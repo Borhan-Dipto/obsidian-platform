@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import clientPromise from "./mongodb";
 
 const CUSTOMER_COOKIE_NAME = "obsidian-customer";
+
 const CUSTOMER_SESSION_DURATION_SECONDS =
   60 * 60 * 24 * 30;
 
@@ -28,6 +29,84 @@ function getCustomerAuthSecret() {
   }
 
   return secret;
+}
+
+function getMongoDatabaseName() {
+  return (
+    normalizeText(process.env.MONGODB_DB) ||
+    "obsidian"
+  );
+}
+
+async function resolveMongoClient() {
+  const importedValue = await clientPromise;
+
+  if (
+    importedValue &&
+    typeof importedValue.db === "function"
+  ) {
+    return importedValue;
+  }
+
+  if (importedValue?.default) {
+    const defaultValue =
+      await importedValue.default;
+
+    if (
+      defaultValue &&
+      typeof defaultValue.db === "function"
+    ) {
+      return defaultValue;
+    }
+  }
+
+  if (importedValue?.client) {
+    const clientValue =
+      await importedValue.client;
+
+    if (
+      clientValue &&
+      typeof clientValue.db === "function"
+    ) {
+      return clientValue;
+    }
+  }
+
+  if (importedValue?.clientPromise) {
+    const promisedClient =
+      await importedValue.clientPromise;
+
+    if (
+      promisedClient &&
+      typeof promisedClient.db === "function"
+    ) {
+      return promisedClient;
+    }
+  }
+
+  console.error(
+    "MongoDB client resolution failed:",
+    {
+      valueType: typeof importedValue,
+      availableKeys:
+        importedValue &&
+        typeof importedValue === "object"
+          ? Object.keys(importedValue)
+          : [],
+    }
+  );
+
+  throw new TypeError(
+    "MongoDB connection did not return a valid MongoClient."
+  );
+}
+
+async function getCustomerCollection() {
+  const client = await resolveMongoClient();
+
+  return client
+    .db(getMongoDatabaseName())
+    .collection("customers");
 }
 
 function encodeBase64Url(value) {
@@ -202,6 +281,12 @@ function createCustomerQuery(customerId) {
   const normalizedCustomerId =
     normalizeText(customerId);
 
+  if (!normalizedCustomerId) {
+    return {
+      _id: null,
+    };
+  }
+
   const queryOptions = [
     {
       customerId: normalizedCustomerId,
@@ -350,16 +435,11 @@ export async function getCurrentCustomer() {
   }
 
   try {
-    const client = await clientPromise;
+    const customers =
+      await getCustomerCollection();
 
-    const db = client.db(
-      process.env.MONGODB_DB ||
-        "obsidian"
-    );
-
-    const customer = await db
-      .collection("customers")
-      .findOne(
+    const customer =
+      await customers.findOne(
         createCustomerQuery(
           session.customerId
         )
