@@ -19,6 +19,9 @@ const DEFAULT_PAGE_DESCRIPTION =
 const FALLBACK_IMAGE = "/images/collection-artifact.jpeg";
 
 const DEFAULT_CONTENT = {
+  breadcrumbHomeLabel: "Home",
+  breadcrumbCurrentLabel: "Collections",
+
   eyebrow: "Collections",
   title: "All Collections",
   description:
@@ -27,6 +30,9 @@ const DEFAULT_CONTENT = {
   metaLabel: "Built Under Pressure",
 
   showCollectionCount: true,
+  collectionCountSingular: "Collection",
+  collectionCountPlural: "Collections",
+
   showSeriesIndex: true,
   showFeaturedBadge: true,
   showDescription: true,
@@ -106,30 +112,24 @@ function getAbsoluteUrl(pathOrUrl) {
 }
 
 function createCollectionShopPath(series) {
-  return `/shop?series=${encodeURIComponent(
-    series
-  )}`;
+  return `/shop?series=${encodeURIComponent(series)}`;
 }
 
 function serializeJsonLd(data) {
-  return JSON.stringify(data).replace(
-    /</g,
-    "\\u003c"
-  );
+  return JSON.stringify(data).replace(/</g, "\\u003c");
 }
 
 function renderMultilineTitle(title) {
-  const lines = normalizeText(title)
+  const lines = String(title || "")
     .split(/\n|<br\s*\/?>/i)
-    .map((line) => line.trim())
+    .map((line) => line.replace(/\s+/g, " ").trim())
     .filter(Boolean);
 
   return lines.map((line, index) => (
     <span key={`${line}-${index}`}>
       {line}
-      {index < lines.length - 1 ? (
-        <br />
-      ) : null}
+
+      {index < lines.length - 1 ? <br /> : null}
     </span>
   ));
 }
@@ -153,9 +153,7 @@ async function getCollections() {
       })
       .toArray();
 
-    return JSON.parse(
-      JSON.stringify(collections)
-    );
+    return JSON.parse(JSON.stringify(collections));
   } catch (error) {
     console.error(
       "Collections lookup error:",
@@ -192,21 +190,16 @@ export async function generateMetadata() {
     FALLBACK_IMAGE
   );
 
-  const allowIndexing =
-    seo.index !== false;
+  const allowIndexing = seo.index !== false;
 
-  const keywords = normalizeText(
-    seo.keywords
-  )
+  const keywords = normalizeText(seo.keywords)
     .split(",")
     .map((keyword) => keyword.trim())
     .filter(Boolean);
 
   return {
     title,
-
     description,
-
     keywords,
 
     alternates: {
@@ -254,13 +247,11 @@ export async function generateMetadata() {
 }
 
 export default async function CollectionsPage() {
-  const [
-    collections,
-    collectionsDocument,
-  ] = await Promise.all([
-    getCollections(),
-    getCollectionsContent(),
-  ]);
+  const [collections, collectionsDocument] =
+    await Promise.all([
+      getCollections(),
+      getCollectionsContent(),
+    ]);
 
   const content = mergeContent(
     DEFAULT_CONTENT,
@@ -268,6 +259,16 @@ export default async function CollectionsPage() {
   );
 
   const seo = collectionsDocument?.seo || {};
+
+  const breadcrumbHomeLabel = normalizeText(
+    content.breadcrumbHomeLabel,
+    DEFAULT_CONTENT.breadcrumbHomeLabel
+  );
+
+  const breadcrumbCurrentLabel = normalizeText(
+    content.breadcrumbCurrentLabel,
+    DEFAULT_CONTENT.breadcrumbCurrentLabel
+  );
 
   const eyebrow = normalizeText(
     content.eyebrow,
@@ -289,151 +290,138 @@ export default async function CollectionsPage() {
     DEFAULT_CONTENT.metaLabel
   );
 
-  const showCollectionCount =
-    normalizeBoolean(
-      content.showCollectionCount,
-      true
-    );
+  const showCollectionCount = normalizeBoolean(
+    content.showCollectionCount,
+    true
+  );
 
-  const showSeriesIndex =
-    normalizeBoolean(
-      content.showSeriesIndex,
-      true
-    );
+  const collectionCountSingular = normalizeText(
+    content.collectionCountSingular,
+    DEFAULT_CONTENT.collectionCountSingular
+  );
 
-  const showFeaturedBadge =
-    normalizeBoolean(
-      content.showFeaturedBadge,
-      true
-    );
+  const collectionCountPlural = normalizeText(
+    content.collectionCountPlural,
+    DEFAULT_CONTENT.collectionCountPlural
+  );
 
-  const showDescription =
-    normalizeBoolean(
-      content.showDescription,
-      true
-    );
+  const showSeriesIndex = normalizeBoolean(
+    content.showSeriesIndex,
+    true
+  );
+
+  const showFeaturedBadge = normalizeBoolean(
+    content.showFeaturedBadge,
+    true
+  );
+
+  const showDescription = normalizeBoolean(
+    content.showDescription,
+    true
+  );
 
   const seriesLabelPrefix = normalizeText(
     content.seriesLabelPrefix,
     DEFAULT_CONTENT.seriesLabelPrefix
   );
 
-  const featuredBadgeText =
-    normalizeText(
-      content.featuredBadgeText,
-      DEFAULT_CONTENT.featuredBadgeText
-    );
+  const featuredBadgeText = normalizeText(
+    content.featuredBadgeText,
+    DEFAULT_CONTENT.featuredBadgeText
+  );
 
-  const cardHoverButtonText =
-    normalizeText(
-      content.cardHoverButtonText,
-      DEFAULT_CONTENT.cardHoverButtonText
-    );
+  const cardHoverButtonText = normalizeText(
+    content.cardHoverButtonText,
+    DEFAULT_CONTENT.cardHoverButtonText
+  );
 
   const cardFooterText = normalizeText(
     content.cardFooterText,
     DEFAULT_CONTENT.cardFooterText
   );
 
-  const emptyStateEyebrow =
-    normalizeText(
-      content.emptyStateEyebrow,
-      DEFAULT_CONTENT.emptyStateEyebrow
-    );
+  const emptyStateEyebrow = normalizeText(
+    content.emptyStateEyebrow,
+    DEFAULT_CONTENT.emptyStateEyebrow
+  );
 
   const emptyStateTitle = normalizeText(
     content.emptyStateTitle,
     DEFAULT_CONTENT.emptyStateTitle
   );
 
-  const emptyStateDescription =
-    normalizeText(
-      content.emptyStateDescription,
-      DEFAULT_CONTENT.emptyStateDescription
-    );
+  const emptyStateDescription = normalizeText(
+    content.emptyStateDescription,
+    DEFAULT_CONTENT.emptyStateDescription
+  );
 
-  const emptyStateButtonText =
-    normalizeText(
-      content.emptyStateButtonText,
-      DEFAULT_CONTENT.emptyStateButtonText
-    );
+  const emptyStateButtonText = normalizeText(
+    content.emptyStateButtonText,
+    DEFAULT_CONTENT.emptyStateButtonText
+  );
 
-  const emptyStateButtonHref =
-    normalizeText(
-      content.emptyStateButtonHref,
-      DEFAULT_CONTENT.emptyStateButtonHref
-    );
+  const emptyStateButtonHref = normalizeText(
+    content.emptyStateButtonHref,
+    DEFAULT_CONTENT.emptyStateButtonHref
+  );
 
-  const pageDescription =
-    normalizeText(
-      seo.description,
-      DEFAULT_PAGE_DESCRIPTION
-    );
+  const pageDescription = normalizeText(
+    seo.description,
+    DEFAULT_PAGE_DESCRIPTION
+  );
 
   const canonicalPath = normalizeText(
     seo.canonical,
     "/collections"
   );
 
-  const pageUrl = getAbsoluteUrl(
-    canonicalPath
-  );
+  const pageUrl = getAbsoluteUrl(canonicalPath);
 
-  const collectionListItems =
-    collections.map(
-      (collection, index) => {
-        const collectionTitle =
-          normalizeText(
-            collection.title,
-            "OBSIDIAN Collection"
-          );
+  const collectionListItems = collections.map(
+    (collection, index) => {
+      const collectionTitle = normalizeText(
+        collection.title,
+        "OBSIDIAN Collection"
+      );
 
-        const series = normalizeText(
-          collection.series,
-          collectionTitle
-        );
+      const series = normalizeText(
+        collection.series,
+        collectionTitle
+      );
 
-        const collectionDescription =
-          normalizeText(
-            collection.description,
-            "Explore this premium OBSIDIAN collection."
-          );
+      const collectionDescription = normalizeText(
+        collection.description,
+        "Explore this premium OBSIDIAN collection."
+      );
 
-        const shopPath =
-          createCollectionShopPath(
-            series
-          );
+      const shopPath = createCollectionShopPath(series);
+      const shopUrl = getAbsoluteUrl(shopPath);
 
-        const shopUrl =
-          getAbsoluteUrl(shopPath);
+      const imageUrl = getAbsoluteUrl(
+        getCollectionImage(collection)
+      );
 
-        const imageUrl =
-          getAbsoluteUrl(
-            getCollectionImage(collection)
-          );
+      return {
+        "@type": "ListItem",
+        position: index + 1,
+        name: collectionTitle,
+        url: shopUrl,
 
-        return {
-          "@type": "ListItem",
-          position: index + 1,
+        item: {
+          "@type": "CollectionPage",
+          "@id": `${shopUrl}#collection`,
           name: collectionTitle,
+          description: collectionDescription,
           url: shopUrl,
+          image: imageUrl,
 
-          item: {
-            "@type": "CollectionPage",
-            "@id": `${shopUrl}#collection`,
-            name: collectionTitle,
-            description:
-              collectionDescription,
-            url: shopUrl,
-            image: imageUrl,
-
-            isPartOf: {
-              "@id": `${SITE_URL}/#website`,
-            },
+          isPartOf: {
+            "@id": `${SITE_URL}/#website`,
           },
-        };
-      }
-    );
+        },
+      };
+    }
+  );
 
   const collectionPageJsonLd = {
     "@context": "https://schema.org",
@@ -461,10 +449,8 @@ export default async function CollectionsPage() {
             "@type": "ItemList",
             itemListOrder:
               "https://schema.org/ItemListOrderAscending",
-            numberOfItems:
-              collectionListItems.length,
-            itemListElement:
-              collectionListItems,
+            numberOfItems: collectionListItems.length,
+            itemListElement: collectionListItems,
           }
         : undefined,
 
@@ -480,13 +466,13 @@ export default async function CollectionsPage() {
       {
         "@type": "ListItem",
         position: 1,
-        name: "Home",
+        name: breadcrumbHomeLabel,
         item: SITE_URL,
       },
       {
         "@type": "ListItem",
         position: 2,
-        name: "Collections",
+        name: breadcrumbCurrentLabel,
         item: pageUrl,
       },
     ],
@@ -514,7 +500,7 @@ export default async function CollectionsPage() {
 
       <Navbar />
 
-      <section className="px-6 pt-36 pb-28 lg:px-10 lg:pt-40 lg:pb-36">
+      <section className="px-6 pb-28 pt-36 lg:px-10 lg:pb-36 lg:pt-40">
         <div className="mx-auto max-w-[1440px]">
           <nav
             aria-label="Breadcrumb"
@@ -524,18 +510,16 @@ export default async function CollectionsPage() {
               href="/"
               className="transition hover:text-black"
             >
-              Home
+              {breadcrumbHomeLabel}
             </Link>
 
-            <span aria-hidden="true">
-              /
-            </span>
+            <span aria-hidden="true">/</span>
 
             <span
               className="text-[#0b0b0b]"
               aria-current="page"
             >
-              Collections
+              {breadcrumbCurrentLabel}
             </span>
           </nav>
 
@@ -548,9 +532,7 @@ export default async function CollectionsPage() {
 
             {title ? (
               <h1 className="max-w-5xl font-heading text-6xl font-light leading-none md:text-8xl">
-                {renderMultilineTitle(
-                  title
-                )}
+                {renderMultilineTitle(title)}
               </h1>
             ) : null}
 
@@ -560,20 +542,18 @@ export default async function CollectionsPage() {
               </p>
             ) : null}
 
-            {(showCollectionCount ||
-              metaLabel) && (
+            {showCollectionCount || metaLabel ? (
               <div className="mt-8 flex flex-wrap items-center gap-4 text-[10px] uppercase tracking-[0.28em] text-neutral-500">
                 {showCollectionCount ? (
                   <span>
                     {collections.length}{" "}
                     {collections.length === 1
-                      ? "Collection"
-                      : "Collections"}
+                      ? collectionCountSingular
+                      : collectionCountPlural}
                   </span>
                 ) : null}
 
-                {showCollectionCount &&
-                metaLabel ? (
+                {showCollectionCount && metaLabel ? (
                   <span className="h-1 w-1 rounded-full bg-black/30" />
                 ) : null}
 
@@ -581,7 +561,7 @@ export default async function CollectionsPage() {
                   <span>{metaLabel}</span>
                 ) : null}
               </div>
-            )}
+            ) : null}
           </div>
 
           {collections.length === 0 ? (
@@ -600,23 +580,17 @@ export default async function CollectionsPage() {
 
               {emptyStateDescription ? (
                 <p className="mt-4 max-w-xl text-base leading-8 text-neutral-600">
-                  {
-                    emptyStateDescription
-                  }
+                  {emptyStateDescription}
                 </p>
               ) : null}
 
               {emptyStateButtonText &&
               emptyStateButtonHref ? (
                 <Link
-                  href={
-                    emptyStateButtonHref
-                  }
+                  href={emptyStateButtonHref}
                   className="mt-10 inline-flex border border-[#0b0b0b] px-8 py-4 text-xs uppercase tracking-[0.3em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
                 >
-                  {
-                    emptyStateButtonText
-                  }
+                  {emptyStateButtonText}
                 </Link>
               ) : null}
             </div>
@@ -630,11 +604,10 @@ export default async function CollectionsPage() {
                       "OBSIDIAN Collection"
                     );
 
-                  const series =
-                    normalizeText(
-                      collection.series,
-                      collectionTitle
-                    );
+                  const series = normalizeText(
+                    collection.series,
+                    collectionTitle
+                  );
 
                   const collectionDescription =
                     normalizeText(
@@ -643,19 +616,14 @@ export default async function CollectionsPage() {
                     );
 
                   const image =
-                    getCollectionImage(
-                      collection
-                    );
+                    getCollectionImage(collection);
 
                   const shopPath =
-                    createCollectionShopPath(
-                      series
-                    );
+                    createCollectionShopPath(series);
 
-                  const seriesNumber =
-                    String(
-                      index + 1
-                    ).padStart(2, "0");
+                  const seriesNumber = String(
+                    index + 1
+                  ).padStart(2, "0");
 
                   return (
                     <Link
@@ -682,9 +650,7 @@ export default async function CollectionsPage() {
                         <div className="absolute left-5 top-5 flex flex-wrap items-center gap-3">
                           {showSeriesIndex ? (
                             <span className="border border-[#f1ece4]/20 bg-black/40 px-4 py-2 text-[9px] uppercase tracking-[0.25em] text-[#f1ece4] backdrop-blur-md">
-                              {
-                                seriesLabelPrefix
-                              }{" "}
+                              {seriesLabelPrefix}{" "}
                               {seriesNumber}
                             </span>
                           ) : null}
@@ -692,9 +658,7 @@ export default async function CollectionsPage() {
                           {showFeaturedBadge &&
                           collection.isFeatured ? (
                             <span className="border border-[#f1ece4]/20 bg-[#f1ece4]/90 px-4 py-2 text-[9px] uppercase tracking-[0.25em] text-[#0b0b0b] backdrop-blur-md">
-                              {
-                                featuredBadgeText
-                              }
+                              {featuredBadgeText}
                             </span>
                           ) : null}
                         </div>
@@ -702,9 +666,7 @@ export default async function CollectionsPage() {
                         {cardHoverButtonText ? (
                           <div className="absolute inset-x-5 bottom-5 flex translate-y-2 items-center justify-between gap-5 opacity-0 transition duration-500 group-hover:translate-y-0 group-hover:opacity-100">
                             <span className="border border-[#f1ece4]/20 bg-black/45 px-4 py-3 text-[9px] uppercase tracking-[0.27em] text-[#f1ece4] backdrop-blur-md">
-                              {
-                                cardHoverButtonText
-                              }
+                              {cardHoverButtonText}
                             </span>
 
                             <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#f1ece4]/20 bg-black/45 text-[#f1ece4] backdrop-blur-md transition duration-300 group-hover:translate-x-1">
@@ -728,26 +690,20 @@ export default async function CollectionsPage() {
                         </div>
 
                         <h2 className="font-heading text-4xl font-light leading-none">
-                          {
-                            collectionTitle
-                          }
+                          {collectionTitle}
                         </h2>
 
                         {showDescription &&
                         collectionDescription ? (
                           <p className="mt-5 line-clamp-3 text-sm leading-7 text-neutral-600">
-                            {
-                              collectionDescription
-                            }
+                            {collectionDescription}
                           </p>
                         ) : null}
 
                         {cardFooterText ? (
                           <div className="mt-7 flex items-center justify-between border-t border-black/10 pt-5">
                             <span className="text-xs uppercase tracking-[0.28em] text-neutral-500">
-                              {
-                                cardFooterText
-                              }
+                              {cardFooterText}
                             </span>
 
                             <span className="transition duration-300 group-hover:translate-x-1">

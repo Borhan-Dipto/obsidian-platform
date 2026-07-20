@@ -20,11 +20,20 @@ function normalizeCollectionsContent(content = {}) {
       ogImage:
         content.seo?.ogImage ||
         "/images/collection-artifact.jpeg",
-      canonical: content.seo?.canonical || "/collections",
+      canonical:
+        content.seo?.canonical || "/collections",
       index: content.seo?.index !== false,
     },
 
     content: {
+      breadcrumbHomeLabel:
+        content.content?.breadcrumbHomeLabel ||
+        "Home",
+
+      breadcrumbCurrentLabel:
+        content.content?.breadcrumbCurrentLabel ||
+        "Collections",
+
       eyebrow:
         content.content?.eyebrow ||
         "Collections",
@@ -43,6 +52,14 @@ function normalizeCollectionsContent(content = {}) {
 
       showCollectionCount:
         content.content?.showCollectionCount !== false,
+
+      collectionCountSingular:
+        content.content?.collectionCountSingular ||
+        "Collection",
+
+      collectionCountPlural:
+        content.content?.collectionCountPlural ||
+        "Collections",
 
       showSeriesIndex:
         content.content?.showSeriesIndex !== false,
@@ -114,7 +131,9 @@ function TextInput({
       <input
         type={type}
         value={value ?? ""}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
         placeholder={placeholder}
         className="w-full border border-white/10 bg-white/[0.04] px-5 py-4 text-sm text-[#f1ece4] outline-none transition placeholder:text-neutral-600 focus:border-white/30"
       />
@@ -135,7 +154,9 @@ function TextareaInput({
 
       <textarea
         value={value ?? ""}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
         placeholder={placeholder}
         rows={rows}
         className="w-full resize-y border border-white/10 bg-white/[0.04] px-5 py-4 text-sm leading-7 text-[#f1ece4] outline-none transition placeholder:text-neutral-600 focus:border-white/30"
@@ -156,7 +177,9 @@ function SelectInput({
 
       <select
         value={value ?? ""}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
         className="w-full border border-white/10 bg-[#111] px-5 py-4 text-sm text-[#f1ece4] outline-none transition focus:border-white/30"
       >
         {options.map((option) => (
@@ -306,7 +329,8 @@ export default function CollectionsContentEditor({
           method: "PATCH",
 
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
 
           body: JSON.stringify(
@@ -319,6 +343,7 @@ export default function CollectionsContentEditor({
 
       if (!response.ok || !data.success) {
         setMessageType("error");
+
         setMessage(
           data.message ||
             "Collections page could not be saved."
@@ -334,6 +359,7 @@ export default function CollectionsContentEditor({
       );
 
       setMessageType("success");
+
       setMessage(
         "Collections page saved successfully."
       );
@@ -348,6 +374,7 @@ export default function CollectionsContentEditor({
       );
 
       setMessageType("error");
+
       setMessage(
         "Something went wrong while saving the Collections page."
       );
@@ -417,6 +444,43 @@ export default function CollectionsContentEditor({
       </Panel>
 
       <Panel
+        title="Breadcrumb Labels"
+        description="Control the navigation labels displayed above the Collections page heading."
+      >
+        <div className="grid gap-6 md:grid-cols-2">
+          <TextInput
+            label="Home Label"
+            value={
+              collectionsPage.content
+                .breadcrumbHomeLabel
+            }
+            onChange={(value) =>
+              updateContent(
+                "breadcrumbHomeLabel",
+                value
+              )
+            }
+            placeholder="Home"
+          />
+
+          <TextInput
+            label="Current Page Label"
+            value={
+              collectionsPage.content
+                .breadcrumbCurrentLabel
+            }
+            onChange={(value) =>
+              updateContent(
+                "breadcrumbCurrentLabel",
+                value
+              )
+            }
+            placeholder="Collections"
+          />
+        </div>
+      </Panel>
+
+      <Panel
         title="Collections Page Header"
         description="Manage the primary heading, description, and supporting label displayed above the collection cards."
       >
@@ -481,25 +545,62 @@ export default function CollectionsContentEditor({
       </Panel>
 
       <Panel
+        title="Collection Count"
+        description="Control whether the active collection total appears and how its singular and plural labels are written."
+      >
+        <CheckboxInput
+          label="Show Collection Count"
+          description="Display the total number of active collections in the page header."
+          checked={
+            collectionsPage.content
+              .showCollectionCount
+          }
+          onChange={(value) =>
+            updateContent(
+              "showCollectionCount",
+              value
+            )
+          }
+        />
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <TextInput
+            label="Singular Label"
+            value={
+              collectionsPage.content
+                .collectionCountSingular
+            }
+            onChange={(value) =>
+              updateContent(
+                "collectionCountSingular",
+                value
+              )
+            }
+            placeholder="Collection"
+          />
+
+          <TextInput
+            label="Plural Label"
+            value={
+              collectionsPage.content
+                .collectionCountPlural
+            }
+            onChange={(value) =>
+              updateContent(
+                "collectionCountPlural",
+                value
+              )
+            }
+            placeholder="Collections"
+          />
+        </div>
+      </Panel>
+
+      <Panel
         title="Collection Card Visibility"
         description="Choose which information and labels should appear on each public collection card."
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <CheckboxInput
-            label="Show Collection Count"
-            description="Display the total number of active collections in the page header."
-            checked={
-              collectionsPage.content
-                .showCollectionCount
-            }
-            onChange={(value) =>
-              updateContent(
-                "showCollectionCount",
-                value
-              )
-            }
-          />
-
           <CheckboxInput
             label="Show Series Index"
             description="Display Series 01, Series 02, and the numerical card index."
@@ -711,8 +812,7 @@ export default function CollectionsContentEditor({
         <TextareaInput
           label="SEO Description"
           value={
-            collectionsPage.seo
-              .description
+            collectionsPage.seo.description
           }
           onChange={(value) =>
             updateSeo(
@@ -758,8 +858,8 @@ export default function CollectionsContentEditor({
 
           <ImageUploader
             value={
-              collectionsPage.seo
-                .ogImage || ""
+              collectionsPage.seo.ogImage ||
+              ""
             }
             onChange={(value) =>
               updateSeo(
