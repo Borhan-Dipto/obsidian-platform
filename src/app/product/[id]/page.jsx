@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { cache } from "react";
 import clientPromise from "../../../lib/mongodb";
+import { getProductContent } from "../../../lib/getCmsContent";
+import { normalizeActiveItems } from "../../../lib/cmsDefaults";
 import ProductActions from "../../../components/product/ProductActions";
 import RelatedProducts from "../../../components/product/RelatedProducts";
 import RecentlyViewedProducts from "../../../components/product/RecentlyViewedProducts";
@@ -14,11 +16,6 @@ const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
   "https://obsidianwearbd.store";
 
-const FALLBACK_IMAGE = "/images/collection-artifact.jpeg";
-
-const DEFAULT_DESCRIPTION =
-  "A refined OBSIDIAN essential built with pressure, precision, and purpose.";
-
 function cleanText(value, fallback = "") {
   if (typeof value !== "string") {
     return fallback;
@@ -29,8 +26,18 @@ function cleanText(value, fallback = "") {
   return cleanedValue || fallback;
 }
 
-function createMetadataDescription(value) {
-  const description = cleanText(value, DEFAULT_DESCRIPTION);
+function replaceTemplate(template, values = {}) {
+  let result = cleanText(template);
+
+  for (const [key, value] of Object.entries(values)) {
+    result = result.replaceAll(`{${key}}`, String(value ?? ""));
+  }
+
+  return result;
+}
+
+function createMetadataDescription(value, fallback) {
+  const description = cleanText(value, fallback);
 
   if (description.length <= 160) {
     return description;
@@ -39,15 +46,15 @@ function createMetadataDescription(value) {
   return `${description.slice(0, 157).trim()}...`;
 }
 
-function getProductImage(product) {
-  return cleanText(product?.image, FALLBACK_IMAGE);
+function getProductImage(product, fallbackImage) {
+  return cleanText(product?.image, fallbackImage);
 }
 
-function getAbsoluteUrl(pathOrUrl) {
+function getAbsoluteUrl(pathOrUrl, fallbackImage) {
   try {
     return new URL(pathOrUrl, `${SITE_URL}/`).toString();
   } catch {
-    return new URL(FALLBACK_IMAGE, `${SITE_URL}/`).toString();
+    return new URL(fallbackImage, `${SITE_URL}/`).toString();
   }
 }
 
@@ -87,13 +94,42 @@ const getProduct = cache(async (id) => {
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
-  const product = await getProduct(id);
+
+  const [product, productPage] = await Promise.all([
+    getProduct(id),
+    getProductContent(),
+  ]);
+
+  const seo = productPage?.seo || {};
+  const content = productPage?.content || {};
+
+  const fallbackTitle = cleanText(
+    seo.defaultTitle,
+    "OBSIDIAN Product"
+  );
+
+  const fallbackDescription = cleanText(
+    seo.defaultDescription,
+    "A refined OBSIDIAN essential built with pressure, precision, and purpose."
+  );
+
+  const fallbackImage = cleanText(
+    seo.fallbackImage,
+    "/images/collection-artifact.jpeg"
+  );
 
   if (!product) {
     return {
-      title: "Product Not Found",
-      description:
-        "The requested OBSIDIAN product could not be found or is no longer available.",
+      title: cleanText(
+        seo.notFoundTitle,
+        "Product Not Found"
+      ),
+
+      description: cleanText(
+        seo.notFoundDescription,
+        "The requested OBSIDIAN product could not be found or is no longer available."
+      ),
+
       robots: {
         index: false,
         follow: false,
@@ -101,13 +137,64 @@ export async function generateMetadata({ params }) {
     };
   }
 
-  const productName = cleanText(product.name, "OBSIDIAN Product");
-  const description = createMetadataDescription(product.description);
+  const productName = cleanText(
+    product.name,
+    cleanText(
+      content.productFallbackName,
+      fallbackTitle
+    )
+  );
+
+  const description = createMetadataDescription(
+    product.description,
+    cleanText(
+      content.productFallbackDescription,
+      fallbackDescription
+    )
+  );
+
   const productPath = createProductPath(product.id);
-  const productImage = getProductImage(product);
+
+  const productImage = getProductImage(
+    product,
+    fallbackImage
+  );
+
+  const metadataTitle = replaceTemplate(
+    cleanText(seo.titleTemplate, "{product}"),
+    {
+      product: productName,
+      site: SITE_NAME,
+    }
+  );
+
+  const openGraphTitle = replaceTemplate(
+    cleanText(
+      seo.openGraphTitleTemplate,
+      "{product} | OBSIDIAN"
+    ),
+    {
+      product: productName,
+      site: SITE_NAME,
+    }
+  );
+
+  const twitterTitle = replaceTemplate(
+    cleanText(
+      seo.twitterTitleTemplate,
+      "{product} | OBSIDIAN"
+    ),
+    {
+      product: productName,
+      site: SITE_NAME,
+    }
+  );
+
+  const shouldIndex = seo.index !== false;
+  const shouldFollow = seo.follow !== false;
 
   return {
-    title: productName,
+    title: metadataTitle,
     description,
 
     alternates: {
@@ -119,8 +206,9 @@ export async function generateMetadata({ params }) {
       locale: "en_BD",
       siteName: SITE_NAME,
       url: productPath,
-      title: `${productName} | ${SITE_NAME}`,
+      title: openGraphTitle,
       description,
+
       images: [
         {
           url: productImage,
@@ -133,17 +221,18 @@ export async function generateMetadata({ params }) {
 
     twitter: {
       card: "summary_large_image",
-      title: `${productName} | ${SITE_NAME}`,
+      title: twitterTitle,
       description,
       images: [productImage],
     },
 
     robots: {
-      index: true,
-      follow: true,
+      index: shouldIndex,
+      follow: shouldFollow,
+
       googleBot: {
-        index: true,
-        follow: true,
+        index: shouldIndex,
+        follow: shouldFollow,
         "max-image-preview": "large",
         "max-snippet": -1,
         "max-video-preview": -1,
@@ -151,19 +240,40 @@ export async function generateMetadata({ params }) {
     },
 
     other: {
-      "product:price:amount": String(Number(product.price) || 0),
+      "product:price:amount": String(
+        Number(product.price) || 0
+      ),
       "product:price:currency": "BDT",
       "product:availability":
-        Number(product.stock) > 0 ? "in stock" : "out of stock",
+        Number(product.stock) > 0
+          ? "in stock"
+          : "out of stock",
     },
   };
 }
 
 export default async function ProductDetailsPage({ params }) {
   const { id } = await params;
-  const product = await getProduct(id);
+
+  const [product, productPage] = await Promise.all([
+    getProduct(id),
+    getProductContent(),
+  ]);
+
+  const seo = productPage?.seo || {};
+  const content = productPage?.content || {};
+
+  const fallbackImage = cleanText(
+    seo.fallbackImage,
+    "/images/collection-artifact.jpeg"
+  );
 
   if (!product) {
+    const notFoundButtonHref = cleanText(
+      content.notFoundButtonHref,
+      "/shop"
+    );
+
     return (
       <main className="min-h-screen bg-[#f1ece4] text-[#0b0b0b]">
         <Navbar />
@@ -171,23 +281,34 @@ export default async function ProductDetailsPage({ params }) {
         <section className="flex min-h-[70vh] items-center justify-center px-6 pt-32 pb-20">
           <div className="max-w-2xl text-center">
             <p className="mb-5 text-xs uppercase tracking-[0.45em] text-neutral-500">
-              Product
+              {cleanText(
+                content.notFoundEyebrow,
+                "Product"
+              )}
             </p>
 
             <h1 className="font-heading text-5xl font-light leading-none md:text-7xl">
-              Product not found.
+              {cleanText(
+                content.notFoundTitle,
+                "Product not found."
+              )}
             </h1>
 
             <p className="mx-auto mt-6 max-w-xl text-base leading-8 text-neutral-600">
-              This piece may have been removed, renamed, or is no longer
-              available in the current collection.
+              {cleanText(
+                content.notFoundDescription,
+                "This piece may have been removed, renamed, or is no longer available in the current collection."
+              )}
             </p>
 
             <Link
-              href="/shop"
+              href={notFoundButtonHref}
               className="mt-10 inline-flex border border-[#0b0b0b] px-8 py-4 text-xs uppercase tracking-[0.3em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
             >
-              Back To Shop
+              {cleanText(
+                content.notFoundButtonText,
+                "Back To Shop"
+              )}
             </Link>
           </div>
         </section>
@@ -197,22 +318,93 @@ export default async function ProductDetailsPage({ params }) {
     );
   }
 
-  const productName = cleanText(product.name, "OBSIDIAN Product");
-  const productSeries = cleanText(product.series, "OBSIDIAN");
-  const productColor = cleanText(product.color, "Obsidian Black");
-  const productDescription = cleanText(
-    product.description,
-    DEFAULT_DESCRIPTION
+  const productName = cleanText(
+    product.name,
+    cleanText(
+      content.productFallbackName,
+      "OBSIDIAN Product"
+    )
   );
 
-  const productImage = getProductImage(product);
-  const productImageUrl = getAbsoluteUrl(productImage);
+  const productSeries = cleanText(
+    product.series,
+    cleanText(
+      content.productFallbackSeries,
+      "OBSIDIAN"
+    )
+  );
+
+  const productColor = cleanText(
+    product.color,
+    cleanText(
+      content.productFallbackColor,
+      "Obsidian Black"
+    )
+  );
+
+  const productDescription = cleanText(
+    product.description,
+    cleanText(
+      content.productFallbackDescription,
+      "A refined OBSIDIAN essential built with pressure, precision, and purpose."
+    )
+  );
+
+  const productImage = getProductImage(
+    product,
+    fallbackImage
+  );
+
+  const productImageUrl = getAbsoluteUrl(
+    productImage,
+    fallbackImage
+  );
+
   const productPath = createProductPath(product.id);
-  const productUrl = getAbsoluteUrl(productPath);
+
+  const productUrl = getAbsoluteUrl(
+    productPath,
+    fallbackImage
+  );
 
   const price = Number(product.price) || 0;
   const stock = Number(product.stock) || 0;
   const isInStock = stock > 0;
+
+  const currencySymbol = cleanText(
+    content.currencySymbol,
+    "৳"
+  );
+
+  const currencyLocale = cleanText(
+    content.currencyLocale,
+    "en-BD"
+  );
+
+  const availableText = replaceTemplate(
+    cleanText(
+      content.availableTemplate,
+      "{stock} Available"
+    ),
+    {
+      stock,
+    }
+  );
+
+  const imageAlt = replaceTemplate(
+    cleanText(
+      content.imageAltTemplate,
+      "{product} by OBSIDIAN"
+    ),
+    {
+      product: productName,
+      site: SITE_NAME,
+    }
+  );
+
+  const featureHighlights = normalizeActiveItems(
+    content.featureHighlights
+  );
 
   const productJsonLd = {
     "@context": "https://schema.org",
@@ -223,21 +415,27 @@ export default async function ProductDetailsPage({ params }) {
     image: [productImageUrl],
     sku: String(product.id),
     url: productUrl,
+
     brand: {
       "@type": "Brand",
       name: SITE_NAME,
     },
+
     category: productSeries,
     color: productColor,
+
     offers: {
       "@type": "Offer",
       url: productUrl,
       priceCurrency: "BDT",
       price: price.toFixed(2),
+
       availability: isInStock
         ? "https://schema.org/InStock"
         : "https://schema.org/OutOfStock",
+
       itemCondition: "https://schema.org/NewCondition",
+
       seller: {
         "@type": "Organization",
         name: SITE_NAME,
@@ -249,17 +447,24 @@ export default async function ProductDetailsPage({ params }) {
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
+
     itemListElement: [
       {
         "@type": "ListItem",
         position: 1,
-        name: "Home",
+        name: cleanText(
+          content.breadcrumbHomeLabel,
+          "Home"
+        ),
         item: SITE_URL,
       },
       {
         "@type": "ListItem",
         position: 2,
-        name: "Shop",
+        name: cleanText(
+          content.breadcrumbShopLabel,
+          "Shop"
+        ),
         item: `${SITE_URL}/shop`,
       },
       {
@@ -292,17 +497,32 @@ export default async function ProductDetailsPage({ params }) {
       <section className="px-6 pt-32 pb-28 lg:px-10 lg:pt-40 lg:pb-36">
         <div className="mx-auto max-w-[1440px]">
           <nav
-            aria-label="Breadcrumb"
+            aria-label={cleanText(
+              content.breadcrumbAriaLabel,
+              "Breadcrumb"
+            )}
             className="mb-10 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.28em] text-neutral-500"
           >
-            <Link href="/" className="transition hover:text-black">
-              Home
+            <Link
+              href="/"
+              className="transition hover:text-black"
+            >
+              {cleanText(
+                content.breadcrumbHomeLabel,
+                "Home"
+              )}
             </Link>
 
             <span aria-hidden="true">/</span>
 
-            <Link href="/shop" className="transition hover:text-black">
-              Shop
+            <Link
+              href="/shop"
+              className="transition hover:text-black"
+            >
+              {cleanText(
+                content.breadcrumbShopLabel,
+                "Shop"
+              )}
             </Link>
 
             <span aria-hidden="true">/</span>
@@ -319,7 +539,7 @@ export default async function ProductDetailsPage({ params }) {
             <div className="space-y-6">
               <ProductImageZoom
                 src={productImage}
-                alt={`${productName} by ${SITE_NAME}`}
+                alt={imageAlt}
               />
             </div>
 
@@ -333,7 +553,8 @@ export default async function ProductDetailsPage({ params }) {
               </h1>
 
               <p className="mt-8 text-3xl font-light">
-                ৳ {price.toLocaleString("en-BD")}
+                {currencySymbol}{" "}
+                {price.toLocaleString(currencyLocale)}
               </p>
 
               <p className="mt-8 max-w-xl text-base leading-8 text-neutral-600">
@@ -342,73 +563,120 @@ export default async function ProductDetailsPage({ params }) {
 
               <div className="mt-10 space-y-5 border-y border-black/10 py-7 text-sm">
                 <div className="flex justify-between gap-8">
-                  <span className="text-neutral-500">Color</span>
+                  <span className="text-neutral-500">
+                    {cleanText(
+                      content.colorLabel,
+                      "Color"
+                    )}
+                  </span>
+
                   <span>{productColor}</span>
                 </div>
 
                 <div className="flex justify-between gap-8">
-                  <span className="text-neutral-500">Availability</span>
+                  <span className="text-neutral-500">
+                    {cleanText(
+                      content.availabilityLabel,
+                      "Availability"
+                    )}
+                  </span>
 
                   {isInStock ? (
-                    <span>{stock} Available</span>
+                    <span>{availableText}</span>
                   ) : (
-                    <span className="text-red-700">Out of Stock</span>
+                    <span className="text-red-700">
+                      {cleanText(
+                        content.outOfStockText,
+                        "Out of Stock"
+                      )}
+                    </span>
                   )}
                 </div>
 
                 <div className="flex justify-between gap-8">
-                  <span className="text-neutral-500">Series</span>
+                  <span className="text-neutral-500">
+                    {cleanText(
+                      content.seriesLabel,
+                      "Series"
+                    )}
+                  </span>
+
                   <span>{productSeries}</span>
                 </div>
 
                 <div className="flex justify-between gap-8">
-                  <span className="text-neutral-500">Product Code</span>
+                  <span className="text-neutral-500">
+                    {cleanText(
+                      content.productCodeLabel,
+                      "Product Code"
+                    )}
+                  </span>
+
                   <span>{product.id}</span>
                 </div>
               </div>
 
               <ProductActions product={product} />
 
-              <div className="mt-10 grid gap-3 border-t border-black/10 pt-8 text-sm text-neutral-600 sm:grid-cols-2">
-                <p>✓ Premium Cotton</p>
-                <p>✓ Oversized Fit</p>
-                <p>✓ Cash On Delivery</p>
-                <p>✓ Easy Exchange</p>
-                <p>✓ 2–5 Days Delivery</p>
-              </div>
+              {featureHighlights.length > 0 && (
+                <div className="mt-10 grid gap-3 border-t border-black/10 pt-8 text-sm text-neutral-600 sm:grid-cols-2">
+                  {featureHighlights.map((item) => (
+                    <p key={item.id}>
+                      ✓ {cleanText(item.text)}
+                    </p>
+                  ))}
+                </div>
+              )}
 
               <div className="mt-12 space-y-7 border-t border-black/10 pt-8">
                 <div>
                   <h2 className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
-                    Product Details
+                    {cleanText(
+                      content.productDetailsTitle,
+                      "Product Details"
+                    )}
                   </h2>
 
                   <p className="leading-8 text-neutral-600">
-                    {product.details ||
-                      "A premium everyday essential designed for structure, comfort, and quiet confidence."}
+                    {cleanText(
+                      product.details,
+                      cleanText(
+                        content.productDetailsFallback,
+                        "A premium everyday essential designed for structure, comfort, and quiet confidence."
+                      )
+                    )}
                   </p>
                 </div>
 
                 <div>
                   <h2 className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
-                    Delivery
+                    {cleanText(
+                      content.deliveryTitle,
+                      "Delivery"
+                    )}
                   </h2>
 
                   <p className="leading-8 text-neutral-600">
-                    Delivery is available across Bangladesh. Every order is
-                    reviewed and confirmed after checkout before dispatch.
+                    {cleanText(
+                      content.deliveryDescription,
+                      "Delivery is available across Bangladesh. Every order is reviewed and confirmed after checkout before dispatch."
+                    )}
                   </p>
                 </div>
 
                 <div>
                   <h2 className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
-                    Exchange Support
+                    {cleanText(
+                      content.exchangeTitle,
+                      "Exchange Support"
+                    )}
                   </h2>
 
                   <p className="leading-8 text-neutral-600">
-                    Exchange assistance is available according to the OBSIDIAN
-                    exchange policy. Keep the product unused and retain its
-                    original packaging and tags.
+                    {cleanText(
+                      content.exchangeDescription,
+                      "Exchange assistance is available according to the OBSIDIAN exchange policy. Keep the product unused and retain its original packaging and tags."
+                    )}
                   </p>
                 </div>
               </div>
@@ -418,7 +686,10 @@ export default async function ProductDetailsPage({ params }) {
       </section>
 
       <RecentlyViewedProducts product={product} />
-      <RelatedProducts currentProductId={product.id} />
+
+      <RelatedProducts
+        currentProductId={product.id}
+      />
 
       <Footer />
     </main>

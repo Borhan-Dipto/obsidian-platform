@@ -608,6 +608,9 @@ const DEFAULT_COLLECTIONS_PAGE = {
   },
 
   content: {
+    breadcrumbHomeLabel: "Home",
+    breadcrumbCurrentLabel: "Collections",
+
     eyebrow: "Collections",
     title: "All Collections",
     description:
@@ -616,6 +619,9 @@ const DEFAULT_COLLECTIONS_PAGE = {
     metaLabel: "Built Under Pressure",
 
     showCollectionCount: true,
+    collectionCountSingular: "Collection",
+    collectionCountPlural: "Collections",
+
     showSeriesIndex: true,
     showFeaturedBadge: true,
     showDescription: true,
@@ -733,6 +739,109 @@ const DEFAULT_SHOP_PAGE = {
   },
 };
 
+const DEFAULT_PRODUCT_PAGE = {
+  key: "product",
+  schemaVersion: CMS_SCHEMA_VERSION,
+  status: "published",
+
+  title: "Product Details",
+  slug: "product",
+
+  seo: {
+    fallbackTitle: "OBSIDIAN Product",
+    fallbackDescription:
+      "A refined OBSIDIAN essential built with pressure, precision, and purpose.",
+    fallbackImage: "/images/collection-artifact.jpeg",
+
+    notFoundTitle: "Product Not Found",
+    notFoundDescription:
+      "The requested OBSIDIAN product could not be found or is no longer available.",
+
+    titleTemplate: "{product}",
+    openGraphTitleTemplate: "{product} | {site}",
+    twitterTitleTemplate: "{product} | {site}",
+
+    canonicalTemplate: "/product/{id}",
+    index: true,
+  },
+
+  content: {
+    breadcrumbHomeLabel: "Home",
+    breadcrumbShopLabel: "Shop",
+    breadcrumbAriaLabel: "Breadcrumb",
+
+    productFallbackName: "OBSIDIAN Product",
+    productFallbackSeries: "OBSIDIAN",
+    productFallbackColor: "Obsidian Black",
+
+    productImageAltTemplate:
+      "{product} by {site}",
+
+    colorLabel: "Color",
+    availabilityLabel: "Availability",
+    seriesLabel: "Series",
+    productCodeLabel: "Product Code",
+
+    availableTemplate: "{stock} Available",
+    outOfStockText: "Out of Stock",
+
+    currencySymbol: "৳",
+    currencyLocale: "en-BD",
+
+    featureHighlights: [
+      {
+        id: "product-highlight-cotton",
+        text: "Premium Cotton",
+        order: 1,
+        isActive: true,
+      },
+      {
+        id: "product-highlight-fit",
+        text: "Oversized Fit",
+        order: 2,
+        isActive: true,
+      },
+      {
+        id: "product-highlight-cod",
+        text: "Cash On Delivery",
+        order: 3,
+        isActive: true,
+      },
+      {
+        id: "product-highlight-exchange",
+        text: "Easy Exchange",
+        order: 4,
+        isActive: true,
+      },
+      {
+        id: "product-highlight-delivery",
+        text: "2–5 Days Delivery",
+        order: 5,
+        isActive: true,
+      },
+    ],
+
+    productDetailsTitle: "Product Details",
+    productDetailsFallback:
+      "A premium everyday essential designed for structure, comfort, and quiet confidence.",
+
+    deliveryTitle: "Delivery",
+    deliveryDescription:
+      "Delivery is available across Bangladesh. Every order is reviewed and confirmed after checkout before dispatch.",
+
+    exchangeTitle: "Exchange Support",
+    exchangeDescription:
+      "Exchange assistance is available according to the OBSIDIAN exchange policy. Keep the product unused and retain its original packaging and tags.",
+
+    notFoundEyebrow: "Product",
+    notFoundTitle: "Product not found.",
+    notFoundDescription:
+      "This piece may have been removed, renamed, or is no longer available in the current collection.",
+    notFoundButtonText: "Back To Shop",
+    notFoundButtonHref: "/shop",
+  },
+};
+
 const CMS_DEFAULTS = {
   navbar: DEFAULT_NAVBAR,
   footer: DEFAULT_FOOTER,
@@ -742,6 +851,7 @@ const CMS_DEFAULTS = {
   journal: DEFAULT_JOURNAL_PAGE,
   collections: DEFAULT_COLLECTIONS_PAGE,
   shop: DEFAULT_SHOP_PAGE,
+  product: DEFAULT_PRODUCT_PAGE,
 };
 
 const PUBLIC_CMS_KEYS = Object.freeze(
@@ -969,6 +1079,7 @@ export {
   DEFAULT_JOURNAL_PAGE,
   DEFAULT_COLLECTIONS_PAGE,
   DEFAULT_SHOP_PAGE,
+  DEFAULT_PRODUCT_PAGE,
   cloneValue,
   deepMerge,
   normalizeActiveItems,

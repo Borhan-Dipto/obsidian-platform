@@ -202,3 +202,7 @@ export async function getCollectionsContent() {
 export async function getShopContent() {
   return getCmsContent("shop");
 }
+
+export async function getProductContent() {
+  return getCmsContent("product");
+}
