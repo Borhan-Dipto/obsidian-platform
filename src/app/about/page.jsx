@@ -16,6 +16,71 @@ const DEFAULT_DESCRIPTION =
 
 const DEFAULT_SOCIAL_IMAGE = "/images/hero1.jpeg";
 
+const DEFAULT_SECTIONS = [
+  {
+    id: "about-default-hero",
+    type: "heroText",
+    order: 1,
+    isEnabled: true,
+    content: {
+      eyebrow: "Our Story",
+      title: "Built Under Pressure.\nFinished With Precision.",
+      description:
+        "OBSIDIAN is a premium menswear brand shaped by resilience, restraint, and timeless design.",
+    },
+  },
+  {
+    id: "about-default-story",
+    type: "splitText",
+    order: 2,
+    isEnabled: true,
+    content: {
+      eyebrow: "The Origin",
+      title: "Created With Purpose",
+      description:
+        "Inspired by obsidian—formed through intense pressure and transformed into something enduring—we create considered clothing for men who value confidence, structure, and precision.",
+    },
+  },
+  {
+    id: "about-default-philosophy",
+    type: "darkText",
+    order: 3,
+    isEnabled: true,
+    content: {
+      eyebrow: "Our Philosophy",
+      title: "Quiet Confidence.\nLasting Character.",
+      description:
+        "We believe premium style does not need to demand attention. It is expressed through proportion, material, construction, and the confidence of the person wearing it.",
+    },
+  },
+  {
+    id: "about-default-craft",
+    type: "text",
+    order: 4,
+    isEnabled: true,
+    content: {
+      eyebrow: "Our Standard",
+      title: "Designed With Restraint",
+      description:
+        "Every OBSIDIAN piece is developed with a focus on proportion, versatility, material, and finish. Our aim is to create modern essentials that feel relevant today and remain wearable beyond a single season.",
+    },
+  },
+  {
+    id: "about-default-cta",
+    type: "cta",
+    order: 5,
+    isEnabled: true,
+    content: {
+      eyebrow: "Discover Obsidian",
+      title: "Explore The Collections",
+      description:
+        "Discover premium essentials shaped by restraint, structure, and quiet confidence.",
+      buttonText: "View Collections",
+      buttonHref: "/collections",
+    },
+  },
+];
+
 function normalizeText(value, fallback = "") {
   if (typeof value !== "string") {
     return fallback;
@@ -35,12 +100,18 @@ function normalizeOrder(value, fallback = 0) {
 }
 
 function getVisibleSections(sections = []) {
-  if (!Array.isArray(sections)) {
-    return [];
-  }
+  const sourceSections =
+    Array.isArray(sections) && sections.length > 0
+      ? sections
+      : DEFAULT_SECTIONS;
 
-  return [...sections]
-    .filter((section) => section && section.isEnabled !== false)
+  return [...sourceSections]
+    .filter(
+      (section) =>
+        section &&
+        section.isEnabled !== false &&
+        normalizeText(section.type)
+    )
     .sort(
       (firstSection, secondSection) =>
         normalizeOrder(firstSection.order) -
@@ -57,6 +128,7 @@ function renderMultilineTitle(title) {
   return lines.map((line, index) => (
     <span key={`${line}-${index}`}>
       {line}
+
       {index < lines.length - 1 ? <br /> : null}
     </span>
   ));
@@ -87,9 +159,40 @@ function getAbsoluteUrl(value) {
   }`;
 }
 
+function isExternalLink(href) {
+  return (
+    href.startsWith("http://") ||
+    href.startsWith("https://")
+  );
+}
+
+function ActionLink({
+  href,
+  children,
+  className,
+}) {
+  if (isExternalLink(href)) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={className}
+      >
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  );
+}
+
 export async function generateMetadata() {
   const aboutContent = await getAboutContent();
-
   const seo = aboutContent?.seo || {};
 
   const title = normalizeText(seo.title, "About");
@@ -113,7 +216,6 @@ export async function generateMetadata() {
 
   return {
     title,
-
     description,
 
     keywords: normalizeText(seo.keywords)
@@ -152,6 +254,7 @@ export async function generateMetadata() {
     robots: {
       index: allowIndexing,
       follow: allowIndexing,
+
       googleBot: {
         index: allowIndexing,
         follow: allowIndexing,
@@ -171,13 +274,16 @@ function HeroTextSection({ section }) {
   const description = normalizeText(content.description);
 
   return (
-    <section className="px-6 pt-36 pb-24 lg:px-10 lg:pt-40">
+    <section className="px-6 pb-24 pt-16 lg:px-10 lg:pb-32 lg:pt-20">
       <div className="container-custom max-w-5xl">
         <nav
           aria-label="Breadcrumb"
           className="mb-10 flex items-center gap-3 text-[10px] uppercase tracking-[0.28em] text-neutral-500"
         >
-          <Link href="/" className="transition hover:text-black">
+          <Link
+            href="/"
+            className="transition hover:text-black"
+          >
             Home
           </Link>
 
@@ -198,13 +304,13 @@ function HeroTextSection({ section }) {
         ) : null}
 
         {title ? (
-          <h1 className="font-heading text-6xl font-light leading-none md:text-8xl">
+          <h1 className="font-heading text-5xl font-light leading-[0.95] sm:text-6xl md:text-8xl">
             {renderMultilineTitle(title)}
           </h1>
         ) : null}
 
         {description ? (
-          <p className="mt-12 max-w-3xl text-xl leading-10 text-neutral-700">
+          <p className="mt-10 max-w-3xl text-lg leading-9 text-neutral-700 md:mt-12 md:text-xl md:leading-10">
             {description}
           </p>
         ) : null}
@@ -221,8 +327,8 @@ function SplitTextSection({ section }) {
   const description = normalizeText(content.description);
 
   return (
-    <section className="px-6 py-24 lg:px-10">
-      <div className="container-custom grid gap-16 md:grid-cols-2">
+    <section className="border-t border-black/10 px-6 py-20 lg:px-10 lg:py-28">
+      <div className="container-custom grid gap-12 md:grid-cols-2 md:gap-16">
         <div>
           {eyebrow ? (
             <p className="mb-6 text-xs uppercase tracking-[0.4em] text-neutral-500">
@@ -231,14 +337,14 @@ function SplitTextSection({ section }) {
           ) : null}
 
           {title ? (
-            <h2 className="font-heading text-5xl font-light md:text-6xl">
+            <h2 className="font-heading text-4xl font-light leading-tight sm:text-5xl md:text-6xl">
               {renderMultilineTitle(title)}
             </h2>
           ) : null}
         </div>
 
         {description ? (
-          <div>
+          <div className="md:pt-10">
             <p className="text-lg leading-9 text-neutral-700">
               {description}
             </p>
@@ -257,7 +363,7 @@ function DarkTextSection({ section }) {
   const description = normalizeText(content.description);
 
   return (
-    <section className="bg-[#0b0b0b] px-6 py-24 text-[#f1ece4] lg:px-10">
+    <section className="bg-[#0b0b0b] px-6 py-20 text-[#f1ece4] lg:px-10 lg:py-28">
       <div className="container-custom max-w-4xl">
         {eyebrow ? (
           <p className="mb-6 text-xs uppercase tracking-[0.45em] text-neutral-500">
@@ -266,13 +372,13 @@ function DarkTextSection({ section }) {
         ) : null}
 
         {title ? (
-          <h2 className="font-heading text-5xl font-light md:text-7xl">
+          <h2 className="font-heading text-4xl font-light leading-tight sm:text-5xl md:text-7xl">
             {renderMultilineTitle(title)}
           </h2>
         ) : null}
 
         {description ? (
-          <p className="mt-10 max-w-3xl text-lg leading-9 text-neutral-300">
+          <p className="mt-8 max-w-3xl text-lg leading-9 text-neutral-300 md:mt-10">
             {description}
           </p>
         ) : null}
@@ -289,7 +395,7 @@ function TextSection({ section }) {
   const description = normalizeText(content.description);
 
   return (
-    <section className="px-6 py-24 lg:px-10">
+    <section className="border-t border-black/10 px-6 py-20 lg:px-10 lg:py-28">
       <div className="container-custom max-w-4xl">
         {eyebrow ? (
           <p className="mb-6 text-xs uppercase tracking-[0.45em] text-neutral-500">
@@ -298,13 +404,13 @@ function TextSection({ section }) {
         ) : null}
 
         {title ? (
-          <h2 className="font-heading text-5xl font-light">
+          <h2 className="font-heading text-4xl font-light leading-tight sm:text-5xl">
             {renderMultilineTitle(title)}
           </h2>
         ) : null}
 
         {description ? (
-          <p className="mt-10 text-lg leading-9 text-neutral-700">
+          <p className="mt-8 text-lg leading-9 text-neutral-700 md:mt-10">
             {description}
           </p>
         ) : null}
@@ -316,33 +422,23 @@ function TextSection({ section }) {
 function CtaSection({ section }) {
   const content = section.content || {};
 
-  const eyebrow = normalizeText(
-    content.eyebrow,
-    "Discover Obsidian"
-  );
+  const eyebrow = normalizeText(content.eyebrow);
+  const title = normalizeText(content.title);
+  const description = normalizeText(content.description);
+  const buttonText = normalizeText(content.buttonText);
+  const buttonHref = normalizeText(content.buttonHref);
 
-  const title = normalizeText(
-    content.title,
-    "Explore The Collections"
-  );
-
-  const description = normalizeText(
-    content.description,
-    "Discover premium essentials shaped by restraint, structure, and quiet confidence."
-  );
-
-  const buttonText = normalizeText(
-    content.buttonText,
-    "View Collections"
-  );
-
-  const buttonHref = normalizeText(
-    content.buttonHref,
-    "/collections"
-  );
+  if (
+    !eyebrow &&
+    !title &&
+    !description &&
+    !(buttonText && buttonHref)
+  ) {
+    return null;
+  }
 
   return (
-    <section className="border-t border-black/10 px-6 py-24 lg:px-10">
+    <section className="border-t border-black/10 px-6 py-20 lg:px-10 lg:py-28">
       <div className="container-custom flex max-w-5xl flex-col justify-between gap-10 md:flex-row md:items-end">
         <div>
           {eyebrow ? (
@@ -352,7 +448,7 @@ function CtaSection({ section }) {
           ) : null}
 
           {title ? (
-            <h2 className="font-heading text-5xl font-light leading-none md:text-6xl">
+            <h2 className="font-heading text-4xl font-light leading-none sm:text-5xl md:text-6xl">
               {renderMultilineTitle(title)}
             </h2>
           ) : null}
@@ -365,12 +461,12 @@ function CtaSection({ section }) {
         </div>
 
         {buttonText && buttonHref ? (
-          <Link
+          <ActionLink
             href={buttonHref}
-            className="inline-flex w-fit border border-[#0b0b0b] px-8 py-4 text-xs uppercase tracking-[0.3em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
+            className="inline-flex w-fit shrink-0 items-center justify-center border border-[#0b0b0b] px-8 py-4 text-center text-xs uppercase tracking-[0.3em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
           >
             {buttonText}
-          </Link>
+          </ActionLink>
         ) : null}
       </div>
     </section>
@@ -382,32 +478,29 @@ function AboutSectionRenderer({ section }) {
     return null;
   }
 
-  if (section.type === "heroText") {
-    return <HeroTextSection section={section} />;
-  }
+  switch (section.type) {
+    case "heroText":
+      return <HeroTextSection section={section} />;
 
-  if (section.type === "splitText") {
-    return <SplitTextSection section={section} />;
-  }
+    case "splitText":
+      return <SplitTextSection section={section} />;
 
-  if (section.type === "darkText") {
-    return <DarkTextSection section={section} />;
-  }
+    case "darkText":
+      return <DarkTextSection section={section} />;
 
-  if (section.type === "text") {
-    return <TextSection section={section} />;
-  }
+    case "text":
+      return <TextSection section={section} />;
 
-  if (section.type === "cta") {
-    return <CtaSection section={section} />;
-  }
+    case "cta":
+      return <CtaSection section={section} />;
 
-  return null;
+    default:
+      return null;
+  }
 }
 
 export default async function AboutPage() {
   const aboutContent = await getAboutContent();
-
   const seo = aboutContent?.seo || {};
 
   const pageDescription = normalizeText(
@@ -440,21 +533,26 @@ export default async function AboutPage() {
     url: pageUrl,
     name: `About ${SITE_NAME}`,
     description: pageDescription,
+
     primaryImageOfPage: socialImage
       ? {
           "@type": "ImageObject",
           url: socialImage,
         }
       : undefined,
+
     isPartOf: {
       "@id": `${SITE_URL}/#website`,
     },
+
     about: {
       "@id": `${SITE_URL}/#organization`,
     },
+
     breadcrumb: {
       "@id": `${pageUrl}#breadcrumb`,
     },
+
     inLanguage: "en-BD",
   };
 
@@ -464,27 +562,34 @@ export default async function AboutPage() {
     "@id": `${SITE_URL}/#organization`,
     name: SITE_NAME,
     url: SITE_URL,
+
     logo: {
       "@type": "ImageObject",
       url: `${SITE_URL}/favicon.ico`,
     },
+
     description:
       "OBSIDIAN is a premium menswear brand from Bangladesh creating modern essentials shaped by pressure, precision, and timeless design.",
+
     foundingLocation: {
       "@type": "Place",
       name: "Bangladesh",
     },
+
     areaServed: {
       "@type": "Country",
       name: "Bangladesh",
     },
-    slogan: "Built Under Pressure. Finished With Precision.",
+
+    slogan:
+      "Built Under Pressure. Finished With Precision.",
   };
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     "@id": `${pageUrl}#breadcrumb`,
+
     itemListElement: [
       {
         "@type": "ListItem",
@@ -513,14 +618,18 @@ export default async function AboutPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: serializeJsonLd(organizationJsonLd),
+          __html: serializeJsonLd(
+            organizationJsonLd
+          ),
         }}
       />
 
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: serializeJsonLd(breadcrumbJsonLd),
+          __html: serializeJsonLd(
+            breadcrumbJsonLd
+          ),
         }}
       />
 
@@ -528,24 +637,13 @@ export default async function AboutPage() {
 
       {visibleSections.map((section) => (
         <AboutSectionRenderer
-          key={section.id || `${section.type}-${section.order}`}
+          key={
+            section.id ||
+            `${section.type}-${section.order}`
+          }
           section={section}
         />
       ))}
-
-      <CtaSection
-        section={{
-          type: "cta",
-          content: {
-            eyebrow: "Discover Obsidian",
-            title: "Explore The Collections",
-            description:
-              "Discover premium essentials shaped by restraint, structure, and quiet confidence.",
-            buttonText: "View Collections",
-            buttonHref: "/collections",
-          },
-        }}
-      />
 
       <Footer />
     </main>
