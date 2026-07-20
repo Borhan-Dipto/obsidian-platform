@@ -198,3 +198,7 @@ export async function getJournalContent() {
 export async function getCollectionsContent() {
   return getCmsContent("collections");
 }
+
+export async function getShopContent() {
+  return getCmsContent("shop");
+}

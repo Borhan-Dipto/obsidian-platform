@@ -634,6 +634,105 @@ const DEFAULT_COLLECTIONS_PAGE = {
   },
 };
 
+const DEFAULT_SHOP_PAGE = {
+  key: "shop",
+  schemaVersion: CMS_SCHEMA_VERSION,
+  status: "published",
+
+  title: "Shop",
+  slug: "shop",
+
+  seo: {
+    title: "Shop",
+    description:
+      "Discover premium OBSIDIAN menswear and engineered essentials built under pressure and finished with precision.",
+    keywords:
+      "OBSIDIAN shop, premium menswear Bangladesh, oversized t-shirts Bangladesh",
+    ogImage: "/images/collection-artifact.jpeg",
+    canonical: "/shop",
+    index: true,
+
+    searchTitleTemplate: "Search Results for “{query}”",
+    seriesTitleTemplate: "{series} Collection",
+    colorTitleTemplate: "{color} Products",
+
+    searchDescriptionTemplate:
+      "Browse OBSIDIAN products matching “{query}”. Explore premium menswear built with precision and purpose.",
+
+    seriesDescriptionTemplate:
+      "Explore the {series} from OBSIDIAN—premium pieces shaped by pressure, precision, and quiet confidence.",
+
+    colorDescriptionTemplate:
+      "Explore {color} OBSIDIAN pieces designed with structure, comfort, and precision.",
+  },
+
+  content: {
+    breadcrumbHomeLabel: "Home",
+    breadcrumbShopLabel: "Shop",
+
+    eyebrow: "Shop",
+
+    defaultTitleLineOne: "Engineered",
+    defaultTitleLineTwo: "Essentials",
+
+    searchTitleLineOne: "Search",
+    searchTitleLineTwo: "Results",
+
+    defaultDescription:
+      "Search, filter, and discover OBSIDIAN pieces built under pressure and finished with precision.",
+
+    searchDescriptionTemplate:
+      "Showing OBSIDIAN pieces matching “{query}”.",
+
+    seriesDescriptionTemplate:
+      "Explore the {series}, built with pressure, precision, and purpose.",
+
+    activeFiltersLabel: "Active Filters",
+    searchFilterPrefix: "Search:",
+
+    searchPlaceholder:
+      "Search product, color, series...",
+
+    searchAriaLabel: "Search products",
+    seriesAriaLabel: "Filter by series",
+    colorAriaLabel: "Filter by color",
+    sortAriaLabel: "Sort products",
+
+    allLabel: "All",
+    newestLabel: "Newest",
+    priceLowLabel: "Price Low",
+    priceHighLabel: "Price High",
+    nameAzLabel: "Name A–Z",
+
+    applyButtonText: "Apply",
+
+    productSingularLabel: "Product",
+    productPluralLabel: "Products",
+
+    inStockLabel: "In Stock",
+    soldOutLabel: "Sold Out",
+
+    wishlistButtonText: "Wishlist",
+    resetButtonText: "Reset",
+
+    emptyStateEyebrow: "No Results",
+    emptyStateTitle: "No products found.",
+    emptyStateDescription:
+      "Try adjusting your search, series, color, availability, or sorting option.",
+    emptyStateButtonText: "Reset Shop",
+
+    productFallbackName: "OBSIDIAN Product",
+    productFallbackSeries: "OBSIDIAN",
+    productFallbackColor: "Obsidian Black",
+
+    viewProductAriaTemplate: "View {product}",
+
+    lowStockTemplate: "Only {stock} Left",
+    stockCountTemplate: "{stock} In Stock",
+    outOfStockText: "Out of Stock",
+  },
+};
+
 const CMS_DEFAULTS = {
   navbar: DEFAULT_NAVBAR,
   footer: DEFAULT_FOOTER,
@@ -642,16 +741,20 @@ const CMS_DEFAULTS = {
   contact: DEFAULT_CONTACT_PAGE,
   journal: DEFAULT_JOURNAL_PAGE,
   collections: DEFAULT_COLLECTIONS_PAGE,
+  shop: DEFAULT_SHOP_PAGE,
 };
 
-const PUBLIC_CMS_KEYS = Object.freeze(Object.keys(CMS_DEFAULTS));
+const PUBLIC_CMS_KEYS = Object.freeze(
+  Object.keys(CMS_DEFAULTS)
+);
 
 function isPlainObject(value) {
   return (
     value !== null &&
     typeof value === "object" &&
     !Array.isArray(value) &&
-    Object.getPrototypeOf(value) === Object.prototype
+    Object.getPrototypeOf(value) ===
+      Object.prototype
   );
 }
 
@@ -662,17 +765,22 @@ function cloneValue(value) {
 
   if (isPlainObject(value)) {
     return Object.fromEntries(
-      Object.entries(value).map(([key, nestedValue]) => [
-        key,
-        cloneValue(nestedValue),
-      ])
+      Object.entries(value).map(
+        ([key, nestedValue]) => [
+          key,
+          cloneValue(nestedValue),
+        ]
+      )
     );
   }
 
   return value;
 }
 
-function deepMerge(defaultValue, savedValue) {
+function deepMerge(
+  defaultValue,
+  savedValue
+) {
   if (Array.isArray(defaultValue)) {
     return Array.isArray(savedValue)
       ? savedValue.map(cloneValue)
@@ -681,7 +789,11 @@ function deepMerge(defaultValue, savedValue) {
 
   if (isPlainObject(defaultValue)) {
     const mergedValue = {};
-    const savedObject = isPlainObject(savedValue) ? savedValue : {};
+
+    const savedObject =
+      isPlainObject(savedValue)
+        ? savedValue
+        : {};
 
     const keys = new Set([
       ...Object.keys(defaultValue),
@@ -689,10 +801,19 @@ function deepMerge(defaultValue, savedValue) {
     ]);
 
     for (const key of keys) {
-      if (Object.prototype.hasOwnProperty.call(savedObject, key)) {
-        mergedValue[key] = deepMerge(defaultValue[key], savedObject[key]);
+      if (
+        Object.prototype.hasOwnProperty.call(
+          savedObject,
+          key
+        )
+      ) {
+        mergedValue[key] = deepMerge(
+          defaultValue[key],
+          savedObject[key]
+        );
       } else {
-        mergedValue[key] = cloneValue(defaultValue[key]);
+        mergedValue[key] =
+          cloneValue(defaultValue[key]);
       }
     }
 
@@ -704,66 +825,121 @@ function deepMerge(defaultValue, savedValue) {
     : cloneValue(savedValue);
 }
 
-function normalizeOrder(value, fallback = 0) {
+function normalizeOrder(
+  value,
+  fallback = 0
+) {
   const numericValue = Number(value);
 
-  return Number.isFinite(numericValue) ? numericValue : fallback;
+  return Number.isFinite(numericValue)
+    ? numericValue
+    : fallback;
 }
 
-function normalizeActiveItems(items = []) {
+function normalizeActiveItems(
+  items = []
+) {
   if (!Array.isArray(items)) {
     return [];
   }
 
   return [...items]
-    .filter((item) => item && item.isActive !== false)
+    .filter(
+      (item) =>
+        item &&
+        item.isActive !== false
+    )
     .sort(
-      (firstItem, secondItem) =>
-        normalizeOrder(firstItem.order) -
-        normalizeOrder(secondItem.order)
+      (
+        firstItem,
+        secondItem
+      ) =>
+        normalizeOrder(
+          firstItem.order
+        ) -
+        normalizeOrder(
+          secondItem.order
+        )
     );
 }
 
 function getCmsDefault(key) {
-  const normalizedKey = String(key || "").trim().toLowerCase();
+  const normalizedKey = String(
+    key || ""
+  )
+    .trim()
+    .toLowerCase();
 
-  if (!PUBLIC_CMS_KEYS.includes(normalizedKey)) {
+  if (
+    !PUBLIC_CMS_KEYS.includes(
+      normalizedKey
+    )
+  ) {
     return null;
   }
 
-  return cloneValue(CMS_DEFAULTS[normalizedKey]);
+  return cloneValue(
+    CMS_DEFAULTS[normalizedKey]
+  );
 }
 
-function mergeCmsContent(key, storedContent = {}) {
-  const normalizedKey = String(key || "").trim().toLowerCase();
-  const defaultContent = getCmsDefault(normalizedKey);
+function mergeCmsContent(
+  key,
+  storedContent = {}
+) {
+  const normalizedKey = String(
+    key || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const defaultContent =
+    getCmsDefault(normalizedKey);
 
   if (!defaultContent) {
     return null;
   }
 
-  const mergedContent = deepMerge(defaultContent, storedContent);
+  const mergedContent = deepMerge(
+    defaultContent,
+    storedContent
+  );
 
   return {
     ...mergedContent,
     key: normalizedKey,
-    schemaVersion: CMS_SCHEMA_VERSION,
+    schemaVersion:
+      CMS_SCHEMA_VERSION,
   };
 }
 
 function isSupportedCmsKey(key) {
-  const normalizedKey = String(key || "").trim().toLowerCase();
+  const normalizedKey = String(
+    key || ""
+  )
+    .trim()
+    .toLowerCase();
 
-  return PUBLIC_CMS_KEYS.includes(normalizedKey);
+  return PUBLIC_CMS_KEYS.includes(
+    normalizedKey
+  );
 }
 
-function createCmsDocument(key, content = {}) {
-  const normalizedKey = String(key || "").trim().toLowerCase();
+function createCmsDocument(
+  key,
+  content = {}
+) {
+  const normalizedKey = String(
+    key || ""
+  )
+    .trim()
+    .toLowerCase();
 
-  const mergedContent = mergeCmsContent(
-    normalizedKey,
-    content
-  );
+  const mergedContent =
+    mergeCmsContent(
+      normalizedKey,
+      content
+    );
 
   if (!mergedContent) {
     return null;
@@ -774,7 +950,8 @@ function createCmsDocument(key, content = {}) {
   return {
     ...mergedContent,
     key: normalizedKey,
-    schemaVersion: CMS_SCHEMA_VERSION,
+    schemaVersion:
+      CMS_SCHEMA_VERSION,
     createdAt: now,
     updatedAt: now,
   };
@@ -791,6 +968,7 @@ export {
   DEFAULT_CONTACT_PAGE,
   DEFAULT_JOURNAL_PAGE,
   DEFAULT_COLLECTIONS_PAGE,
+  DEFAULT_SHOP_PAGE,
   cloneValue,
   deepMerge,
   normalizeActiveItems,
