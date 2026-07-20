@@ -22,35 +22,89 @@ function normalizeContactContent(content = {}) {
 
     content: {
       eyebrow: content.content?.eyebrow || "Contact",
-      title: content.content?.title || "Reach Obsidian",
+
+      title:
+        content.content?.title ||
+        "Reach Obsidian",
+
       description:
         content.content?.description ||
         "For product questions, order support, collaborations, or general inquiries, contact the OBSIDIAN team.",
 
       supportTitle:
-        content.content?.supportTitle || "Order Support",
+        content.content?.supportTitle ||
+        "Order Support",
 
       supportDescription:
         content.content?.supportDescription ||
         "Get help with order confirmation, delivery, exchange, or product availability.",
 
       collaborationTitle:
-        content.content?.collaborationTitle || "Collaborations",
+        content.content?.collaborationTitle ||
+        "Collaborations",
 
       collaborationDescription:
         content.content?.collaborationDescription ||
         "Contact us for creative partnerships, campaigns, wholesale, and brand opportunities.",
+
+      contactDetailsTitle:
+        content.content?.contactDetailsTitle ||
+        "Contact Details",
+
+      emailLabel:
+        content.content?.emailLabel ||
+        "Email",
+
+      whatsappLabel:
+        content.content?.whatsappLabel ||
+        "WhatsApp",
+
+      phoneLabel:
+        content.content?.phoneLabel ||
+        "Phone",
+
+      locationLabel:
+        content.content?.locationLabel ||
+        "Location",
 
       whatsappButtonText:
         content.content?.whatsappButtonText ||
         "Message On WhatsApp",
 
       emailButtonText:
-        content.content?.emailButtonText || "Send An Email",
+        content.content?.emailButtonText ||
+        "Send An Email",
 
       whatsappMessage:
         content.content?.whatsappMessage ||
         "Hello OBSIDIAN, I would like to know more about your products.",
+
+      availabilityMessage:
+        content.content?.availabilityMessage ||
+        "Customer support is available for orders across Bangladesh.",
+
+      ctaEnabled:
+        content.content?.ctaEnabled !== false,
+
+      ctaEyebrow:
+        content.content?.ctaEyebrow ||
+        "Explore Obsidian",
+
+      ctaTitle:
+        content.content?.ctaTitle ||
+        "Discover Pieces Built With Precision",
+
+      ctaDescription:
+        content.content?.ctaDescription ||
+        "Explore premium essentials designed with structure, restraint, and quiet confidence.",
+
+      ctaButtonText:
+        content.content?.ctaButtonText ||
+        "Explore Shop",
+
+      ctaButtonHref:
+        content.content?.ctaButtonHref ||
+        "/shop",
     },
   };
 }
@@ -77,7 +131,9 @@ function TextInput({
       <input
         type={type}
         value={value ?? ""}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
         placeholder={placeholder}
         className="w-full border border-white/10 bg-white/[0.04] px-5 py-4 text-sm text-[#f1ece4] outline-none transition placeholder:text-neutral-600 focus:border-white/30"
       />
@@ -98,7 +154,9 @@ function TextareaInput({
 
       <textarea
         value={value ?? ""}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
         placeholder={placeholder}
         rows={rows}
         className="w-full resize-y border border-white/10 bg-white/[0.04] px-5 py-4 text-sm leading-7 text-[#f1ece4] outline-none transition placeholder:text-neutral-600 focus:border-white/30"
@@ -107,18 +165,28 @@ function TextareaInput({
   );
 }
 
-function SelectInput({ label, value, onChange, options }) {
+function SelectInput({
+  label,
+  value,
+  onChange,
+  options,
+}) {
   return (
     <div>
       <FieldLabel>{label}</FieldLabel>
 
       <select
         value={value ?? ""}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
         className="w-full border border-white/10 bg-[#111] px-5 py-4 text-sm text-[#f1ece4] outline-none transition focus:border-white/30"
       >
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option
+            key={option.value}
+            value={option.value}
+          >
             {option.label}
           </option>
         ))}
@@ -127,22 +195,34 @@ function SelectInput({ label, value, onChange, options }) {
   );
 }
 
-function CheckboxInput({ label, checked, onChange }) {
+function CheckboxInput({
+  label,
+  checked,
+  onChange,
+}) {
   return (
     <label className="flex cursor-pointer items-center justify-between gap-5 border border-white/10 bg-white/[0.03] px-5 py-4">
-      <span className="text-sm text-neutral-300">{label}</span>
+      <span className="text-sm text-neutral-300">
+        {label}
+      </span>
 
       <input
         type="checkbox"
         checked={Boolean(checked)}
-        onChange={(event) => onChange(event.target.checked)}
+        onChange={(event) =>
+          onChange(event.target.checked)
+        }
         className="h-4 w-4"
       />
     </label>
   );
 }
 
-function Panel({ title, description = "", children }) {
+function Panel({
+  title,
+  description = "",
+  children,
+}) {
   return (
     <section className="border border-white/10 bg-[#0d0d0d] p-6 md:p-8">
       <div className="mb-7">
@@ -157,19 +237,28 @@ function Panel({ title, description = "", children }) {
         ) : null}
       </div>
 
-      <div className="space-y-6">{children}</div>
+      <div className="space-y-6">
+        {children}
+      </div>
     </section>
   );
 }
 
-export default function ContactContentEditor({ initialContent }) {
+export default function ContactContentEditor({
+  initialContent,
+}) {
   const [contact, setContact] = useState(() =>
     normalizeContactContent(initialContent)
   );
 
-  const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState("");
-  const [lastSavedAt, setLastSavedAt] = useState("");
+  const [isSaving, setIsSaving] =
+    useState(false);
+
+  const [message, setMessage] =
+    useState("");
+
+  const [lastSavedAt, setLastSavedAt] =
+    useState("");
 
   function updateRootField(field, value) {
     setMessage("");
@@ -185,6 +274,7 @@ export default function ContactContentEditor({ initialContent }) {
 
     setContact((current) => ({
       ...current,
+
       seo: {
         ...current.seo,
         [field]: value,
@@ -197,6 +287,7 @@ export default function ContactContentEditor({ initialContent }) {
 
     setContact((current) => ({
       ...current,
+
       content: {
         ...current.content,
         [field]: value,
@@ -209,26 +300,42 @@ export default function ContactContentEditor({ initialContent }) {
     setMessage("Saving Contact page...");
 
     try {
-      const response = await fetch("/api/cms/contact", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(contact),
-      });
+      const response = await fetch(
+        "/api/cms/contact",
+        {
+          method: "PATCH",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify(contact),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok || !data.success) {
         setMessage(
-          data.message || "Contact page could not be saved."
+          data.message ||
+            "Contact page could not be saved."
         );
+
         return;
       }
 
-      setContact(normalizeContactContent(data.content));
-      setMessage("Contact page saved successfully.");
-      setLastSavedAt(new Date().toLocaleTimeString());
+      setContact(
+        normalizeContactContent(data.content)
+      );
+
+      setMessage(
+        "Contact page saved successfully."
+      );
+
+      setLastSavedAt(
+        new Date().toLocaleTimeString()
+      );
     } catch {
       setMessage(
         "Something went wrong while saving the Contact page."
@@ -249,7 +356,10 @@ export default function ContactContentEditor({ initialContent }) {
             label="Page Title"
             value={contact.title}
             onChange={(value) =>
-              updateRootField("title", value)
+              updateRootField(
+                "title",
+                value
+              )
             }
           />
 
@@ -257,7 +367,10 @@ export default function ContactContentEditor({ initialContent }) {
             label="Slug"
             value={contact.slug}
             onChange={(value) =>
-              updateRootField("slug", value)
+              updateRootField(
+                "slug",
+                value
+              )
             }
           />
 
@@ -265,7 +378,10 @@ export default function ContactContentEditor({ initialContent }) {
             label="Publish Status"
             value={contact.status}
             onChange={(value) =>
-              updateRootField("status", value)
+              updateRootField(
+                "status",
+                value
+              )
             }
             options={[
               {
@@ -288,26 +404,41 @@ export default function ContactContentEditor({ initialContent }) {
         <div className="grid gap-6 md:grid-cols-2">
           <TextInput
             label="Eyebrow"
-            value={contact.content.eyebrow}
+            value={
+              contact.content.eyebrow
+            }
             onChange={(value) =>
-              updateContent("eyebrow", value)
+              updateContent(
+                "eyebrow",
+                value
+              )
             }
           />
 
           <TextInput
             label="Main Title"
-            value={contact.content.title}
+            value={
+              contact.content.title
+            }
             onChange={(value) =>
-              updateContent("title", value)
+              updateContent(
+                "title",
+                value
+              )
             }
           />
         </div>
 
         <TextareaInput
           label="Main Description"
-          value={contact.content.description}
+          value={
+            contact.content.description
+          }
           onChange={(value) =>
-            updateContent("description", value)
+            updateContent(
+              "description",
+              value
+            )
           }
           rows={6}
         />
@@ -319,17 +450,28 @@ export default function ContactContentEditor({ initialContent }) {
       >
         <TextInput
           label="Support Title"
-          value={contact.content.supportTitle}
+          value={
+            contact.content.supportTitle
+          }
           onChange={(value) =>
-            updateContent("supportTitle", value)
+            updateContent(
+              "supportTitle",
+              value
+            )
           }
         />
 
         <TextareaInput
           label="Support Description"
-          value={contact.content.supportDescription}
+          value={
+            contact.content
+              .supportDescription
+          }
           onChange={(value) =>
-            updateContent("supportDescription", value)
+            updateContent(
+              "supportDescription",
+              value
+            )
           }
           rows={5}
         />
@@ -341,15 +483,24 @@ export default function ContactContentEditor({ initialContent }) {
       >
         <TextInput
           label="Collaboration Title"
-          value={contact.content.collaborationTitle}
+          value={
+            contact.content
+              .collaborationTitle
+          }
           onChange={(value) =>
-            updateContent("collaborationTitle", value)
+            updateContent(
+              "collaborationTitle",
+              value
+            )
           }
         />
 
         <TextareaInput
           label="Collaboration Description"
-          value={contact.content.collaborationDescription}
+          value={
+            contact.content
+              .collaborationDescription
+          }
           onChange={(value) =>
             updateContent(
               "collaborationDescription",
@@ -361,13 +512,91 @@ export default function ContactContentEditor({ initialContent }) {
       </Panel>
 
       <Panel
+        title="Contact Details Labels"
+        description="Control the heading and labels shown inside the contact information card."
+      >
+        <TextInput
+          label="Contact Details Heading"
+          value={
+            contact.content
+              .contactDetailsTitle
+          }
+          onChange={(value) =>
+            updateContent(
+              "contactDetailsTitle",
+              value
+            )
+          }
+        />
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <TextInput
+            label="Email Label"
+            value={
+              contact.content.emailLabel
+            }
+            onChange={(value) =>
+              updateContent(
+                "emailLabel",
+                value
+              )
+            }
+          />
+
+          <TextInput
+            label="WhatsApp Label"
+            value={
+              contact.content
+                .whatsappLabel
+            }
+            onChange={(value) =>
+              updateContent(
+                "whatsappLabel",
+                value
+              )
+            }
+          />
+
+          <TextInput
+            label="Phone Label"
+            value={
+              contact.content.phoneLabel
+            }
+            onChange={(value) =>
+              updateContent(
+                "phoneLabel",
+                value
+              )
+            }
+          />
+
+          <TextInput
+            label="Location Label"
+            value={
+              contact.content
+                .locationLabel
+            }
+            onChange={(value) =>
+              updateContent(
+                "locationLabel",
+                value
+              )
+            }
+          />
+        </div>
+      </Panel>
+
+      <Panel
         title="Contact Buttons"
         description="Control the labels and default WhatsApp message used by the Contact page buttons."
       >
         <div className="grid gap-6 md:grid-cols-2">
           <TextInput
             label="WhatsApp Button Text"
-            value={contact.content.whatsappButtonText}
+            value={
+              contact.content
+                .whatsappButtonText
+            }
             onChange={(value) =>
               updateContent(
                 "whatsappButtonText",
@@ -378,7 +607,10 @@ export default function ContactContentEditor({ initialContent }) {
 
           <TextInput
             label="Email Button Text"
-            value={contact.content.emailButtonText}
+            value={
+              contact.content
+                .emailButtonText
+            }
             onChange={(value) =>
               updateContent(
                 "emailButtonText",
@@ -390,18 +622,134 @@ export default function ContactContentEditor({ initialContent }) {
 
         <TextareaInput
           label="Default WhatsApp Message"
-          value={contact.content.whatsappMessage}
+          value={
+            contact.content
+              .whatsappMessage
+          }
           onChange={(value) =>
-            updateContent("whatsappMessage", value)
+            updateContent(
+              "whatsappMessage",
+              value
+            )
           }
           rows={4}
         />
 
+        <TextareaInput
+          label="Availability Message"
+          value={
+            contact.content
+              .availabilityMessage
+          }
+          onChange={(value) =>
+            updateContent(
+              "availabilityMessage",
+              value
+            )
+          }
+          rows={3}
+        />
+
         <div className="border border-white/10 bg-white/[0.03] p-5">
           <p className="text-sm leading-7 text-neutral-400">
-            Email, phone, WhatsApp number, and store location are
-            managed from the main Admin Settings page.
+            Email, phone, WhatsApp number,
+            and store location are managed
+            from the main Admin Settings
+            page.
           </p>
+        </div>
+      </Panel>
+
+      <Panel
+        title="Bottom Call To Action"
+        description="Control the promotional section shown near the bottom of the Contact page."
+      >
+        <CheckboxInput
+          label="Show Bottom Call To Action"
+          checked={
+            contact.content.ctaEnabled !==
+            false
+          }
+          onChange={(value) =>
+            updateContent(
+              "ctaEnabled",
+              value
+            )
+          }
+        />
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <TextInput
+            label="CTA Eyebrow"
+            value={
+              contact.content.ctaEyebrow
+            }
+            onChange={(value) =>
+              updateContent(
+                "ctaEyebrow",
+                value
+              )
+            }
+          />
+
+          <TextInput
+            label="CTA Title"
+            value={
+              contact.content.ctaTitle
+            }
+            onChange={(value) =>
+              updateContent(
+                "ctaTitle",
+                value
+              )
+            }
+          />
+        </div>
+
+        <TextareaInput
+          label="CTA Description"
+          value={
+            contact.content
+              .ctaDescription
+          }
+          onChange={(value) =>
+            updateContent(
+              "ctaDescription",
+              value
+            )
+          }
+          rows={5}
+        />
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <TextInput
+            label="CTA Button Text"
+            value={
+              contact.content
+                .ctaButtonText
+            }
+            onChange={(value) =>
+              updateContent(
+                "ctaButtonText",
+                value
+              )
+            }
+          />
+
+          <TextInput
+            label="CTA Button Link"
+            value={
+              contact.content
+                .ctaButtonHref
+            }
+            onChange={(value) =>
+              updateContent(
+                "ctaButtonHref",
+                value
+              )
+            }
+            placeholder="/shop"
+          />
         </div>
       </Panel>
 
@@ -419,9 +767,14 @@ export default function ContactContentEditor({ initialContent }) {
 
         <TextareaInput
           label="SEO Description"
-          value={contact.seo.description}
+          value={
+            contact.seo.description
+          }
           onChange={(value) =>
-            updateSeo("description", value)
+            updateSeo(
+              "description",
+              value
+            )
           }
           rows={5}
         />
@@ -430,7 +783,10 @@ export default function ContactContentEditor({ initialContent }) {
           label="SEO Keywords"
           value={contact.seo.keywords}
           onChange={(value) =>
-            updateSeo("keywords", value)
+            updateSeo(
+              "keywords",
+              value
+            )
           }
           placeholder="obsidian, contact, order support"
         />
@@ -439,27 +795,42 @@ export default function ContactContentEditor({ initialContent }) {
           label="Canonical URL"
           value={contact.seo.canonical}
           onChange={(value) =>
-            updateSeo("canonical", value)
+            updateSeo(
+              "canonical",
+              value
+            )
           }
           placeholder="/contact"
         />
 
         <div>
-          <FieldLabel>Open Graph Image</FieldLabel>
+          <FieldLabel>
+            Open Graph Image
+          </FieldLabel>
 
           <ImageUploader
-            value={contact.seo.ogImage || ""}
+            value={
+              contact.seo.ogImage || ""
+            }
             onChange={(value) =>
-              updateSeo("ogImage", value)
+              updateSeo(
+                "ogImage",
+                value
+              )
             }
           />
         </div>
 
         <CheckboxInput
           label="Allow Search Engine Indexing"
-          checked={contact.seo.index !== false}
+          checked={
+            contact.seo.index !== false
+          }
           onChange={(value) =>
-            updateSeo("index", value)
+            updateSeo(
+              "index",
+              value
+            )
           }
         />
       </Panel>
@@ -470,7 +841,8 @@ export default function ContactContentEditor({ initialContent }) {
 
           {lastSavedAt ? (
             <span className="ml-2 text-neutral-500">
-              Last saved at {lastSavedAt}
+              Last saved at{" "}
+              {lastSavedAt}
             </span>
           ) : null}
         </div>

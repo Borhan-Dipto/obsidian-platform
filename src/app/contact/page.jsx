@@ -84,7 +84,10 @@ function formatPhoneNumber(value) {
     normalizedValue.startsWith("+880") &&
     normalizedValue.length === 14
   ) {
-    return `${normalizedValue.slice(0, 4)} ${normalizedValue.slice(
+    return `${normalizedValue.slice(
+      0,
+      4
+    )} ${normalizedValue.slice(
       4,
       8
     )}-${normalizedValue.slice(8)}`;
@@ -95,6 +98,41 @@ function formatPhoneNumber(value) {
 
 function serializeJsonLd(data) {
   return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
+function isExternalLink(href) {
+  return (
+    href.startsWith("http://") ||
+    href.startsWith("https://")
+  );
+}
+
+function ActionLink({
+  href,
+  children,
+  className,
+}) {
+  if (isExternalLink(href)) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={className}
+      >
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      className={className}
+    >
+      {children}
+    </Link>
+  );
 }
 
 async function getStoreSettings() {
@@ -157,8 +195,7 @@ export async function generateMetadata() {
     DEFAULT_SOCIAL_IMAGE
   );
 
-  const allowIndexing =
-    seo.index !== false;
+  const allowIndexing = seo.index !== false;
 
   const keywords = normalizeText(
     seo.keywords
@@ -169,9 +206,7 @@ export async function generateMetadata() {
 
   return {
     title,
-
     description,
-
     keywords,
 
     alternates: {
@@ -224,11 +259,8 @@ export default async function ContactPage() {
       getStoreSettings(),
     ]);
 
-  const content =
-    contactContent?.content || {};
-
-  const seo =
-    contactContent?.seo || {};
+  const content = contactContent?.content || {};
+  const seo = contactContent?.seo || {};
 
   const storeName = normalizeText(
     settings.store?.name,
@@ -276,23 +308,46 @@ export default async function ContactPage() {
     "Order Support"
   );
 
-  const supportDescription =
-    normalizeText(
-      content.supportDescription,
-      "Get help with order confirmation, delivery, exchange, or product availability."
-    );
+  const supportDescription = normalizeText(
+    content.supportDescription,
+    "Get help with order confirmation, delivery, exchange, or product availability."
+  );
 
-  const collaborationTitle =
-    normalizeText(
-      content.collaborationTitle,
-      "Collaborations"
-    );
+  const collaborationTitle = normalizeText(
+    content.collaborationTitle,
+    "Collaborations"
+  );
 
   const collaborationDescription =
     normalizeText(
       content.collaborationDescription,
       "Contact us for creative partnerships, campaigns, wholesale, and brand opportunities."
     );
+
+  const contactDetailsTitle = normalizeText(
+    content.contactDetailsTitle,
+    "Contact Details"
+  );
+
+  const emailLabel = normalizeText(
+    content.emailLabel,
+    "Email"
+  );
+
+  const whatsappLabel = normalizeText(
+    content.whatsappLabel,
+    "WhatsApp"
+  );
+
+  const phoneLabel = normalizeText(
+    content.phoneLabel,
+    "Phone"
+  );
+
+  const locationLabel = normalizeText(
+    content.locationLabel,
+    "Location"
+  );
 
   const whatsappButtonText =
     normalizeText(
@@ -310,6 +365,40 @@ export default async function ContactPage() {
     "Hello OBSIDIAN, I would like to know more about your products."
   );
 
+  const availabilityMessage =
+    normalizeText(
+      content.availabilityMessage,
+      "Customer support is available for orders across Bangladesh."
+    );
+
+  const ctaEnabled =
+    content.ctaEnabled !== false;
+
+  const ctaEyebrow = normalizeText(
+    content.ctaEyebrow,
+    "Explore Obsidian"
+  );
+
+  const ctaTitle = normalizeText(
+    content.ctaTitle,
+    "Discover Pieces Built With Precision"
+  );
+
+  const ctaDescription = normalizeText(
+    content.ctaDescription,
+    "Explore premium essentials designed with structure, restraint, and quiet confidence."
+  );
+
+  const ctaButtonText = normalizeText(
+    content.ctaButtonText,
+    "Explore Shop"
+  );
+
+  const ctaButtonHref = normalizeText(
+    content.ctaButtonHref,
+    "/shop"
+  );
+
   const whatsappUrl = whatsappNumber
     ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
         whatsappMessage
@@ -319,17 +408,15 @@ export default async function ContactPage() {
   const formattedPhone =
     formatPhoneNumber(phone);
 
-  const pageDescription =
-    normalizeText(
-      seo.description,
-      DEFAULT_DESCRIPTION
-    );
+  const pageDescription = normalizeText(
+    seo.description,
+    DEFAULT_DESCRIPTION
+  );
 
-  const canonicalPath =
-    normalizeText(
-      seo.canonical,
-      "/contact"
-    );
+  const canonicalPath = normalizeText(
+    seo.canonical,
+    "/contact"
+  );
 
   const pageUrl =
     getAbsoluteUrl(canonicalPath);
@@ -396,10 +483,8 @@ export default async function ContactPage() {
       {
         "@type": "ContactPoint",
         contactType: "customer support",
-        telephone:
-          phone || undefined,
-        email:
-          email || undefined,
+        telephone: phone || undefined,
+        email: email || undefined,
         areaServed: "BD",
         availableLanguage: [
           "English",
@@ -424,7 +509,6 @@ export default async function ContactPage() {
         name: "Home",
         item: SITE_URL,
       },
-
       {
         "@type": "ListItem",
         position: 2,
@@ -465,7 +549,7 @@ export default async function ContactPage() {
 
       <Navbar />
 
-      <section className="px-6 pt-36 pb-32 lg:px-10 lg:pt-40 lg:pb-40">
+      <section className="px-6 pb-32 pt-36 lg:px-10 lg:pb-40 lg:pt-40">
         <div className="container-custom">
           <nav
             aria-label="Breadcrumb"
@@ -512,40 +596,50 @@ export default async function ContactPage() {
 
               <div className="mt-12 grid gap-6 sm:grid-cols-2">
                 <div className="border-t border-black/10 pt-6">
-                  <p className="text-[10px] uppercase tracking-[0.32em] text-neutral-500">
-                    {supportTitle}
-                  </p>
+                  {supportTitle ? (
+                    <p className="text-[10px] uppercase tracking-[0.32em] text-neutral-500">
+                      {supportTitle}
+                    </p>
+                  ) : null}
 
-                  <p className="mt-4 text-sm leading-7 text-neutral-700">
-                    {supportDescription}
-                  </p>
+                  {supportDescription ? (
+                    <p className="mt-4 text-sm leading-7 text-neutral-700">
+                      {supportDescription}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="border-t border-black/10 pt-6">
-                  <p className="text-[10px] uppercase tracking-[0.32em] text-neutral-500">
-                    {collaborationTitle}
-                  </p>
+                  {collaborationTitle ? (
+                    <p className="text-[10px] uppercase tracking-[0.32em] text-neutral-500">
+                      {collaborationTitle}
+                    </p>
+                  ) : null}
 
-                  <p className="mt-4 text-sm leading-7 text-neutral-700">
-                    {
-                      collaborationDescription
-                    }
-                  </p>
+                  {collaborationDescription ? (
+                    <p className="mt-4 text-sm leading-7 text-neutral-700">
+                      {collaborationDescription}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </div>
 
             <aside className="h-fit border border-black/10 bg-[#eee7dd] p-8 md:p-10 lg:sticky lg:top-32">
-              <p className="mb-8 text-xs uppercase tracking-[0.4em] text-neutral-500">
-                Contact Details
-              </p>
+              {contactDetailsTitle ? (
+                <p className="mb-8 text-xs uppercase tracking-[0.4em] text-neutral-500">
+                  {contactDetailsTitle}
+                </p>
+              ) : null}
 
               <div className="divide-y divide-black/10">
                 {email ? (
                   <div className="pb-8">
-                    <p className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
-                      Email
-                    </p>
+                    {emailLabel ? (
+                      <p className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
+                        {emailLabel}
+                      </p>
+                    ) : null}
 
                     <a
                       href={`mailto:${email}`}
@@ -558,9 +652,11 @@ export default async function ContactPage() {
 
                 {whatsappNumber ? (
                   <div className="py-8">
-                    <p className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
-                      WhatsApp
-                    </p>
+                    {whatsappLabel ? (
+                      <p className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
+                        {whatsappLabel}
+                      </p>
+                    ) : null}
 
                     <a
                       href={whatsappUrl}
@@ -578,25 +674,28 @@ export default async function ContactPage() {
                 phone !==
                   `+${whatsappNumber}` ? (
                   <div className="py-8">
-                    <p className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
-                      Phone
-                    </p>
+                    {phoneLabel ? (
+                      <p className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
+                        {phoneLabel}
+                      </p>
+                    ) : null}
 
                     <a
                       href={`tel:${phone}`}
                       className="text-lg transition hover:opacity-60"
                     >
-                      {formattedPhone ||
-                        phone}
+                      {formattedPhone || phone}
                     </a>
                   </div>
                 ) : null}
 
                 {location ? (
                   <div className="pt-8">
-                    <p className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
-                      Location
-                    </p>
+                    {locationLabel ? (
+                      <p className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
+                        {locationLabel}
+                      </p>
+                    ) : null}
 
                     <p className="text-lg">
                       {location}
@@ -611,7 +710,7 @@ export default async function ContactPage() {
                   href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-12 flex w-full justify-center bg-[#0b0b0b] px-8 py-5 text-xs font-semibold uppercase tracking-[0.3em] text-[#f1ece4] transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+                  className="mt-12 flex w-full justify-center bg-[#0b0b0b] px-8 py-5 text-center text-xs font-semibold uppercase tracking-[0.3em] text-[#f1ece4] transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
                 >
                   {whatsappButtonText}
                 </a>
@@ -621,48 +720,57 @@ export default async function ContactPage() {
               emailButtonText ? (
                 <a
                   href={`mailto:${email}`}
-                  className="mt-4 flex w-full justify-center border border-[#0b0b0b] px-8 py-4 text-xs uppercase tracking-[0.3em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
+                  className="mt-4 flex w-full justify-center border border-[#0b0b0b] px-8 py-4 text-center text-xs uppercase tracking-[0.3em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
                 >
                   {emailButtonText}
                 </a>
               ) : null}
 
-              <p className="mt-6 text-center text-xs leading-6 text-neutral-500">
-                Customer support is available
-                for orders across Bangladesh.
-              </p>
+              {availabilityMessage ? (
+                <p className="mt-6 text-center text-xs leading-6 text-neutral-500">
+                  {availabilityMessage}
+                </p>
+              ) : null}
             </aside>
           </div>
         </div>
       </section>
 
-      <section className="border-t border-black/10 px-6 py-24 lg:px-10">
-        <div className="container-custom flex flex-col justify-between gap-10 md:flex-row md:items-end">
-          <div>
-            <p className="mb-5 text-xs uppercase tracking-[0.4em] text-neutral-500">
-              Explore Obsidian
-            </p>
+      {ctaEnabled ? (
+        <section className="border-t border-black/10 px-6 py-24 lg:px-10">
+          <div className="container-custom flex flex-col justify-between gap-10 md:flex-row md:items-end">
+            <div>
+              {ctaEyebrow ? (
+                <p className="mb-5 text-xs uppercase tracking-[0.4em] text-neutral-500">
+                  {ctaEyebrow}
+                </p>
+              ) : null}
 
-            <h2 className="max-w-3xl font-heading text-5xl font-light leading-none md:text-6xl">
-              Discover Pieces Built With
-              Precision
-            </h2>
+              {ctaTitle ? (
+                <h2 className="max-w-3xl font-heading text-5xl font-light leading-none md:text-6xl">
+                  {ctaTitle}
+                </h2>
+              ) : null}
 
-            <p className="mt-6 max-w-xl text-base leading-8 text-neutral-600">
-              Explore premium essentials
-              designed with structure,
-              restraint, and quiet confidence.
-            </p>
+              {ctaDescription ? (
+                <p className="mt-6 max-w-xl text-base leading-8 text-neutral-600">
+                  {ctaDescription}
+                </p>
+              ) : null}
+            </div>
+
+            {ctaButtonText &&
+            ctaButtonHref ? (
+              <ActionLink
+                href={ctaButtonHref}
+                className="inline-flex w-fit shrink-0 border border-[#0b0b0b] px-8 py-4 text-center text-xs uppercase tracking-[0.3em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
+              >
+                {ctaButtonText}
+              </ActionLink>
+            ) : null}
           </div>
-
-          <Link
-            href="/shop"
-            className="inline-flex w-fit border border-[#0b0b0b] px-8 py-4 text-xs uppercase tracking-[0.3em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
-          >
-            Explore Shop
-          </Link>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       <Footer />
     </main>
