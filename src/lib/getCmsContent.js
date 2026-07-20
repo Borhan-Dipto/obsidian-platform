@@ -210,3 +210,7 @@ export async function getProductContent() {
 export async function getSizeGuideContent() {
   return getCmsContent("size-guide");
 }
+
+export async function getTrackOrderContent() {
+  return getCmsContent("track-order");
+}

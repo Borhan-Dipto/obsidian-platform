@@ -913,6 +913,77 @@ const DEFAULT_SIZE_GUIDE_PAGE = {
   },
 };
 
+const DEFAULT_TRACK_ORDER_PAGE = {
+  key: "track-order",
+  schemaVersion: CMS_SCHEMA_VERSION,
+  status: "published",
+
+  title: "Track Order",
+  slug: "track-order",
+
+  seo: {
+    title: "Track Order",
+    description:
+      "Track your OBSIDIAN order using your unique tracking ID and view the latest order status, customer information, and ordered items.",
+    keywords:
+      "OBSIDIAN order tracking, track order Bangladesh, order status",
+    ogImage: "/images/collection-artifact.jpeg",
+    canonical: "/track-order",
+    index: true,
+  },
+
+  content: {
+    eyebrow: "Order Tracking",
+    title: "Track Order",
+    description:
+      "Enter your OBSIDIAN tracking ID to check your order status.",
+
+    trackingIdLabel: "Tracking ID",
+    trackingIdPlaceholder: "Example: OBS-123456789",
+    trackingInputAriaLabel: "Enter your tracking ID",
+
+    trackButtonText: "Track",
+    loadingButtonText: "Checking...",
+
+    emptyTrackingMessage: "Please enter your tracking ID.",
+    orderNotFoundMessage: "Order not found.",
+    requestErrorMessage:
+      "Something went wrong. Please try again.",
+
+    orderStatusLabel: "Order Status",
+    trackingIdPrefix: "Tracking ID:",
+    totalPrefix: "Total:",
+
+    customerSectionTitle: "Customer",
+    itemsSectionTitle: "Items",
+    sizePrefix: "Size",
+
+    backButtonText: "Back To Shop",
+    backButtonHref: "/shop",
+
+    currencySymbol: "৳",
+    currencyLocale: "en-BD",
+
+    fallbackStatusLabel: "Pending",
+
+    statusLabels: {
+      pending: "Pending",
+      confirmed: "Confirmed",
+      packed: "Packed",
+      shipped: "Shipped",
+      delivered: "Delivered",
+      cancelled: "Cancelled",
+    },
+
+    unknownCustomerName: "Customer information unavailable",
+    unknownCustomerPhone: "",
+    unknownCustomerAddress: "",
+
+    emptyItemsMessage:
+      "No item information is available for this order.",
+  },
+};
+
 const CMS_DEFAULTS = {
   navbar: DEFAULT_NAVBAR,
   footer: DEFAULT_FOOTER,
@@ -924,6 +995,7 @@ const CMS_DEFAULTS = {
   shop: DEFAULT_SHOP_PAGE,
   product: DEFAULT_PRODUCT_PAGE,
   "size-guide": DEFAULT_SIZE_GUIDE_PAGE,
+  "track-order": DEFAULT_TRACK_ORDER_PAGE,
 };
 
 const PUBLIC_CMS_KEYS = Object.freeze(
@@ -1120,6 +1192,7 @@ export {
   DEFAULT_SHOP_PAGE,
   DEFAULT_PRODUCT_PAGE,
   DEFAULT_SIZE_GUIDE_PAGE,
+  DEFAULT_TRACK_ORDER_PAGE,
   cloneValue,
   deepMerge,
   normalizeActiveItems,

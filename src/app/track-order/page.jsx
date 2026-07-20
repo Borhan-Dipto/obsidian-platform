@@ -1,60 +1,103 @@
-"use client";
-
-import { useState } from "react";
-import Link from "next/link";
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
+import TrackOrderClient from "./TrackOrderClient";
+import { getTrackOrderContent } from "../../lib/getCmsContent";
 
-function statusLabel(status) {
-  const labels = {
-    pending: "Pending",
-    confirmed: "Confirmed",
-    packed: "Packed",
-    shipped: "Shipped",
-    delivered: "Delivered",
-    cancelled: "Cancelled",
-  };
+function cleanText(value, fallback = "") {
+  if (typeof value !== "string") {
+    return fallback;
+  }
 
-  return labels[status] || "Pending";
+  const cleanedValue = value.replace(/\s+/g, " ").trim();
+
+  return cleanedValue || fallback;
 }
 
-export default function TrackOrderPage() {
-  const [orderId, setOrderId] = useState("");
-  const [order, setOrder] = useState(null);
-  const [message, setMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+function createMetadataDescription(value, fallback) {
+  const description = cleanText(value, fallback);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-
-    const cleanId = orderId.trim();
-
-    if (!cleanId) {
-      setMessage("Please enter your tracking ID.");
-      setOrder(null);
-      return;
-    }
-
-    setIsLoading(true);
-    setMessage("");
-    setOrder(null);
-
-    try {
-      const response = await fetch(`/api/orders/${encodeURIComponent(cleanId)}`);
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        setMessage(data.message || "Order not found.");
-        return;
-      }
-
-      setOrder(data.order);
-    } catch {
-      setMessage("Something went wrong. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
+  if (description.length <= 160) {
+    return description;
   }
+
+  return `${description.slice(0, 157).trim()}...`;
+}
+
+export async function generateMetadata() {
+  const trackOrderPage = await getTrackOrderContent();
+  const seo = trackOrderPage?.seo || {};
+
+  const title = cleanText(seo.title, "Track Order");
+
+  const description = createMetadataDescription(
+    seo.description,
+    "Track your OBSIDIAN order using your tracking ID and view its current delivery status."
+  );
+
+  const canonical = cleanText(
+    seo.canonical,
+    "/track-order"
+  );
+
+  const ogImage = cleanText(
+    seo.ogImage,
+    "/images/collection-artifact.jpeg"
+  );
+
+  const shouldIndex = seo.index !== false;
+
+  return {
+    title,
+    description,
+
+    alternates: {
+      canonical,
+    },
+
+    openGraph: {
+      type: "website",
+      locale: "en_BD",
+      title: `${title} | OBSIDIAN`,
+      description,
+      url: canonical,
+      siteName: "OBSIDIAN",
+      images: [
+        {
+          url: ogImage,
+          width: 1200,
+          height: 1500,
+          alt: title,
+        },
+      ],
+    },
+
+    twitter: {
+      card: "summary_large_image",
+      title: `${title} | OBSIDIAN`,
+      description,
+      images: [ogImage],
+    },
+
+    robots: {
+      index: shouldIndex,
+      follow: shouldIndex,
+
+      googleBot: {
+        index: shouldIndex,
+        follow: shouldIndex,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
+    },
+
+    keywords: cleanText(seo.keywords),
+  };
+}
+
+export default async function TrackOrderPage() {
+  const trackOrderPage = await getTrackOrderContent();
+  const content = trackOrderPage?.content || {};
 
   return (
     <main className="min-h-screen bg-[#f1ece4] text-[#0b0b0b]">
@@ -63,115 +106,27 @@ export default function TrackOrderPage() {
       <section className="px-6 pt-36 pb-24 lg:px-10 lg:pt-40">
         <div className="mx-auto max-w-[980px]">
           <p className="mb-5 text-xs uppercase tracking-[0.45em] text-neutral-500">
-            Order Tracking
+            {cleanText(
+              content.eyebrow,
+              "Order Tracking"
+            )}
           </p>
 
           <h1 className="font-heading text-6xl font-light leading-none md:text-8xl">
-            Track Order
+            {cleanText(
+              content.title,
+              "Track Order"
+            )}
           </h1>
 
           <p className="mt-7 max-w-2xl text-base leading-8 text-neutral-600">
-            Enter your OBSIDIAN tracking ID to check your order status.
+            {cleanText(
+              content.description,
+              "Enter your OBSIDIAN tracking ID to check your order status."
+            )}
           </p>
 
-          <form
-            onSubmit={handleSubmit}
-            className="mt-12 border border-black/10 bg-[#eee7dd] p-7 md:p-10"
-          >
-            <label className="mb-3 block text-xs uppercase tracking-[0.32em] text-neutral-500">
-              Tracking ID
-            </label>
-
-            <div className="grid gap-4 md:grid-cols-[1fr_auto]">
-              <input
-                value={orderId}
-                onChange={(e) => setOrderId(e.target.value)}
-                placeholder="Example: OBS-123456789"
-                className="w-full border border-black/15 bg-[#f1ece4] px-5 py-4 text-base outline-none transition focus:border-black"
-              />
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="bg-[#0b0b0b] px-8 py-4 text-xs uppercase tracking-[0.3em] text-[#f1ece4] transition hover:opacity-85 disabled:opacity-50"
-              >
-                {isLoading ? "Checking..." : "Track"}
-              </button>
-            </div>
-
-            {message && (
-              <p className="mt-5 text-sm leading-7 text-red-700">{message}</p>
-            )}
-          </form>
-
-          {order && (
-            <div className="mt-10 border border-black/10 bg-[#eee7dd]">
-              <div className="border-b border-black/10 p-7 md:p-10">
-                <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">
-                  Order Status
-                </p>
-
-                <div className="mt-5 flex flex-col justify-between gap-5 md:flex-row md:items-end">
-                  <div>
-                    <h2 className="font-heading text-5xl font-light">
-                      {statusLabel(order.status)}
-                    </h2>
-
-                    <p className="mt-3 text-sm text-neutral-600">
-                      Tracking ID: {order.orderId}
-                    </p>
-                  </div>
-
-                  <p className="text-sm text-neutral-600">
-                    Total: ৳ {order.total}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-0 md:grid-cols-2">
-                <div className="border-b border-black/10 p-7 md:border-b-0 md:border-r md:p-10">
-                  <p className="mb-5 text-xs uppercase tracking-[0.32em] text-neutral-500">
-                    Customer
-                  </p>
-
-                  <div className="space-y-3 text-sm leading-7 text-neutral-700">
-                    <p>{order.customer?.fullName}</p>
-                    <p>{order.customer?.phone}</p>
-                    <p>{order.customer?.address}</p>
-                  </div>
-                </div>
-
-                <div className="p-7 md:p-10">
-                  <p className="mb-5 text-xs uppercase tracking-[0.32em] text-neutral-500">
-                    Items
-                  </p>
-
-                  <div className="space-y-4">
-                    {order.items?.map((item) => (
-                      <div
-                        key={`${item.id}-${item.size}`}
-                        className="flex justify-between gap-5 text-sm"
-                      >
-                        <span>
-                          {item.name} / Size {item.size} × {item.quantity}
-                        </span>
-                        <span>৳ {Number(item.price) * Number(item.quantity)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-10">
-            <Link
-              href="/shop"
-              className="inline-flex border border-black px-8 py-4 text-xs uppercase tracking-[0.3em] transition hover:bg-black hover:text-[#f1ece4]"
-            >
-              Back To Shop
-            </Link>
-          </div>
+          <TrackOrderClient content={content} />
         </div>
       </section>
 
