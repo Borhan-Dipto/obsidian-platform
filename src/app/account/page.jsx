@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   clearCustomerSession,
@@ -6,6 +7,114 @@ import {
 } from "@/lib/customerAuth";
 
 export const dynamic = "force-dynamic";
+
+const ACTIVE_ORDER_STATUSES = new Set([
+  "pending",
+  "confirmed",
+  "processing",
+  "packed",
+  "shipped",
+  "out_for_delivery",
+]);
+
+const COMPLETED_ORDER_STATUSES = new Set([
+  "delivered",
+  "completed",
+]);
+
+const CANCELLED_ORDER_STATUSES = new Set([
+  "cancelled",
+  "canceled",
+  "returned",
+  "refunded",
+]);
+
+const STATUS_CONFIG = {
+  pending: {
+    label: "Pending",
+    dotClass: "bg-[#c69a4b]",
+    textClass: "text-[#8d682d]",
+    backgroundClass: "bg-[#f5ead4]",
+    borderClass: "border-[#ddc79e]",
+  },
+  confirmed: {
+    label: "Confirmed",
+    dotClass: "bg-[#55738d]",
+    textClass: "text-[#3f617d]",
+    backgroundClass: "bg-[#e4ebef]",
+    borderClass: "border-[#bdccd5]",
+  },
+  processing: {
+    label: "Processing",
+    dotClass: "bg-[#5e6090]",
+    textClass: "text-[#4c4e7b]",
+    backgroundClass: "bg-[#e8e7f0]",
+    borderClass: "border-[#c8c6d9]",
+  },
+  packed: {
+    label: "Packed",
+    dotClass: "bg-[#755a87]",
+    textClass: "text-[#654a76]",
+    backgroundClass: "bg-[#ede6ef]",
+    borderClass: "border-[#d0bfd5]",
+  },
+  shipped: {
+    label: "Shipped",
+    dotClass: "bg-[#3f7b82]",
+    textClass: "text-[#326970]",
+    backgroundClass: "bg-[#dfedef]",
+    borderClass: "border-[#b7d2d5]",
+  },
+  out_for_delivery: {
+    label: "Out for delivery",
+    dotClass: "bg-[#36758e]",
+    textClass: "text-[#2f6479]",
+    backgroundClass: "bg-[#dfebf0]",
+    borderClass: "border-[#b6ccd5]",
+  },
+  delivered: {
+    label: "Delivered",
+    dotClass: "bg-[#4d7658]",
+    textClass: "text-[#42664b]",
+    backgroundClass: "bg-[#e3ece5]",
+    borderClass: "border-[#bfd0c2]",
+  },
+  completed: {
+    label: "Completed",
+    dotClass: "bg-[#4d7658]",
+    textClass: "text-[#42664b]",
+    backgroundClass: "bg-[#e3ece5]",
+    borderClass: "border-[#bfd0c2]",
+  },
+  cancelled: {
+    label: "Cancelled",
+    dotClass: "bg-[#9a534d]",
+    textClass: "text-[#84443f]",
+    backgroundClass: "bg-[#f2e3e1]",
+    borderClass: "border-[#d9b9b5]",
+  },
+  canceled: {
+    label: "Cancelled",
+    dotClass: "bg-[#9a534d]",
+    textClass: "text-[#84443f]",
+    backgroundClass: "bg-[#f2e3e1]",
+    borderClass: "border-[#d9b9b5]",
+  },
+  returned: {
+    label: "Returned",
+    dotClass: "bg-[#766e62]",
+    textClass: "text-[#625b51]",
+    backgroundClass: "bg-[#eae6df]",
+    borderClass: "border-[#d1c8bb]",
+  },
+  refunded: {
+    label: "Refunded",
+    dotClass: "bg-[#766e62]",
+    textClass: "text-[#625b51]",
+    backgroundClass: "bg-[#eae6df]",
+    borderClass: "border-[#d1c8bb]",
+  },
+};
 
 const ACCOUNT_ACTIONS = [
   {
@@ -33,7 +142,7 @@ const ACCOUNT_ACTIONS = [
     eyebrow: "Personal",
     title: "Your Profile",
     description:
-      "Keep your personal information, contact details and account preferences accurate and refined.",
+      "Keep your name, contact details and account security information accurate and up to date.",
     href: "/account/profile",
     actionLabel: "Manage profile",
     icon: "profile",
@@ -57,10 +166,7 @@ function normalizeText(value) {
 function normalizeNumber(value) {
   const parsedValue = Number(value);
 
-  if (
-    !Number.isFinite(parsedValue) ||
-    parsedValue < 0
-  ) {
+  if (!Number.isFinite(parsedValue) || parsedValue < 0) {
     return 0;
   }
 
@@ -89,9 +195,7 @@ function formatCustomerName(customer) {
 }
 
 function formatFirstName(customer) {
-  const firstName = normalizeText(
-    customer?.firstName
-  );
+  const firstName = normalizeText(customer?.firstName);
 
   if (firstName) {
     return firstName;
@@ -103,15 +207,15 @@ function formatFirstName(customer) {
   return firstWord || "Member";
 }
 
-function formatDate(value) {
+function formatDate(value, fallback = "Recently joined") {
   if (!value) {
-    return "Recently joined";
+    return fallback;
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "Recently joined";
+    return fallback;
   }
 
   return new Intl.DateTimeFormat("en-GB", {
@@ -121,15 +225,15 @@ function formatDate(value) {
   }).format(date);
 }
 
-function formatShortDate(value) {
+function formatShortDate(value, fallback = "Not available") {
   if (!value) {
-    return "Not available";
+    return fallback;
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "Not available";
+    return fallback;
   }
 
   return new Intl.DateTimeFormat("en-GB", {
@@ -140,56 +244,106 @@ function formatShortDate(value) {
 }
 
 function formatCurrency(value) {
-  return new Intl.NumberFormat("en-BD", {
-    style: "currency",
-    currency: "BDT",
+  return `৳${new Intl.NumberFormat("en-BD", {
     maximumFractionDigits: 0,
-  }).format(normalizeNumber(value));
+  }).format(normalizeNumber(value))}`;
 }
 
-function formatLocation(customer) {
-  const defaultAddress =
-    customer?.addresses?.find?.(
-      (address) =>
-        address?.id ===
-          customer?.defaultShippingAddressId ||
-        address?._id ===
-          customer?.defaultShippingAddressId ||
+function formatPaymentMethod(value) {
+  const method = normalizeText(value).toLowerCase();
+
+  if (!method) {
+    return "Not specified";
+  }
+
+  if (method === "cash_on_delivery") {
+    return "Cash on delivery";
+  }
+
+  return method
+    .split("_")
+    .filter(Boolean)
+    .map(
+      (word) =>
+        `${word.charAt(0).toUpperCase()}${word.slice(1)}`
+    )
+    .join(" ");
+}
+
+function getDefaultAddress(customer) {
+  const addresses = Array.isArray(customer?.addresses)
+    ? customer.addresses
+    : [];
+
+  const defaultAddressId = normalizeText(
+    customer?.defaultShippingAddressId ||
+      customer?.defaultAddressId
+  );
+
+  return (
+    addresses.find((address) => {
+      const addressId = normalizeText(
+        address?.id || address?._id
+      );
+
+      return (
+        (defaultAddressId &&
+          addressId === defaultAddressId) ||
         address?.isDefaultShipping === true ||
         address?.isDefault === true
-    ) ||
-    customer?.addresses?.[0] ||
+      );
+    }) ||
+    addresses[0] ||
     customer?.defaultAddress ||
     customer?.address ||
-    {};
-
-  const city = normalizeText(
-    customer?.city ||
-      defaultAddress?.city ||
-      defaultAddress?.district
+    null
   );
+}
 
-  const country = normalizeText(
-    customer?.country ||
-      defaultAddress?.country
-  );
+function formatAddressLine(address) {
+  if (!address) {
+    return "";
+  }
 
-  return [city, country]
+  return [
+    normalizeText(
+      address?.addressLine1 ||
+        address?.address ||
+        address?.street
+    ),
+    normalizeText(address?.addressLine2),
+  ]
     .filter(Boolean)
     .join(", ");
 }
 
-function getInitials(name) {
-  const initials = name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) =>
-      part.charAt(0).toUpperCase()
-    )
-    .join("");
+function formatAddressLocation(address) {
+  if (!address) {
+    return "";
+  }
 
-  return initials || "OM";
+  return [
+    normalizeText(address?.area),
+    normalizeText(address?.city || address?.district),
+    normalizeText(address?.postalCode || address?.postcode),
+    normalizeText(address?.country),
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function formatCustomerLocation(customer) {
+  const address = getDefaultAddress(customer);
+
+  return (
+    formatAddressLocation(address) ||
+    [
+      normalizeText(customer?.city),
+      normalizeText(customer?.country),
+    ]
+      .filter(Boolean)
+      .join(", ")
+  );
 }
 
 function getAccountStatus(customer) {
@@ -225,116 +379,17 @@ function getAccountStatus(customer) {
   return (
     statusMap[status] || {
       label: status
-        ? `${status
-            .charAt(0)
-            .toUpperCase()}${status.slice(1)}`
+        ? `${status.charAt(0).toUpperCase()}${status.slice(1)}`
         : "Active member",
       tone: "neutral",
     }
   );
 }
 
-function getLoyaltyDetails(customer) {
-  const points = normalizeNumber(
-    customer?.loyaltyPoints
-  );
+function calculateProfileCompletion(customer) {
+  const defaultAddress = getDefaultAddress(customer);
 
-  const suppliedTier = normalizeText(
-    customer?.loyaltyTier
-  ).toLowerCase();
-
-  const tiers = [
-    {
-      key: "member",
-      label: "Member",
-      minimum: 0,
-      nextMinimum: 500,
-    },
-    {
-      key: "obsidian",
-      label: "Obsidian",
-      minimum: 500,
-      nextMinimum: 1500,
-    },
-    {
-      key: "private",
-      label: "Private",
-      minimum: 1500,
-      nextMinimum: 3000,
-    },
-    {
-      key: "founder",
-      label: "Founder",
-      minimum: 3000,
-      nextMinimum: null,
-    },
-  ];
-
-  let currentTier =
-    tiers.find(
-      (tier) => tier.key === suppliedTier
-    ) || tiers[0];
-
-  if (!suppliedTier) {
-    currentTier =
-      [...tiers]
-        .reverse()
-        .find(
-          (tier) => points >= tier.minimum
-        ) || tiers[0];
-  }
-
-  const currentIndex = tiers.findIndex(
-    (tier) =>
-      tier.key === currentTier.key
-  );
-
-  const nextTier =
-    currentIndex >= 0
-      ? tiers[currentIndex + 1] || null
-      : null;
-
-  let progress = 100;
-  let pointsRemaining = 0;
-
-  if (nextTier) {
-    const tierRange =
-      nextTier.minimum -
-      currentTier.minimum;
-
-    const pointsWithinTier =
-      points - currentTier.minimum;
-
-    progress = Math.max(
-      0,
-      Math.min(
-        100,
-        Math.round(
-          (pointsWithinTier / tierRange) *
-            100
-        )
-      )
-    );
-
-    pointsRemaining = Math.max(
-      0,
-      nextTier.minimum - points
-    );
-  }
-
-  return {
-    points,
-    currentTier,
-    nextTier,
-    progress,
-    pointsRemaining,
-  };
-}
-
-function calculateProfileCompletion(
-  customer
-) {
-  const fields = [
+  const requiredDetails = [
     formatCustomerName(customer),
     normalizeText(customer?.email),
     normalizeText(
@@ -342,23 +397,185 @@ function calculateProfileCompletion(
         customer?.phoneNumber ||
         customer?.mobile
     ),
-    formatLocation(customer),
-    normalizeText(customer?.dateOfBirth),
-    normalizeText(customer?.gender),
-    Array.isArray(customer?.addresses) &&
-      customer.addresses.length > 0
-      ? "complete"
-      : "",
-    customer?.emailVerified
-      ? "verified"
-      : "",
+    defaultAddress ? "address-saved" : "",
   ];
 
-  const completedFields =
-    fields.filter(Boolean).length;
+  const completedDetails =
+    requiredDetails.filter(Boolean).length;
 
   return Math.round(
-    (completedFields / fields.length) * 100
+    (completedDetails / requiredDetails.length) * 100
+  );
+}
+
+function normalizeOrderStatus(value) {
+  return normalizeText(value || "pending").toLowerCase();
+}
+
+function getStatusDetails(value) {
+  const status = normalizeOrderStatus(value);
+
+  return (
+    STATUS_CONFIG[status] || {
+      label: status
+        .split("_")
+        .filter(Boolean)
+        .map(
+          (word) =>
+            `${word.charAt(0).toUpperCase()}${word.slice(1)}`
+        )
+        .join(" "),
+      dotClass: "bg-[#766e62]",
+      textClass: "text-[#625b51]",
+      backgroundClass: "bg-[#eae6df]",
+      borderClass: "border-[#d1c8bb]",
+    }
+  );
+}
+
+function createOrderSummary(orders) {
+  return orders.reduce(
+    (summary, order) => {
+      const status = normalizeOrderStatus(order?.status);
+      const total = normalizeNumber(
+        order?.pricing?.total ?? order?.total
+      );
+
+      summary.totalOrders += 1;
+
+      if (ACTIVE_ORDER_STATUSES.has(status)) {
+        summary.activeOrders += 1;
+      }
+
+      if (COMPLETED_ORDER_STATUSES.has(status)) {
+        summary.completedOrders += 1;
+        summary.totalSpent += total;
+      }
+
+      if (CANCELLED_ORDER_STATUSES.has(status)) {
+        summary.cancelledOrders += 1;
+      }
+
+      return summary;
+    },
+    {
+      totalOrders: 0,
+      activeOrders: 0,
+      completedOrders: 0,
+      cancelledOrders: 0,
+      totalSpent: 0,
+    }
+  );
+}
+
+async function loadOrderOverview() {
+  const emptyOverview = {
+    orders: [],
+    summary: {
+      totalOrders: 0,
+      activeOrders: 0,
+      completedOrders: 0,
+      cancelledOrders: 0,
+      totalSpent: 0,
+    },
+    available: false,
+  };
+
+  try {
+    const requestHeaders = await headers();
+
+    const forwardedHost =
+      requestHeaders.get("x-forwarded-host");
+    const host =
+      forwardedHost || requestHeaders.get("host");
+
+    if (!host) {
+      return emptyOverview;
+    }
+
+    const forwardedProtocol =
+      requestHeaders.get("x-forwarded-proto");
+
+    const protocol =
+      forwardedProtocol ||
+      (host.includes("localhost") ? "http" : "https");
+
+    const cookieHeader =
+      requestHeaders.get("cookie") || "";
+
+    const response = await fetch(
+      `${protocol}://${host}/api/account/orders`,
+      {
+        method: "GET",
+        cache: "no-store",
+        headers: {
+          cookie: cookieHeader,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      return emptyOverview;
+    }
+
+    const data = await response.json();
+
+    if (!data?.success) {
+      return emptyOverview;
+    }
+
+    const orders = Array.isArray(data.orders)
+      ? data.orders
+      : [];
+
+    const fallbackSummary = createOrderSummary(orders);
+
+    return {
+      orders,
+      summary: {
+        totalOrders: normalizeNumber(
+          data?.summary?.totalOrders ??
+            fallbackSummary.totalOrders
+        ),
+        activeOrders: normalizeNumber(
+          data?.summary?.activeOrders ??
+            fallbackSummary.activeOrders
+        ),
+        completedOrders: normalizeNumber(
+          data?.summary?.completedOrders ??
+            fallbackSummary.completedOrders
+        ),
+        cancelledOrders: normalizeNumber(
+          data?.summary?.cancelledOrders ??
+            fallbackSummary.cancelledOrders
+        ),
+        totalSpent: normalizeNumber(
+          data?.summary?.totalSpent ??
+            fallbackSummary.totalSpent
+        ),
+      },
+      available: true,
+    };
+  } catch {
+    return emptyOverview;
+  }
+}
+
+function ArrowIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5 12h14" />
+      <path d="m13 6 6 6-6 6" />
+    </svg>
   );
 }
 
@@ -457,62 +674,24 @@ function AccountIcon({
     );
   }
 
-  if (type === "loyalty") {
-    return (
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 24 24"
-        className={className}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="m12 3 2.2 4.7 5.1.7-3.7 3.6.9 5.1-4.5-2.4-4.5 2.4.9-5.1-3.7-3.6 5.1-.7L12 3Z" />
-        <path d="M8 19.5 6.8 22l5.2-2.2 5.2 2.2-1.2-2.5" />
-      </svg>
-    );
-  }
-
   return null;
-}
-
-function ArrowIcon({
-  className = "h-4 w-4",
-}) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M5 12h14" />
-      <path d="m13 6 6 6-6 6" />
-    </svg>
-  );
 }
 
 function DetailRow({
   label,
   value,
   href,
-  verified,
+  verified = false,
 }) {
   const content = value || "Not provided";
 
   return (
-    <div className="group flex flex-col gap-2 border-b border-black/10 py-5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-2 border-b border-black/10 py-5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
       <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-black/40">
         {label}
       </span>
 
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2 sm:justify-end">
         {href && value ? (
           <a
             href={href}
@@ -574,7 +753,7 @@ function StatisticCard({
             {label}
           </p>
 
-          <p className="mt-5 font-serif text-[2.2rem] leading-none tracking-[-0.04em] text-[#171512] sm:text-[2.5rem]">
+          <p className="mt-5 break-words font-serif text-[2.1rem] leading-none tracking-[-0.04em] text-[#171512] sm:text-[2.45rem]">
             {value}
           </p>
         </div>
@@ -649,11 +828,8 @@ function ActionCard({
 function SecurityItem({
   label,
   value,
-  status,
+  complete,
 }) {
-  const isComplete =
-    status === "complete";
-
   return (
     <div className="flex items-center justify-between gap-5 border-b border-white/10 py-4 last:border-b-0">
       <div>
@@ -668,12 +844,12 @@ function SecurityItem({
 
       <span
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
-          isComplete
+          complete
             ? "border-[#cbbd9c]/30 bg-[#cbbd9c]/10 text-[#d9ccaa]"
             : "border-white/10 text-white/30"
         }`}
       >
-        {isComplete ? (
+        {complete ? (
           <svg
             viewBox="0 0 16 16"
             fill="none"
@@ -696,9 +872,202 @@ function SecurityItem({
   );
 }
 
+function RecentOrderCard({ order }) {
+  const status = getStatusDetails(order?.status);
+  const items = Array.isArray(order?.items)
+    ? order.items
+    : [];
+
+  const primaryItem = items[0];
+
+  const totalPieces = items.reduce(
+    (total, item) =>
+      total + normalizeNumber(item?.quantity),
+    0
+  );
+
+  const orderReference =
+    normalizeText(order?.orderId) ||
+    normalizeText(order?._id) ||
+    "Order";
+
+  return (
+    <article className="group grid overflow-hidden border border-black/10 bg-[#f4f0e8] transition-all duration-500 hover:border-black/20 hover:shadow-[0_22px_60px_rgba(25,22,17,0.08)] md:grid-cols-[108px_minmax(0,1fr)_190px]">
+      <div className="relative min-h-32 overflow-hidden bg-[#e5ded2] md:min-h-full">
+        {primaryItem?.image ? (
+          <img
+            src={primaryItem.image}
+            alt={
+              normalizeText(primaryItem?.name) ||
+              "Ordered OBSIDIAN product"
+            }
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full min-h-32 items-center justify-center">
+            <span className="font-serif text-4xl text-black/15">
+              O
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="min-w-0 p-5 sm:p-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <span
+            className={`inline-flex items-center gap-2 border px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.18em] ${status.backgroundClass} ${status.borderClass} ${status.textClass}`}
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${status.dotClass}`}
+            />
+
+            {status.label}
+          </span>
+
+          <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/35">
+            {formatShortDate(order?.createdAt)}
+          </span>
+        </div>
+
+        <p className="mt-4 text-[9px] font-semibold uppercase tracking-[0.22em] text-black/35">
+          Order reference
+        </p>
+
+        <h3 className="mt-2 truncate font-serif text-2xl tracking-[-0.025em]">
+          {orderReference}
+        </h3>
+
+        <p className="mt-3 truncate text-sm text-black/52">
+          {normalizeText(primaryItem?.name) ||
+            "OBSIDIAN Piece"}
+          {items.length > 1
+            ? ` and ${items.length - 1} more`
+            : ""}
+        </p>
+
+        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-black/42">
+          <span>
+            {totalPieces || items.length || 1}{" "}
+            {(totalPieces || items.length || 1) === 1
+              ? "piece"
+              : "pieces"}
+          </span>
+
+          <span>
+            {formatPaymentMethod(order?.paymentMethod)}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-col justify-between border-t border-black/10 p-5 sm:p-6 md:border-l md:border-t-0">
+        <div>
+          <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-black/35">
+            Order total
+          </p>
+
+          <p className="mt-3 font-serif text-2xl tracking-[-0.03em]">
+            {formatCurrency(
+              order?.pricing?.total ?? order?.total
+            )}
+          </p>
+        </div>
+
+        <Link
+          href={`/account/orders/${encodeURIComponent(
+            orderReference
+          )}`}
+          className="group/link mt-6 inline-flex items-center gap-3 text-[9px] font-semibold uppercase tracking-[0.2em] text-black"
+        >
+          View details
+
+          <ArrowIcon className="h-4 w-4 transition-transform duration-300 group-hover/link:translate-x-1" />
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+function AddressSummaryCard({
+  address,
+  addressCount,
+}) {
+  const recipientName = normalizeText(
+    address?.fullName ||
+      address?.name ||
+      address?.recipientName
+  );
+
+  const phone = normalizeText(
+    address?.phone ||
+      address?.phoneNumber ||
+      address?.mobile
+  );
+
+  const addressLine = formatAddressLine(address);
+  const location = formatAddressLocation(address);
+
+  return (
+    <div className="relative overflow-hidden border border-black/10 bg-[#ddd3c4] p-6 sm:p-8">
+      <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full border border-black/[0.06]" />
+
+      <div className="relative flex items-start justify-between gap-5">
+        <div>
+          <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-black/40">
+            Default delivery
+          </p>
+
+          <h2 className="mt-3 font-serif text-3xl tracking-[-0.03em]">
+            {address ? "Primary address" : "No address saved"}
+          </h2>
+        </div>
+
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center border border-black/10 text-black/60">
+          <AccountIcon type="address" />
+        </span>
+      </div>
+
+      {address ? (
+        <div className="relative mt-8">
+          {recipientName ? (
+            <p className="font-medium text-[#171512]">
+              {recipientName}
+            </p>
+          ) : null}
+
+          <div className="mt-3 space-y-1 text-sm leading-6 text-black/55">
+            {addressLine ? <p>{addressLine}</p> : null}
+            {location ? <p>{location}</p> : null}
+            {phone ? <p>{phone}</p> : null}
+          </div>
+
+          <p className="mt-7 text-[9px] font-semibold uppercase tracking-[0.2em] text-black/38">
+            {addressCount} saved{" "}
+            {addressCount === 1 ? "address" : "addresses"}
+          </p>
+        </div>
+      ) : (
+        <p className="relative mt-7 text-sm leading-7 text-black/52">
+          Add a delivery address now so your next checkout
+          can be faster and more precise.
+        </p>
+      )}
+
+      <Link
+        href="/account/addresses"
+        className="group relative mt-8 inline-flex min-h-12 w-full items-center justify-center gap-3 bg-[#171512] px-5 text-[9px] font-semibold uppercase tracking-[0.22em] text-white transition-colors duration-300 hover:bg-black/75"
+      >
+        {address ? "Manage addresses" : "Add an address"}
+
+        <ArrowIcon className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+      </Link>
+    </div>
+  );
+}
+
 export default async function AccountPage() {
-  const customer =
-    await requireCustomerAuth();
+  const customer = await requireCustomerAuth();
+
+  const orderOverviewPromise = loadOrderOverview();
 
   async function signOutAction() {
     "use server";
@@ -707,18 +1076,12 @@ export default async function AccountPage() {
     redirect("/account/login");
   }
 
-  const customerName =
-    formatCustomerName(customer);
+  const orderOverview = await orderOverviewPromise;
 
-  const firstName =
-    formatFirstName(customer);
+  const customerName = formatCustomerName(customer);
+  const firstName = formatFirstName(customer);
 
-  const initials =
-    getInitials(customerName);
-
-  const email = normalizeText(
-    customer?.email
-  );
+  const email = normalizeText(customer?.email);
 
   const phone = normalizeText(
     customer?.phone ||
@@ -726,78 +1089,76 @@ export default async function AccountPage() {
       customer?.mobile
   );
 
-  const location =
-    formatLocation(customer);
+  const location = formatCustomerLocation(customer);
 
-  const joinedDate =
-    formatDate(
-      customer?.createdAt ||
-        customer?.registeredAt
-    );
+  const joinedDate = formatDate(
+    customer?.createdAt || customer?.registeredAt
+  );
 
-  const lastLoginDate =
-    formatShortDate(
-      customer?.lastLoginAt
-    );
+  const lastLoginDate = formatShortDate(
+    customer?.lastLoginAt
+  );
 
-  const passwordChangedDate =
-    formatShortDate(
-      customer?.passwordChangedAt
-    );
+  const passwordChangedDate = formatShortDate(
+    customer?.passwordChangedAt
+  );
 
-  const accountStatus =
-    getAccountStatus(customer);
+  const accountStatus = getAccountStatus(customer);
 
-  const totalOrders =
-    normalizeNumber(
-      customer?.totalOrders
-    );
+  const wishlistCount = Array.isArray(customer?.wishlist)
+    ? customer.wishlist.length
+    : normalizeNumber(customer?.wishlistCount);
 
-  const completedOrders =
-    normalizeNumber(
-      customer?.completedOrders
-    );
+  const addresses = Array.isArray(customer?.addresses)
+    ? customer.addresses
+    : [];
 
-  const totalSpent =
-    normalizeNumber(
-      customer?.totalSpent
-    );
-
-  const wishlistCount =
-    Array.isArray(customer?.wishlist)
-      ? customer.wishlist.length
-      : normalizeNumber(
-          customer?.wishlistCount
-        );
+  const defaultAddress = getDefaultAddress(customer);
 
   const addressCount =
-    Array.isArray(customer?.addresses)
-      ? customer.addresses.length
-      : normalizeNumber(
-          customer?.addressCount
-        );
+    addresses.length ||
+    normalizeNumber(customer?.addressCount) ||
+    (defaultAddress ? 1 : 0);
 
   const profileCompletion =
-    calculateProfileCompletion(
-      customer
-    );
+    calculateProfileCompletion(customer);
 
-  const loyalty =
-    getLoyaltyDetails(customer);
+  const emailVerified = Boolean(customer?.emailVerified);
+  const phoneVerified = Boolean(customer?.phoneVerified);
 
-  const emailVerified =
-    Boolean(customer?.emailVerified);
+  const recentOrders = [...orderOverview.orders]
+    .sort((firstOrder, secondOrder) => {
+      const firstDate = new Date(
+        firstOrder?.createdAt || 0
+      ).getTime();
 
-  const phoneVerified =
-    Boolean(customer?.phoneVerified);
+      const secondDate = new Date(
+        secondOrder?.createdAt || 0
+      ).getTime();
+
+      return secondDate - firstDate;
+    })
+    .slice(0, 3);
+
+  const totalOrders =
+    orderOverview.summary.totalOrders ||
+    normalizeNumber(customer?.totalOrders);
+
+  const completedOrders =
+    orderOverview.summary.completedOrders ||
+    normalizeNumber(customer?.completedOrders);
+
+  const activeOrders =
+    orderOverview.summary.activeOrders;
+
+  const totalSpent =
+    orderOverview.summary.totalSpent ||
+    normalizeNumber(customer?.totalSpent);
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#e9e3d8] text-[#171512]">
       <section className="relative isolate overflow-hidden border-b border-white/10 bg-[#151411] text-[#f5f0e7]">
-        <div
-          aria-hidden="true"
-          className="absolute inset-0"
-        >
+        <div aria-hidden="true" className="absolute inset-0">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_76%_24%,rgba(211,195,164,0.18),transparent_28%),radial-gradient(circle_at_12%_88%,rgba(255,255,255,0.06),transparent_24%),linear-gradient(135deg,rgba(255,255,255,0.025),transparent_48%)]" />
 
           <div className="absolute -right-52 -top-56 h-[44rem] w-[44rem] animate-[spin_60s_linear_infinite] rounded-full border border-white/[0.045]" />
@@ -840,9 +1201,7 @@ export default async function AccountPage() {
                 >
                   <span className="absolute inset-0 -translate-x-full bg-white transition-transform duration-500 group-hover:translate-x-0" />
 
-                  <span className="relative">
-                    Sign out
-                  </span>
+                  <span className="relative">Sign out</span>
                 </button>
               </form>
             </div>
@@ -866,10 +1225,9 @@ export default async function AccountPage() {
               </h1>
 
               <p className="mt-8 max-w-2xl text-sm leading-7 text-white/52 sm:text-base sm:leading-8">
-                Your private OBSIDIAN space
-                for orders, saved pieces,
-                profile details and the next
-                chapter of your wardrobe.
+                Your private OBSIDIAN space for orders,
+                saved pieces, delivery details and account
+                security.
               </p>
 
               <div className="mt-9 flex flex-wrap gap-3">
@@ -892,45 +1250,34 @@ export default async function AccountPage() {
             </div>
 
             <div className="border-t border-white/10 pt-7 lg:border-l lg:border-t-0 lg:pl-9 lg:pt-0">
-              <div className="flex items-center gap-5">
-                <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full border border-[#d3c6a6]/35 bg-white/[0.035] font-serif text-2xl italic text-[#e7dcc2]">
-                  <span className="absolute inset-1 rounded-full border border-white/[0.06]" />
+              <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-[#d6c9aa]">
+                Member identity
+              </p>
 
-                  <span className="relative">
-                    {initials}
-                  </span>
-                </div>
+              <p className="mt-5 break-words font-serif text-3xl tracking-[-0.03em] sm:text-4xl">
+                {customerName}
+              </p>
 
-                <div className="min-w-0">
-                  <p className="truncate font-serif text-2xl tracking-[-0.02em] sm:text-3xl">
-                    {customerName}
-                  </p>
+              <p className="mt-2 break-words text-xs text-white/42">
+                {email || "Email not provided"}
+              </p>
 
-                  <p className="mt-1 truncate text-xs text-white/42">
-                    {email}
-                  </p>
+              <div className="mt-4 flex items-center gap-2">
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    accountStatus.tone === "success"
+                      ? "bg-[#b6c49d]"
+                      : accountStatus.tone === "warning"
+                        ? "bg-[#d1b274]"
+                        : accountStatus.tone === "danger"
+                          ? "bg-[#c47b72]"
+                          : "bg-white/35"
+                  }`}
+                />
 
-                  <div className="mt-3 flex items-center gap-2">
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${
-                        accountStatus.tone ===
-                        "success"
-                          ? "bg-[#b6c49d]"
-                          : accountStatus.tone ===
-                              "warning"
-                            ? "bg-[#d1b274]"
-                            : accountStatus.tone ===
-                                "danger"
-                              ? "bg-[#c47b72]"
-                              : "bg-white/35"
-                      }`}
-                    />
-
-                    <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-white/45">
-                      {accountStatus.label}
-                    </span>
-                  </div>
-                </div>
+                <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-white/45">
+                  {accountStatus.label}
+                </span>
               </div>
 
               <div className="mt-8 grid grid-cols-2 gap-px bg-white/10">
@@ -946,14 +1293,11 @@ export default async function AccountPage() {
 
                 <div className="bg-[#151411] py-4 pl-4">
                   <p className="text-[8px] font-semibold uppercase tracking-[0.25em] text-white/30">
-                    Membership
+                    Active orders
                   </p>
 
                   <p className="mt-2 text-xs text-[#d8ccae]">
-                    {
-                      loyalty.currentTier
-                        .label
-                    }
+                    {activeOrders}
                   </p>
                 </div>
               </div>
@@ -1007,10 +1351,8 @@ export default async function AccountPage() {
             index="01"
             label="Total orders"
             value={String(totalOrders)}
-            detail={`${completedOrders} completed order${
-              completedOrders === 1
-                ? ""
-                : "s"
+            detail={`${completedOrders} completed ${
+              completedOrders === 1 ? "order" : "orders"
             }`}
           />
 
@@ -1018,7 +1360,7 @@ export default async function AccountPage() {
             index="02"
             label="Total spent"
             value={formatCurrency(totalSpent)}
-            detail="Your lifetime OBSIDIAN purchase value"
+            detail="Value of completed OBSIDIAN orders"
           />
 
           <StatisticCard
@@ -1065,9 +1407,7 @@ export default async function AccountPage() {
                   label="Email address"
                   value={email}
                   href={
-                    email
-                      ? `mailto:${email}`
-                      : undefined
+                    email ? `mailto:${email}` : undefined
                   }
                   verified={emailVerified}
                 />
@@ -1076,9 +1416,7 @@ export default async function AccountPage() {
                   label="Phone"
                   value={phone}
                   href={
-                    phone
-                      ? `tel:${phone}`
-                      : undefined
+                    phone ? `tel:${phone}` : undefined
                   }
                   verified={phoneVerified}
                 />
@@ -1120,17 +1458,22 @@ export default async function AccountPage() {
               </Link>
             </div>
 
+            <AddressSummaryCard
+              address={defaultAddress}
+              addressCount={addressCount}
+            />
+
             <div className="relative overflow-hidden bg-[#171512] p-6 text-white sm:p-8">
               <div className="absolute -right-20 -top-20 h-52 w-52 rounded-full border border-white/[0.05]" />
 
               <div className="relative flex items-start justify-between gap-5">
                 <div>
                   <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-[#cdbf9e]">
-                    Member security
+                    Account security
                   </p>
 
                   <h2 className="mt-3 font-serif text-3xl tracking-[-0.03em]">
-                    Account access
+                    Secure access
                   </h2>
                 </div>
 
@@ -1147,11 +1490,7 @@ export default async function AccountPage() {
                       ? "Verified"
                       : "Verification pending"
                   }
-                  status={
-                    emailVerified
-                      ? "complete"
-                      : "pending"
-                  }
+                  complete={emailVerified}
                 />
 
                 <SecurityItem
@@ -1163,36 +1502,34 @@ export default async function AccountPage() {
                         ? "Verification pending"
                         : "Not provided"
                   }
-                  status={
-                    phoneVerified
-                      ? "complete"
-                      : "pending"
-                  }
+                  complete={phoneVerified}
                 />
 
                 <SecurityItem
                   label="Last sign in"
                   value={lastLoginDate}
-                  status="complete"
+                  complete={Boolean(customer?.lastLoginAt)}
                 />
 
                 <SecurityItem
                   label="Password updated"
                   value={passwordChangedDate}
-                  status="complete"
+                  complete={Boolean(
+                    customer?.passwordChangedAt
+                  )}
                 />
               </div>
 
               <Link
-                href="/account/forgot-password"
+                href="/account/profile#security"
                 className="relative mt-7 flex min-h-12 w-full items-center justify-center border border-white/20 px-5 text-[9px] font-semibold uppercase tracking-[0.22em] text-white transition-all duration-300 hover:border-white hover:bg-white hover:text-black"
               >
-                Change password
+                Security settings
               </Link>
             </div>
           </aside>
 
-          <div>
+          <div className="min-w-0">
             <div className="flex flex-col gap-6 border-b border-black/10 pb-8 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-black/40">
@@ -1208,127 +1545,140 @@ export default async function AccountPage() {
               </div>
 
               <p className="max-w-sm text-sm leading-7 text-black/48">
-                Review your purchases,
-                return to saved pieces and
-                keep your personal
-                information ready for a more
-                seamless checkout.
+                Review purchases, return to saved pieces
+                and keep your delivery and personal
+                information ready for a seamless checkout.
               </p>
             </div>
 
-            <div className="mt-8 grid gap-5 md:grid-cols-2">
-              {ACCOUNT_ACTIONS.map(
-                (action) => (
+            <div className="mt-8">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-black/40">
+                    Recent purchases
+                  </p>
+
+                  <h2 className="mt-3 font-serif text-3xl tracking-[-0.03em] sm:text-4xl">
+                    Latest orders
+                  </h2>
+                </div>
+
+                <Link
+                  href="/account/orders"
+                  className="group inline-flex items-center gap-3 text-[9px] font-semibold uppercase tracking-[0.22em] text-black"
+                >
+                  Complete order history
+
+                  <ArrowIcon className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                </Link>
+              </div>
+
+              <div className="mt-6 space-y-4">
+                {recentOrders.length > 0 ? (
+                  recentOrders.map((order) => (
+                    <RecentOrderCard
+                      key={
+                        order?._id ||
+                        order?.orderId ||
+                        `${order?.createdAt}-${order?.total}`
+                      }
+                      order={order}
+                    />
+                  ))
+                ) : (
+                  <div className="relative overflow-hidden border border-black/10 bg-[#f4f0e8] px-6 py-12 text-center sm:px-10 sm:py-16">
+                    <div className="absolute -right-20 -top-20 h-52 w-52 rounded-full border border-black/[0.04]" />
+
+                    <p className="relative text-[9px] font-semibold uppercase tracking-[0.28em] text-black/35">
+                      {orderOverview.available
+                        ? "No purchases yet"
+                        : "Order overview"}
+                    </p>
+
+                    <h3 className="relative mt-4 font-serif text-3xl tracking-[-0.03em] sm:text-4xl">
+                      {orderOverview.available
+                        ? "Your first piece awaits."
+                        : "Your orders remain available in the archive."}
+                    </h3>
+
+                    <p className="relative mx-auto mt-4 max-w-lg text-sm leading-7 text-black/50">
+                      {orderOverview.available
+                        ? "Once you place an order, its progress and essential details will appear here."
+                        : "Open your complete order history to review purchases and delivery progress."}
+                    </p>
+
+                    <Link
+                      href={
+                        orderOverview.available
+                          ? "/shop"
+                          : "/account/orders"
+                      }
+                      className="relative mt-7 inline-flex min-h-12 items-center justify-center bg-[#171512] px-7 text-[9px] font-semibold uppercase tracking-[0.22em] text-white transition-colors duration-300 hover:bg-black/75"
+                    >
+                      {orderOverview.available
+                        ? "Explore the collection"
+                        : "Open order history"}
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-12 border-t border-black/10 pt-10">
+              <div>
+                <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-black/40">
+                  Account destinations
+                </p>
+
+                <h2 className="mt-3 font-serif text-3xl tracking-[-0.03em] sm:text-4xl">
+                  Manage your account
+                </h2>
+              </div>
+
+              <div className="mt-7 grid gap-5 md:grid-cols-2">
+                {ACCOUNT_ACTIONS.map((action) => (
                   <ActionCard
                     key={action.href}
                     {...action}
                   />
-                )
-              )}
+                ))}
+              </div>
             </div>
 
-            <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-              <div className="relative overflow-hidden bg-[#171512] px-6 py-10 text-[#f5f0e7] sm:px-10 sm:py-12">
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-y-0 right-0 w-2/3 bg-[radial-gradient(circle_at_75%_50%,rgba(211,195,164,0.20),transparent_42%)]"
-                />
+            <div className="relative mt-8 overflow-hidden bg-[#171512] px-6 py-10 text-[#f5f0e7] sm:px-10 sm:py-12">
+              <div
+                aria-hidden="true"
+                className="absolute inset-y-0 right-0 w-2/3 bg-[radial-gradient(circle_at_75%_50%,rgba(211,195,164,0.20),transparent_42%)]"
+              />
 
-                <div className="absolute -right-32 top-1/2 h-72 w-72 -translate-y-1/2 rotate-45 border border-white/[0.04]" />
+              <div className="absolute -right-32 top-1/2 h-72 w-72 -translate-y-1/2 rotate-45 border border-white/[0.04]" />
 
-                <div className="relative">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.3em] text-[#cdbf9e]">
-                    Continue the collection
-                  </p>
+              <div className="relative">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.3em] text-[#cdbf9e]">
+                  Continue the collection
+                </p>
 
-                  <h2 className="mt-4 max-w-3xl font-serif text-[2.5rem] leading-[0.95] tracking-[-0.04em] sm:text-[3.8rem]">
-                    Built under pressure.
-                    <span className="block italic text-[#d5c8a8]">
-                      Chosen with intention.
-                    </span>
-                  </h2>
-
-                  <p className="mt-6 max-w-xl text-sm leading-7 text-white/50">
-                    Discover the latest
-                    pieces shaped by
-                    precision, restraint and
-                    the permanent character
-                    of obsidian.
-                  </p>
-
-                  <Link
-                    href="/shop"
-                    className="group mt-9 inline-flex min-h-12 w-fit items-center justify-center gap-4 border border-white/20 px-6 text-[9px] font-semibold uppercase tracking-[0.24em] text-white transition-all duration-300 hover:border-white hover:bg-white hover:text-black"
-                  >
-                    Enter the shop
-
-                    <ArrowIcon className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-                  </Link>
-                </div>
-              </div>
-
-              <div className="relative overflow-hidden border border-black/10 bg-[#dcd2c3] p-6 sm:p-8">
-                <div className="absolute -right-14 -top-14 h-40 w-40 rounded-full border border-black/[0.06]" />
-
-                <div className="relative flex items-start justify-between">
-                  <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.26em] text-black/40">
-                      Membership
-                    </p>
-
-                    <h2 className="mt-3 font-serif text-3xl tracking-[-0.03em]">
-                      {
-                        loyalty.currentTier
-                          .label
-                      }
-                    </h2>
-                  </div>
-
-                  <span className="flex h-11 w-11 items-center justify-center border border-black/10 text-black/60">
-                    <AccountIcon type="loyalty" />
+                <h2 className="mt-4 max-w-3xl font-serif text-[2.5rem] leading-[0.95] tracking-[-0.04em] sm:text-[3.8rem]">
+                  Built under pressure.
+                  <span className="block italic text-[#d5c8a8]">
+                    Chosen with intention.
                   </span>
-                </div>
+                </h2>
 
-                <p className="relative mt-7 font-serif text-5xl tracking-[-0.05em]">
-                  {loyalty.points}
+                <p className="mt-6 max-w-xl text-sm leading-7 text-white/50">
+                  Discover pieces shaped by precision,
+                  restraint and the permanent character of
+                  obsidian.
                 </p>
 
-                <p className="mt-2 text-[9px] font-semibold uppercase tracking-[0.24em] text-black/40">
-                  Loyalty points
-                </p>
+                <Link
+                  href="/shop"
+                  className="group mt-9 inline-flex min-h-12 w-fit items-center justify-center gap-4 border border-white/20 px-6 text-[9px] font-semibold uppercase tracking-[0.24em] text-white transition-all duration-300 hover:border-white hover:bg-white hover:text-black"
+                >
+                  Enter the shop
 
-                <div className="mt-8">
-                  <div className="flex items-center justify-between gap-4 text-[9px] font-semibold uppercase tracking-[0.18em] text-black/42">
-                    <span>
-                      {
-                        loyalty.currentTier
-                          .label
-                      }
-                    </span>
-
-                    <span>
-                      {loyalty.nextTier
-                        ? loyalty.nextTier
-                            .label
-                        : "Highest tier"}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 h-1 overflow-hidden bg-black/10">
-                    <div
-                      className="h-full bg-[#171512] transition-all duration-1000"
-                      style={{
-                        width: `${loyalty.progress}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <p className="mt-5 text-xs leading-6 text-black/48">
-                  {loyalty.nextTier
-                    ? `${loyalty.pointsRemaining} more points to reach ${loyalty.nextTier.label} membership.`
-                    : "You have reached the highest available membership tier."}
-                </p>
+                  <ArrowIcon className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                </Link>
               </div>
             </div>
           </div>
