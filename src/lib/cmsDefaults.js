@@ -696,8 +696,7 @@ const DEFAULT_SHOP_PAGE = {
     activeFiltersLabel: "Active Filters",
     searchFilterPrefix: "Search:",
 
-    searchPlaceholder:
-      "Search product, color, series...",
+    searchPlaceholder: "Search product, color, series...",
 
     searchAriaLabel: "Search products",
     seriesAriaLabel: "Filter by series",
@@ -774,8 +773,7 @@ const DEFAULT_PRODUCT_PAGE = {
     productFallbackSeries: "OBSIDIAN",
     productFallbackColor: "Obsidian Black",
 
-    productImageAltTemplate:
-      "{product} by {site}",
+    productImageAltTemplate: "{product} by {site}",
 
     colorLabel: "Color",
     availabilityLabel: "Availability",
@@ -842,6 +840,79 @@ const DEFAULT_PRODUCT_PAGE = {
   },
 };
 
+const DEFAULT_SIZE_GUIDE_PAGE = {
+  key: "size-guide",
+  schemaVersion: CMS_SCHEMA_VERSION,
+  status: "published",
+
+  title: "Size Guide",
+  slug: "size-guide",
+
+  seo: {
+    title: "Size Guide",
+    description:
+      "Find your ideal OBSIDIAN fit with our size guide for oversized and relaxed silhouettes.",
+    keywords:
+      "OBSIDIAN size guide, oversized t-shirt size chart, clothing size guide Bangladesh",
+    ogImage: "/images/collection-artifact.jpeg",
+    canonical: "/size-guide",
+    index: true,
+  },
+
+  content: {
+    eyebrow: "Size Guide",
+    title: "Find Your Fit",
+    description:
+      "Our pieces are designed with a relaxed oversized fit. Use the guide below to choose your preferred silhouette.",
+
+    tableAriaLabel: "OBSIDIAN clothing size guide",
+
+    sizeColumnLabel: "Size",
+    chestColumnLabel: "Chest",
+    lengthColumnLabel: "Length",
+    shoulderColumnLabel: "Shoulder",
+
+    measurementUnit: "in",
+
+    sizes: [
+      {
+        id: "size-medium",
+        size: "M",
+        chest: "40",
+        length: "27",
+        shoulder: "18",
+        order: 1,
+        isActive: true,
+      },
+      {
+        id: "size-large",
+        size: "L",
+        chest: "42",
+        length: "28",
+        shoulder: "19",
+        order: 2,
+        isActive: true,
+      },
+      {
+        id: "size-extra-large",
+        size: "XL",
+        chest: "44",
+        length: "29",
+        shoulder: "20",
+        order: 3,
+        isActive: true,
+      },
+    ],
+
+    note:
+      "Measurements may vary slightly due to fabric, wash, and production process.",
+
+    emptyStateTitle: "No size information is available.",
+    emptyStateDescription:
+      "Please contact OBSIDIAN support for assistance with choosing the right size.",
+  },
+};
+
 const CMS_DEFAULTS = {
   navbar: DEFAULT_NAVBAR,
   footer: DEFAULT_FOOTER,
@@ -852,6 +923,7 @@ const CMS_DEFAULTS = {
   collections: DEFAULT_COLLECTIONS_PAGE,
   shop: DEFAULT_SHOP_PAGE,
   product: DEFAULT_PRODUCT_PAGE,
+  "size-guide": DEFAULT_SIZE_GUIDE_PAGE,
 };
 
 const PUBLIC_CMS_KEYS = Object.freeze(
@@ -863,8 +935,7 @@ function isPlainObject(value) {
     value !== null &&
     typeof value === "object" &&
     !Array.isArray(value) &&
-    Object.getPrototypeOf(value) ===
-      Object.prototype
+    Object.getPrototypeOf(value) === Object.prototype
   );
 }
 
@@ -875,22 +946,17 @@ function cloneValue(value) {
 
   if (isPlainObject(value)) {
     return Object.fromEntries(
-      Object.entries(value).map(
-        ([key, nestedValue]) => [
-          key,
-          cloneValue(nestedValue),
-        ]
-      )
+      Object.entries(value).map(([key, nestedValue]) => [
+        key,
+        cloneValue(nestedValue),
+      ])
     );
   }
 
   return value;
 }
 
-function deepMerge(
-  defaultValue,
-  savedValue
-) {
+function deepMerge(defaultValue, savedValue) {
   if (Array.isArray(defaultValue)) {
     return Array.isArray(savedValue)
       ? savedValue.map(cloneValue)
@@ -900,10 +966,9 @@ function deepMerge(
   if (isPlainObject(defaultValue)) {
     const mergedValue = {};
 
-    const savedObject =
-      isPlainObject(savedValue)
-        ? savedValue
-        : {};
+    const savedObject = isPlainObject(savedValue)
+      ? savedValue
+      : {};
 
     const keys = new Set([
       ...Object.keys(defaultValue),
@@ -922,8 +987,9 @@ function deepMerge(
           savedObject[key]
         );
       } else {
-        mergedValue[key] =
-          cloneValue(defaultValue[key]);
+        mergedValue[key] = cloneValue(
+          defaultValue[key]
+        );
       }
     }
 
@@ -935,10 +1001,7 @@ function deepMerge(
     : cloneValue(savedValue);
 }
 
-function normalizeOrder(
-  value,
-  fallback = 0
-) {
+function normalizeOrder(value, fallback = 0) {
   const numericValue = Number(value);
 
   return Number.isFinite(numericValue)
@@ -946,9 +1009,7 @@ function normalizeOrder(
     : fallback;
 }
 
-function normalizeActiveItems(
-  items = []
-) {
+function normalizeActiveItems(items = []) {
   if (!Array.isArray(items)) {
     return [];
   }
@@ -960,31 +1021,18 @@ function normalizeActiveItems(
         item.isActive !== false
     )
     .sort(
-      (
-        firstItem,
-        secondItem
-      ) =>
-        normalizeOrder(
-          firstItem.order
-        ) -
-        normalizeOrder(
-          secondItem.order
-        )
+      (firstItem, secondItem) =>
+        normalizeOrder(firstItem.order) -
+        normalizeOrder(secondItem.order)
     );
 }
 
 function getCmsDefault(key) {
-  const normalizedKey = String(
-    key || ""
-  )
+  const normalizedKey = String(key || "")
     .trim()
     .toLowerCase();
 
-  if (
-    !PUBLIC_CMS_KEYS.includes(
-      normalizedKey
-    )
-  ) {
+  if (!PUBLIC_CMS_KEYS.includes(normalizedKey)) {
     return null;
   }
 
@@ -997,9 +1045,7 @@ function mergeCmsContent(
   key,
   storedContent = {}
 ) {
-  const normalizedKey = String(
-    key || ""
-  )
+  const normalizedKey = String(key || "")
     .trim()
     .toLowerCase();
 
@@ -1018,15 +1064,12 @@ function mergeCmsContent(
   return {
     ...mergedContent,
     key: normalizedKey,
-    schemaVersion:
-      CMS_SCHEMA_VERSION,
+    schemaVersion: CMS_SCHEMA_VERSION,
   };
 }
 
 function isSupportedCmsKey(key) {
-  const normalizedKey = String(
-    key || ""
-  )
+  const normalizedKey = String(key || "")
     .trim()
     .toLowerCase();
 
@@ -1039,17 +1082,14 @@ function createCmsDocument(
   key,
   content = {}
 ) {
-  const normalizedKey = String(
-    key || ""
-  )
+  const normalizedKey = String(key || "")
     .trim()
     .toLowerCase();
 
-  const mergedContent =
-    mergeCmsContent(
-      normalizedKey,
-      content
-    );
+  const mergedContent = mergeCmsContent(
+    normalizedKey,
+    content
+  );
 
   if (!mergedContent) {
     return null;
@@ -1060,8 +1100,7 @@ function createCmsDocument(
   return {
     ...mergedContent,
     key: normalizedKey,
-    schemaVersion:
-      CMS_SCHEMA_VERSION,
+    schemaVersion: CMS_SCHEMA_VERSION,
     createdAt: now,
     updatedAt: now,
   };
@@ -1080,6 +1119,7 @@ export {
   DEFAULT_COLLECTIONS_PAGE,
   DEFAULT_SHOP_PAGE,
   DEFAULT_PRODUCT_PAGE,
+  DEFAULT_SIZE_GUIDE_PAGE,
   cloneValue,
   deepMerge,
   normalizeActiveItems,

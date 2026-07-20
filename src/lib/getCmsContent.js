@@ -206,3 +206,7 @@ export async function getShopContent() {
 export async function getProductContent() {
   return getCmsContent("product");
 }
+
+export async function getSizeGuideContent() {
+  return getCmsContent("size-guide");
+}
