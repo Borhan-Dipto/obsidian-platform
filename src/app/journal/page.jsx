@@ -17,6 +17,9 @@ const DEFAULT_PAGE_DESCRIPTION =
 const DEFAULT_SOCIAL_IMAGE = "/images/hero1.jpeg";
 
 const DEFAULT_CONTENT = {
+  breadcrumbHomeLabel: "Home",
+  breadcrumbCurrentLabel: "Journal",
+
   eyebrow: "Journal",
   title: "Stories Of Pressure",
   description:
@@ -58,10 +61,12 @@ const DEFAULT_CONTENT = {
     },
   ],
 
+  emptyStateEyebrow: "Journal",
   emptyStateTitle: "No journal stories yet.",
   emptyStateDescription:
     "New stories about design, collections, and the OBSIDIAN philosophy will appear here.",
 
+  ctaEnabled: true,
   ctaEyebrow: "Explore Obsidian",
   ctaTitle: "Discover The Pieces Behind The Stories",
   ctaDescription:
@@ -75,9 +80,19 @@ function normalizeText(value, fallback = "") {
     return fallback;
   }
 
-  const normalizedValue = value.trim();
+  const normalizedValue = value
+    .replace(/\s+/g, " ")
+    .trim();
 
   return normalizedValue || fallback;
+}
+
+function normalizeBoolean(value, fallback = true) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  return fallback;
 }
 
 function normalizeOrder(value, fallback = 0) {
@@ -107,6 +122,7 @@ function mergeContent(defaultContent, savedContent) {
   return {
     ...defaultContent,
     ...savedContent,
+
     posts: Array.isArray(savedContent.posts)
       ? savedContent.posts
       : [...defaultContent.posts],
@@ -119,7 +135,11 @@ function getVisiblePosts(posts = []) {
   }
 
   return [...posts]
-    .filter((post) => post && post.isActive !== false)
+    .filter(
+      (post) =>
+        post &&
+        post.isActive !== false
+    )
     .sort(
       (firstPost, secondPost) =>
         normalizeOrder(firstPost.order) -
@@ -128,46 +148,60 @@ function getVisiblePosts(posts = []) {
 }
 
 function renderMultilineTitle(title) {
-  const lines = normalizeText(title)
+  const lines = String(title || "")
     .split(/\n|<br\s*\/?>/i)
-    .map((line) => line.trim())
+    .map((line) =>
+      line.replace(/\s+/g, " ").trim()
+    )
     .filter(Boolean);
 
   return lines.map((line, index) => (
     <span key={`${line}-${index}`}>
       {line}
-      {index < lines.length - 1 ? <br /> : null}
+
+      {index < lines.length - 1 ? (
+        <br />
+      ) : null}
     </span>
   ));
 }
 
 function getAbsoluteUrl(value) {
-  const normalizedValue = normalizeText(value);
+  const normalizedValue =
+    normalizeText(value);
 
   if (!normalizedValue) {
     return "";
   }
 
-  if (
-    normalizedValue.startsWith("http://") ||
-    normalizedValue.startsWith("https://")
-  ) {
-    return normalizedValue;
+  try {
+    return new URL(
+      normalizedValue,
+      `${SITE_URL}/`
+    ).toString();
+  } catch {
+    return "";
   }
+}
 
-  return `${SITE_URL}${
-    normalizedValue.startsWith("/")
-      ? normalizedValue
-      : `/${normalizedValue}`
-  }`;
+function isExternalUrl(value) {
+  return (
+    value.startsWith("http://") ||
+    value.startsWith("https://")
+  );
 }
 
 function serializeJsonLd(data) {
-  return JSON.stringify(data).replace(/</g, "\\u003c");
+  return JSON.stringify(data).replace(
+    /</g,
+    "\\u003c"
+  );
 }
 
 export async function generateMetadata() {
-  const journalContent = await getJournalContent();
+  const journalContent =
+    await getJournalContent();
+
   const seo = journalContent?.seo || {};
 
   const title = normalizeText(
@@ -190,18 +224,19 @@ export async function generateMetadata() {
     DEFAULT_SOCIAL_IMAGE
   );
 
-  const allowIndexing = seo.index !== false;
+  const allowIndexing =
+    seo.index !== false;
 
-  const keywords = normalizeText(seo.keywords)
+  const keywords = normalizeText(
+    seo.keywords
+  )
     .split(",")
     .map((keyword) => keyword.trim())
     .filter(Boolean);
 
   return {
     title,
-
     description,
-
     keywords,
 
     alternates: {
@@ -215,6 +250,7 @@ export async function generateMetadata() {
       siteName: SITE_NAME,
       title: `${title} | ${SITE_NAME}`,
       description,
+
       images: [
         {
           url: socialImage,
@@ -279,7 +315,10 @@ function JournalCard({ post, index }) {
           </p>
 
           <span className="text-[10px] uppercase tracking-[0.25em] text-neutral-400">
-            {String(index + 1).padStart(2, "0")}
+            {String(index + 1).padStart(
+              2,
+              "0"
+            )}
           </span>
         </div>
 
@@ -311,11 +350,7 @@ function JournalCard({ post, index }) {
     "group flex min-h-[360px] flex-col justify-between border border-black/10 bg-[#eee7dd] p-8 transition duration-500 hover:-translate-y-1 hover:border-black/25 hover:shadow-2xl hover:shadow-black/10";
 
   if (href) {
-    const isExternal =
-      href.startsWith("http://") ||
-      href.startsWith("https://");
-
-    if (isExternal) {
+    if (isExternalUrl(href)) {
       return (
         <a
           href={href}
@@ -347,6 +382,36 @@ function JournalCard({ post, index }) {
   );
 }
 
+function CtaButton({
+  href,
+  children,
+}) {
+  const buttonClasses =
+    "inline-flex w-fit border border-[#f1ece4] px-8 py-4 text-xs uppercase tracking-[0.3em] transition hover:bg-[#f1ece4] hover:text-[#0b0b0b]";
+
+  if (isExternalUrl(href)) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={buttonClasses}
+      >
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      className={buttonClasses}
+    >
+      {children}
+    </Link>
+  );
+}
+
 export default async function JournalPage() {
   const journalDocument =
     await getJournalContent();
@@ -357,6 +422,18 @@ export default async function JournalPage() {
   );
 
   const seo = journalDocument?.seo || {};
+
+  const breadcrumbHomeLabel =
+    normalizeText(
+      content.breadcrumbHomeLabel,
+      DEFAULT_CONTENT.breadcrumbHomeLabel
+    );
+
+  const breadcrumbCurrentLabel =
+    normalizeText(
+      content.breadcrumbCurrentLabel,
+      DEFAULT_CONTENT.breadcrumbCurrentLabel
+    );
 
   const eyebrow = normalizeText(
     content.eyebrow,
@@ -377,14 +454,27 @@ export default async function JournalPage() {
     content.posts
   );
 
-  const emptyStateTitle = normalizeText(
-    content.emptyStateTitle,
-    DEFAULT_CONTENT.emptyStateTitle
-  );
+  const emptyStateEyebrow =
+    normalizeText(
+      content.emptyStateEyebrow,
+      DEFAULT_CONTENT.emptyStateEyebrow
+    );
 
-  const emptyStateDescription = normalizeText(
-    content.emptyStateDescription,
-    DEFAULT_CONTENT.emptyStateDescription
+  const emptyStateTitle =
+    normalizeText(
+      content.emptyStateTitle,
+      DEFAULT_CONTENT.emptyStateTitle
+    );
+
+  const emptyStateDescription =
+    normalizeText(
+      content.emptyStateDescription,
+      DEFAULT_CONTENT.emptyStateDescription
+    );
+
+  const ctaEnabled = normalizeBoolean(
+    content.ctaEnabled,
+    true
   );
 
   const ctaEyebrow = normalizeText(
@@ -397,10 +487,11 @@ export default async function JournalPage() {
     DEFAULT_CONTENT.ctaTitle
   );
 
-  const ctaDescription = normalizeText(
-    content.ctaDescription,
-    DEFAULT_CONTENT.ctaDescription
-  );
+  const ctaDescription =
+    normalizeText(
+      content.ctaDescription,
+      DEFAULT_CONTENT.ctaDescription
+    );
 
   const ctaText = normalizeText(
     content.ctaText,
@@ -412,15 +503,17 @@ export default async function JournalPage() {
     DEFAULT_CONTENT.ctaHref
   );
 
-  const pageDescription = normalizeText(
-    seo.description,
-    DEFAULT_PAGE_DESCRIPTION
-  );
+  const pageDescription =
+    normalizeText(
+      seo.description,
+      DEFAULT_PAGE_DESCRIPTION
+    );
 
-  const canonicalPath = normalizeText(
-    seo.canonical,
-    "/journal"
-  );
+  const canonicalPath =
+    normalizeText(
+      seo.canonical,
+      "/journal"
+    );
 
   const pageUrl = getAbsoluteUrl(
     canonicalPath
@@ -478,9 +571,8 @@ export default async function JournalPage() {
 
     itemListElement: posts.map(
       (post, index) => {
-        const postHref = normalizeText(
-          post.href
-        );
+        const postHref =
+          normalizeText(post.href);
 
         return {
           "@type": "ListItem",
@@ -488,16 +580,24 @@ export default async function JournalPage() {
 
           item: {
             "@type": "CreativeWork",
-            name: normalizeText(post.title),
-            description: normalizeText(
-              post.description
+            name: normalizeText(
+              post.title
             ),
+
+            description:
+              normalizeText(
+                post.description
+              ),
+
             genre: normalizeText(
               post.category,
               "Journal"
             ),
+
             url: postHref
-              ? getAbsoluteUrl(postHref)
+              ? getAbsoluteUrl(
+                  postHref
+                )
               : undefined,
 
             creator: {
@@ -520,13 +620,13 @@ export default async function JournalPage() {
       {
         "@type": "ListItem",
         position: 1,
-        name: "Home",
+        name: breadcrumbHomeLabel,
         item: SITE_URL,
       },
       {
         "@type": "ListItem",
         position: 2,
-        name: "Journal",
+        name: breadcrumbCurrentLabel,
         item: pageUrl,
       },
     ],
@@ -563,7 +663,7 @@ export default async function JournalPage() {
 
       <Navbar />
 
-      <section className="px-6 pt-36 pb-32 lg:px-10 lg:pt-40 lg:pb-40">
+      <section className="px-6 pb-32 pt-36 lg:px-10 lg:pb-40 lg:pt-40">
         <div className="container-custom">
           <nav
             aria-label="Breadcrumb"
@@ -573,7 +673,7 @@ export default async function JournalPage() {
               href="/"
               className="transition hover:text-black"
             >
-              Home
+              {breadcrumbHomeLabel}
             </Link>
 
             <span aria-hidden="true">
@@ -584,7 +684,7 @@ export default async function JournalPage() {
               className="text-[#0b0b0b]"
               aria-current="page"
             >
-              Journal
+              {breadcrumbCurrentLabel}
             </span>
           </nav>
 
@@ -597,7 +697,9 @@ export default async function JournalPage() {
 
             {title ? (
               <h1 className="font-heading text-6xl font-light leading-none md:text-8xl">
-                {renderMultilineTitle(title)}
+                {renderMultilineTitle(
+                  title
+                )}
               </h1>
             ) : null}
 
@@ -610,39 +712,48 @@ export default async function JournalPage() {
 
           {posts.length > 0 ? (
             <div className="mt-20 grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-              {posts.map((post, index) => (
-                <JournalCard
-                  key={
-                    post.id ||
-                    `${post.title}-${index}`
-                  }
-                  post={post}
-                  index={index}
-                />
-              ))}
+              {posts.map(
+                (post, index) => (
+                  <JournalCard
+                    key={
+                      post.id ||
+                      `${post.title}-${index}`
+                    }
+                    post={post}
+                    index={index}
+                  />
+                )
+              )}
             </div>
           ) : (
             <div className="mt-20 border border-black/10 bg-[#eee7dd] p-8 md:p-12">
-              <p className="text-[10px] uppercase tracking-[0.35em] text-neutral-500">
-                Journal
-              </p>
+              {emptyStateEyebrow ? (
+                <p className="text-[10px] uppercase tracking-[0.35em] text-neutral-500">
+                  {emptyStateEyebrow}
+                </p>
+              ) : null}
 
-              <h2 className="mt-5 font-heading text-4xl font-light">
-                {emptyStateTitle}
-              </h2>
+              {emptyStateTitle ? (
+                <h2 className="mt-5 font-heading text-4xl font-light">
+                  {emptyStateTitle}
+                </h2>
+              ) : null}
 
-              <p className="mt-5 max-w-2xl text-sm leading-7 text-neutral-600">
-                {emptyStateDescription}
-              </p>
+              {emptyStateDescription ? (
+                <p className="mt-5 max-w-2xl text-sm leading-7 text-neutral-600">
+                  {emptyStateDescription}
+                </p>
+              ) : null}
             </div>
           )}
         </div>
       </section>
 
-      {(ctaEyebrow ||
+      {ctaEnabled &&
+      (ctaEyebrow ||
         ctaTitle ||
         ctaDescription ||
-        (ctaText && ctaHref)) && (
+        (ctaText && ctaHref)) ? (
         <section className="border-t border-black/10 bg-[#0b0b0b] px-6 py-24 text-[#f1ece4] lg:px-10">
           <div className="container-custom flex flex-col justify-between gap-10 md:flex-row md:items-end">
             <div>
@@ -668,16 +779,13 @@ export default async function JournalPage() {
             </div>
 
             {ctaText && ctaHref ? (
-              <Link
-                href={ctaHref}
-                className="inline-flex w-fit border border-[#f1ece4] px-8 py-4 text-xs uppercase tracking-[0.3em] transition hover:bg-[#f1ece4] hover:text-[#0b0b0b]"
-              >
+              <CtaButton href={ctaHref}>
                 {ctaText}
-              </Link>
+              </CtaButton>
             ) : null}
           </div>
         </section>
-      )}
+      ) : null}
 
       <Footer />
     </main>

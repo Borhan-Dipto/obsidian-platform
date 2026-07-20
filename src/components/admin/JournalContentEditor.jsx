@@ -16,38 +16,83 @@ function createId(prefix = "item") {
 function normalizeJournalContent(content = {}) {
   return {
     key: "journal",
-    schemaVersion: Number(content.schemaVersion || 1),
+    schemaVersion: Number(
+      content.schemaVersion || 1
+    ),
     status: content.status || "published",
     title: content.title || "Journal",
     slug: content.slug || "journal",
 
     seo: {
-      title: content.seo?.title || "Journal",
-      description: content.seo?.description || "",
-      keywords: content.seo?.keywords || "",
-      ogImage: content.seo?.ogImage || "",
-      canonical: content.seo?.canonical || "/journal",
-      index: content.seo?.index !== false,
+      title:
+        content.seo?.title || "Journal",
+
+      description:
+        content.seo?.description || "",
+
+      keywords:
+        content.seo?.keywords || "",
+
+      ogImage:
+        content.seo?.ogImage || "",
+
+      canonical:
+        content.seo?.canonical ||
+        "/journal",
+
+      index:
+        content.seo?.index !== false,
     },
 
     content: {
-      eyebrow: content.content?.eyebrow || "Journal",
-      title: content.content?.title || "Stories Of Pressure",
+      breadcrumbHomeLabel:
+        content.content
+          ?.breadcrumbHomeLabel ||
+        "Home",
+
+      breadcrumbCurrentLabel:
+        content.content
+          ?.breadcrumbCurrentLabel ||
+        "Journal",
+
+      eyebrow:
+        content.content?.eyebrow ||
+        "Journal",
+
+      title:
+        content.content?.title ||
+        "Stories Of Pressure",
+
       description:
         content.content?.description ||
         "Reflections on design, resilience, craftsmanship, and the ideas that shape every OBSIDIAN collection.",
 
-      posts: Array.isArray(content.content?.posts)
-        ? cloneValue(content.content.posts)
+      posts: Array.isArray(
+        content.content?.posts
+      )
+        ? cloneValue(
+            content.content.posts
+          )
         : [],
 
+      emptyStateEyebrow:
+        content.content
+          ?.emptyStateEyebrow ||
+        "Journal",
+
       emptyStateTitle:
-        content.content?.emptyStateTitle ||
+        content.content
+          ?.emptyStateTitle ||
         "No journal stories yet.",
 
       emptyStateDescription:
-        content.content?.emptyStateDescription ||
+        content.content
+          ?.emptyStateDescription ||
         "New stories about design, collections, and the OBSIDIAN philosophy will appear here.",
+
+      ctaEnabled:
+        content.content?.ctaEnabled !==
+        false,
 
       ctaEyebrow:
         content.content?.ctaEyebrow ||
@@ -58,7 +103,8 @@ function normalizeJournalContent(content = {}) {
         "Discover The Pieces Behind The Stories",
 
       ctaDescription:
-        content.content?.ctaDescription ||
+        content.content
+          ?.ctaDescription ||
         "Explore garments shaped by restraint, structure, and quiet confidence.",
 
       ctaText:
@@ -96,7 +142,9 @@ function TextInput({
         type={type}
         min={min}
         value={value ?? ""}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
         placeholder={placeholder}
         className="w-full border border-white/10 bg-white/[0.04] px-5 py-4 text-sm text-[#f1ece4] outline-none transition placeholder:text-neutral-600 focus:border-white/30"
       />
@@ -117,7 +165,9 @@ function TextareaInput({
 
       <textarea
         value={value ?? ""}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
         placeholder={placeholder}
         rows={rows}
         className="w-full resize-y border border-white/10 bg-white/[0.04] px-5 py-4 text-sm leading-7 text-[#f1ece4] outline-none transition placeholder:text-neutral-600 focus:border-white/30"
@@ -138,7 +188,9 @@ function SelectInput({
 
       <select
         value={value ?? ""}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
         className="w-full border border-white/10 bg-[#111] px-5 py-4 text-sm text-[#f1ece4] outline-none transition focus:border-white/30"
       >
         {options.map((option) => (
@@ -156,22 +208,33 @@ function SelectInput({
 
 function CheckboxInput({
   label,
+  description = "",
   checked,
   onChange,
 }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-5 border border-white/10 bg-white/[0.03] px-5 py-4">
-      <span className="text-sm text-neutral-300">
-        {label}
+    <label className="flex cursor-pointer items-start justify-between gap-5 border border-white/10 bg-white/[0.03] px-5 py-4">
+      <span>
+        <span className="block text-sm text-neutral-300">
+          {label}
+        </span>
+
+        {description ? (
+          <span className="mt-2 block text-xs leading-6 text-neutral-500">
+            {description}
+          </span>
+        ) : null}
       </span>
 
       <input
         type="checkbox"
         checked={Boolean(checked)}
         onChange={(event) =>
-          onChange(event.target.checked)
+          onChange(
+            event.target.checked
+          )
         }
-        className="h-4 w-4"
+        className="mt-1 h-4 w-4 shrink-0"
       />
     </label>
   );
@@ -206,9 +269,12 @@ function Panel({
 export default function JournalContentEditor({
   initialContent,
 }) {
-  const [journal, setJournal] = useState(() =>
-    normalizeJournalContent(initialContent)
-  );
+  const [journal, setJournal] =
+    useState(() =>
+      normalizeJournalContent(
+        initialContent
+      )
+    );
 
   const [isSaving, setIsSaving] =
     useState(false);
@@ -216,19 +282,39 @@ export default function JournalContentEditor({
   const [message, setMessage] =
     useState("");
 
+  const [messageType, setMessageType] =
+    useState("");
+
   const [lastSavedAt, setLastSavedAt] =
     useState("");
 
   const sortedPosts = useMemo(() => {
-    return [...journal.content.posts].sort(
-      (firstPost, secondPost) =>
-        Number(firstPost.order || 0) -
-        Number(secondPost.order || 0)
+    return [
+      ...journal.content.posts,
+    ].sort(
+      (
+        firstPost,
+        secondPost
+      ) =>
+        Number(
+          firstPost.order || 0
+        ) -
+        Number(
+          secondPost.order || 0
+        )
     );
   }, [journal.content.posts]);
 
-  function updateRootField(field, value) {
+  function clearMessage() {
     setMessage("");
+    setMessageType("");
+  }
+
+  function updateRootField(
+    field,
+    value
+  ) {
+    clearMessage();
 
     setJournal((current) => ({
       ...current,
@@ -237,10 +323,11 @@ export default function JournalContentEditor({
   }
 
   function updateSeo(field, value) {
-    setMessage("");
+    clearMessage();
 
     setJournal((current) => ({
       ...current,
+
       seo: {
         ...current.seo,
         [field]: value,
@@ -248,11 +335,15 @@ export default function JournalContentEditor({
     }));
   }
 
-  function updateContent(field, value) {
-    setMessage("");
+  function updateContent(
+    field,
+    value
+  ) {
+    clearMessage();
 
     setJournal((current) => ({
       ...current,
+
       content: {
         ...current.content,
         [field]: value,
@@ -260,33 +351,40 @@ export default function JournalContentEditor({
     }));
   }
 
-  function updatePost(postId, field, value) {
-    setMessage("");
+  function updatePost(
+    postId,
+    field,
+    value
+  ) {
+    clearMessage();
 
     setJournal((current) => ({
       ...current,
+
       content: {
         ...current.content,
 
-        posts: current.content.posts.map(
-          (post) =>
-            post.id === postId
-              ? {
-                  ...post,
-                  [field]: value,
-                }
-              : post
-        ),
+        posts:
+          current.content.posts.map(
+            (post) =>
+              post.id === postId
+                ? {
+                    ...post,
+                    [field]: value,
+                  }
+                : post
+          ),
       },
     }));
   }
 
   function addPost() {
-    setMessage("");
+    clearMessage();
 
     setJournal((current) => {
       const nextOrder =
-        current.content.posts.length + 1;
+        current.content.posts.length +
+        1;
 
       return {
         ...current,
@@ -298,11 +396,14 @@ export default function JournalContentEditor({
             ...current.content.posts,
 
             {
-              id: createId("journal"),
+              id: createId(
+                "journal"
+              ),
               title: "",
               description: "",
               category: "Journal",
-              readingTime: "3 Min Read",
+              readingTime:
+                "3 Min Read",
               href: "",
               order: nextOrder,
               isActive: true,
@@ -314,7 +415,7 @@ export default function JournalContentEditor({
   }
 
   function removePost(postId) {
-    setMessage("");
+    clearMessage();
 
     setJournal((current) => ({
       ...current,
@@ -322,16 +423,25 @@ export default function JournalContentEditor({
       content: {
         ...current.content,
 
-        posts: current.content.posts.filter(
-          (post) => post.id !== postId
-        ),
+        posts:
+          current.content.posts.filter(
+            (post) =>
+              post.id !== postId
+          ),
       },
     }));
   }
 
   async function saveJournalPage() {
+    if (isSaving) {
+      return;
+    }
+
     setIsSaving(true);
-    setMessage("Saving Journal page...");
+    setMessageType("loading");
+    setMessage(
+      "Saving Journal page..."
+    );
 
     try {
       const response = await fetch(
@@ -344,13 +454,21 @@ export default function JournalContentEditor({
               "application/json",
           },
 
-          body: JSON.stringify(journal),
+          body: JSON.stringify(
+            journal
+          ),
         }
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
-      if (!response.ok || !data.success) {
+      if (
+        !response.ok ||
+        !data.success
+      ) {
+        setMessageType("error");
+
         setMessage(
           data.message ||
             "Journal page could not be saved."
@@ -365,6 +483,8 @@ export default function JournalContentEditor({
         )
       );
 
+      setMessageType("success");
+
       setMessage(
         "Journal page saved successfully."
       );
@@ -372,7 +492,14 @@ export default function JournalContentEditor({
       setLastSavedAt(
         new Date().toLocaleTimeString()
       );
-    } catch {
+    } catch (error) {
+      console.error(
+        "Journal CMS save error:",
+        error
+      );
+
+      setMessageType("error");
+
       setMessage(
         "Something went wrong while saving the Journal page."
       );
@@ -380,6 +507,13 @@ export default function JournalContentEditor({
       setIsSaving(false);
     }
   }
+
+  const messageClasses =
+    messageType === "error"
+      ? "border-red-500/25 bg-red-500/10 text-red-200"
+      : messageType === "success"
+        ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-200"
+        : "border-white/10 bg-white/[0.04] text-neutral-300";
 
   return (
     <div className="space-y-10">
@@ -408,6 +542,7 @@ export default function JournalContentEditor({
                 value
               )
             }
+            placeholder="journal"
           />
 
           <SelectInput
@@ -434,6 +569,43 @@ export default function JournalContentEditor({
       </Panel>
 
       <Panel
+        title="Breadcrumb Labels"
+        description="Control the navigation labels displayed above the Journal page heading."
+      >
+        <div className="grid gap-6 md:grid-cols-2">
+          <TextInput
+            label="Home Label"
+            value={
+              journal.content
+                .breadcrumbHomeLabel
+            }
+            onChange={(value) =>
+              updateContent(
+                "breadcrumbHomeLabel",
+                value
+              )
+            }
+            placeholder="Home"
+          />
+
+          <TextInput
+            label="Current Page Label"
+            value={
+              journal.content
+                .breadcrumbCurrentLabel
+            }
+            onChange={(value) =>
+              updateContent(
+                "breadcrumbCurrentLabel",
+                value
+              )
+            }
+            placeholder="Journal"
+          />
+        </div>
+      </Panel>
+
+      <Panel
         title="Journal Hero"
         description="Edit the Journal page heading and introductory content."
       >
@@ -441,7 +613,8 @@ export default function JournalContentEditor({
           <TextInput
             label="Eyebrow"
             value={
-              journal.content.eyebrow
+              journal.content
+                .eyebrow
             }
             onChange={(value) =>
               updateContent(
@@ -453,7 +626,9 @@ export default function JournalContentEditor({
 
           <TextInput
             label="Main Title"
-            value={journal.content.title}
+            value={
+              journal.content.title
+            }
             onChange={(value) =>
               updateContent(
                 "title",
@@ -466,7 +641,8 @@ export default function JournalContentEditor({
         <TextareaInput
           label="Description"
           value={
-            journal.content.description
+            journal.content
+              .description
           }
           onChange={(value) =>
             updateContent(
@@ -484,8 +660,11 @@ export default function JournalContentEditor({
       >
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
           <p className="text-sm text-neutral-500">
-            {sortedPosts.length} journal
-            stories configured.
+            {sortedPosts.length} journal{" "}
+            {sortedPosts.length === 1
+              ? "story"
+              : "stories"}{" "}
+            configured.
           </p>
 
           <button
@@ -499,8 +678,8 @@ export default function JournalContentEditor({
 
         {sortedPosts.length === 0 ? (
           <div className="border border-white/10 bg-white/[0.03] p-6 text-sm text-neutral-400">
-            No journal stories have been
-            added yet.
+            No journal stories have
+            been added yet.
           </div>
         ) : (
           <div className="space-y-6">
@@ -516,7 +695,10 @@ export default function JournalContentEditor({
                         Story{" "}
                         {String(
                           index + 1
-                        ).padStart(2, "0")}
+                        ).padStart(
+                          2,
+                          "0"
+                        )}
                       </p>
 
                       <p className="mt-2 text-sm text-neutral-300">
@@ -528,7 +710,9 @@ export default function JournalContentEditor({
                     <button
                       type="button"
                       onClick={() =>
-                        removePost(post.id)
+                        removePost(
+                          post.id
+                        )
                       }
                       className="w-fit text-xs uppercase tracking-[0.25em] text-red-400 transition hover:text-red-300"
                     >
@@ -540,7 +724,9 @@ export default function JournalContentEditor({
                     <TextInput
                       label="Story Title"
                       value={post.title}
-                      onChange={(value) =>
+                      onChange={(
+                        value
+                      ) =>
                         updatePost(
                           post.id,
                           "title",
@@ -551,8 +737,12 @@ export default function JournalContentEditor({
 
                     <TextInput
                       label="Category"
-                      value={post.category}
-                      onChange={(value) =>
+                      value={
+                        post.category
+                      }
+                      onChange={(
+                        value
+                      ) =>
                         updatePost(
                           post.id,
                           "category",
@@ -566,7 +756,9 @@ export default function JournalContentEditor({
                       value={
                         post.readingTime
                       }
-                      onChange={(value) =>
+                      onChange={(
+                        value
+                      ) =>
                         updatePost(
                           post.id,
                           "readingTime",
@@ -579,7 +771,9 @@ export default function JournalContentEditor({
                       label="Story Link"
                       value={post.href}
                       placeholder="/journal/story-slug"
-                      onChange={(value) =>
+                      onChange={(
+                        value
+                      ) =>
                         updatePost(
                           post.id,
                           "href",
@@ -593,22 +787,29 @@ export default function JournalContentEditor({
                       type="number"
                       min="0"
                       value={post.order}
-                      onChange={(value) =>
+                      onChange={(
+                        value
+                      ) =>
                         updatePost(
                           post.id,
                           "order",
-                          Number(value || 0)
+                          Number(
+                            value || 0
+                          )
                         )
                       }
                     />
 
                     <CheckboxInput
                       label="Active"
+                      description="Show this story on the public Journal page."
                       checked={
                         post.isActive !==
                         false
                       }
-                      onChange={(value) =>
+                      onChange={(
+                        value
+                      ) =>
                         updatePost(
                           post.id,
                           "isActive",
@@ -623,7 +824,9 @@ export default function JournalContentEditor({
                         value={
                           post.description
                         }
-                        onChange={(value) =>
+                        onChange={(
+                          value
+                        ) =>
                           updatePost(
                             post.id,
                             "description",
@@ -645,6 +848,21 @@ export default function JournalContentEditor({
         title="Empty State"
         description="This content appears when no active journal stories are available."
       >
+        <TextInput
+          label="Empty State Eyebrow"
+          value={
+            journal.content
+              .emptyStateEyebrow
+          }
+          onChange={(value) =>
+            updateContent(
+              "emptyStateEyebrow",
+              value
+            )
+          }
+          placeholder="Journal"
+        />
+
         <TextInput
           label="Empty State Title"
           value={
@@ -679,11 +897,27 @@ export default function JournalContentEditor({
         title="Call To Action"
         description="Manage the dark call-to-action section displayed below the journal stories."
       >
+        <CheckboxInput
+          label="Show CTA Section"
+          description="Enable or disable the complete Journal call-to-action section."
+          checked={
+            journal.content
+              .ctaEnabled !== false
+          }
+          onChange={(value) =>
+            updateContent(
+              "ctaEnabled",
+              value
+            )
+          }
+        />
+
         <div className="grid gap-6 md:grid-cols-2">
           <TextInput
             label="CTA Eyebrow"
             value={
-              journal.content.ctaEyebrow
+              journal.content
+                .ctaEyebrow
             }
             onChange={(value) =>
               updateContent(
@@ -696,7 +930,8 @@ export default function JournalContentEditor({
           <TextInput
             label="CTA Title"
             value={
-              journal.content.ctaTitle
+              journal.content
+                .ctaTitle
             }
             onChange={(value) =>
               updateContent(
@@ -726,7 +961,8 @@ export default function JournalContentEditor({
           <TextInput
             label="CTA Button Text"
             value={
-              journal.content.ctaText
+              journal.content
+                .ctaText
             }
             onChange={(value) =>
               updateContent(
@@ -739,7 +975,8 @@ export default function JournalContentEditor({
           <TextInput
             label="CTA Button Link"
             value={
-              journal.content.ctaHref
+              journal.content
+                .ctaHref
             }
             onChange={(value) =>
               updateContent(
@@ -747,6 +984,7 @@ export default function JournalContentEditor({
                 value
               )
             }
+            placeholder="/shop"
           />
         </div>
       </Panel>
@@ -759,7 +997,10 @@ export default function JournalContentEditor({
           label="SEO Title"
           value={journal.seo.title}
           onChange={(value) =>
-            updateSeo("title", value)
+            updateSeo(
+              "title",
+              value
+            )
           }
         />
 
@@ -779,7 +1020,9 @@ export default function JournalContentEditor({
 
         <TextInput
           label="SEO Keywords"
-          value={journal.seo.keywords}
+          value={
+            journal.seo.keywords
+          }
           placeholder="obsidian, journal, design"
           onChange={(value) =>
             updateSeo(
@@ -791,7 +1034,9 @@ export default function JournalContentEditor({
 
         <TextInput
           label="Canonical URL"
-          value={journal.seo.canonical}
+          value={
+            journal.seo.canonical
+          }
           placeholder="/journal"
           onChange={(value) =>
             updateSeo(
@@ -808,7 +1053,8 @@ export default function JournalContentEditor({
 
           <ImageUploader
             value={
-              journal.seo.ogImage || ""
+              journal.seo.ogImage ||
+              ""
             }
             onChange={(value) =>
               updateSeo(
@@ -821,21 +1067,35 @@ export default function JournalContentEditor({
 
         <CheckboxInput
           label="Allow Search Engine Indexing"
+          description="Disable this only when the Journal page should not appear in search results."
           checked={
-            journal.seo.index !== false
+            journal.seo.index !==
+            false
           }
           onChange={(value) =>
-            updateSeo("index", value)
+            updateSeo(
+              "index",
+              value
+            )
           }
         />
       </Panel>
 
       {message ? (
-        <div className="border border-white/10 bg-white/[0.04] p-5 text-sm text-neutral-300">
-          {message}
+        <div
+          className={`border p-5 text-sm ${messageClasses}`}
+          role={
+            messageType === "error"
+              ? "alert"
+              : "status"
+          }
+        >
+          <span>{message}</span>
 
-          {lastSavedAt ? (
-            <span className="ml-2 text-neutral-500">
+          {lastSavedAt &&
+          messageType ===
+            "success" ? (
+            <span className="ml-2 opacity-70">
               Last saved at{" "}
               {lastSavedAt}
             </span>
@@ -846,7 +1106,9 @@ export default function JournalContentEditor({
       <div className="sticky bottom-5 z-20">
         <button
           type="button"
-          onClick={saveJournalPage}
+          onClick={
+            saveJournalPage
+          }
           disabled={isSaving}
           className="w-full bg-[#f1ece4] px-8 py-5 text-xs font-semibold uppercase tracking-[0.35em] text-[#0b0b0b] shadow-2xl transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
