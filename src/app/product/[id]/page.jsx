@@ -104,12 +104,12 @@ export async function generateMetadata({ params }) {
   const content = productPage?.content || {};
 
   const fallbackTitle = cleanText(
-    seo.defaultTitle,
+    seo.fallbackTitle,
     "OBSIDIAN Product"
   );
 
   const fallbackDescription = cleanText(
-    seo.defaultDescription,
+    seo.fallbackDescription,
     "A refined OBSIDIAN essential built with pressure, precision, and purpose."
   );
 
@@ -155,6 +155,15 @@ export async function generateMetadata({ params }) {
 
   const productPath = createProductPath(product.id);
 
+  const canonicalPath = replaceTemplate(
+    cleanText(seo.canonicalTemplate, productPath),
+    {
+      id: product.id,
+      product: productName,
+      site: SITE_NAME,
+    }
+  );
+
   const productImage = getProductImage(
     product,
     fallbackImage
@@ -198,7 +207,7 @@ export async function generateMetadata({ params }) {
     description,
 
     alternates: {
-      canonical: productPath,
+      canonical: canonicalPath,
     },
 
     openGraph: {
@@ -393,7 +402,7 @@ export default async function ProductDetailsPage({ params }) {
 
   const imageAlt = replaceTemplate(
     cleanText(
-      content.imageAltTemplate,
+      content.productImageAltTemplate,
       "{product} by OBSIDIAN"
     ),
     {

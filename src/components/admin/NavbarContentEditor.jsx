@@ -314,7 +314,8 @@ export default function NavbarContentEditor({
         {
           method: "PATCH",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
           body: JSON.stringify(navbar),
         }
@@ -444,7 +445,9 @@ export default function NavbarContentEditor({
         </div>
 
         <div>
-          <FieldLabel>Navbar Logo</FieldLabel>
+          <FieldLabel>
+            Navbar Logo
+          </FieldLabel>
 
           <ImageUploader
             value={
@@ -461,7 +464,11 @@ export default function NavbarContentEditor({
 
         <div className="border border-white/10 bg-white/[0.03] p-5">
           <p className="text-sm leading-7 text-neutral-400">
-            If a logo image is uploaded, the public Navbar can use it instead of the text store name, depending on the current Navbar component behavior.
+            If a logo image is uploaded, the
+            public Navbar can use it instead
+            of the text store name, depending
+            on the current Navbar component
+            behavior.
           </p>
         </div>
       </Panel>
@@ -578,7 +585,8 @@ export default function NavbarContentEditor({
       >
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <p className="text-sm text-neutral-500">
-            {sortedItems.length} navigation items configured.
+            {sortedItems.length} navigation
+            items configured.
           </p>
 
           <button
@@ -592,7 +600,8 @@ export default function NavbarContentEditor({
 
         {sortedItems.length === 0 ? (
           <div className="border border-white/10 bg-white/[0.03] p-6 text-sm text-neutral-400">
-            No navigation items have been added.
+            No navigation items have been
+            added.
           </div>
         ) : (
           <div className="space-y-6">
@@ -686,7 +695,8 @@ export default function NavbarContentEditor({
                     <CheckboxInput
                       label="Open In New Tab"
                       checked={
-                        item.openInNewTab === true
+                        item.openInNewTab ===
+                        true
                       }
                       onChange={(value) =>
                         updateNavigationItem(
@@ -755,7 +765,8 @@ export default function NavbarContentEditor({
         <CheckboxInput
           label="Open Announcement Link In New Tab"
           checked={
-            navbar.announcement.openInNewTab
+            navbar.announcement
+              .openInNewTab
           }
           onChange={(value) =>
             updateAnnouncement(

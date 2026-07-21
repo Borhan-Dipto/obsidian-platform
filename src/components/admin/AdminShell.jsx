@@ -85,16 +85,22 @@ const navigationItems = [
     icon: "13",
   },
   {
+    label: "Product CMS",
+    href: "/admin/content/product",
+    description: "Product Page Content",
+    icon: "14",
+  },
+  {
     label: "Footer CMS",
     href: "/admin/content/footer",
     description: "Footer Content",
-    icon: "14",
+    icon: "15",
   },
   {
     label: "Settings",
     href: "/admin/settings",
     description: "Configuration",
-    icon: "15",
+    icon: "16",
   },
 ];
 
@@ -103,16 +109,12 @@ function isNavigationItemActive(pathname, href) {
     return pathname === "/admin";
   }
 
-  return (
-    pathname === href ||
-    pathname.startsWith(`${href}/`)
-  );
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export default function AdminShell({ children }) {
   const pathname = usePathname();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] =
-    useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -132,26 +134,17 @@ export default function AdminShell({ children }) {
       }
     }
 
-    window.addEventListener(
-      "keydown",
-      handleEscape
-    );
+    window.addEventListener("keydown", handleEscape);
 
     return () => {
       document.body.style.overflow = "";
-      window.removeEventListener(
-        "keydown",
-        handleEscape
-      );
+      window.removeEventListener("keydown", handleEscape);
     };
   }, [isMobileMenuOpen]);
 
   const currentNavigationItem =
     navigationItems.find((item) =>
-      isNavigationItemActive(
-        pathname,
-        item.href
-      )
+      isNavigationItemActive(pathname, item.href)
     ) || navigationItems[0];
 
   return (
@@ -159,10 +152,7 @@ export default function AdminShell({ children }) {
       <div className="min-h-screen lg:grid lg:grid-cols-[290px_minmax(0,1fr)]">
         <aside className="hidden border-r border-white/10 bg-[#0b0b0b] lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
           <div className="border-b border-white/10 px-7 py-8">
-            <Link
-              href="/admin"
-              className="block"
-            >
+            <Link href="/admin" className="block">
               <p className="text-[10px] uppercase tracking-[0.45em] text-neutral-500">
                 Commerce Platform
               </p>
@@ -182,69 +172,60 @@ export default function AdminShell({ children }) {
             </p>
 
             <div className="mt-4 space-y-2">
-              {navigationItems.map(
-                (item) => {
-                  const isActive =
-                    isNavigationItemActive(
-                      pathname,
-                      item.href
-                    );
+              {navigationItems.map((item) => {
+                const isActive = isNavigationItemActive(
+                  pathname,
+                  item.href
+                );
 
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`group grid grid-cols-[34px_1fr_auto] items-center gap-3 border px-4 py-4 transition ${
+                      isActive
+                        ? "border-white/15 bg-[#f1ece4] text-[#0b0b0b]"
+                        : "border-transparent text-neutral-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-[#f1ece4]"
+                    }`}
+                  >
+                    <span
+                      className={`text-[9px] tracking-[0.25em] ${
                         isActive
-                          ? "page"
-                          : undefined
-                      }
-                      className={`group grid grid-cols-[34px_1fr_auto] items-center gap-3 border px-4 py-4 transition ${
-                        isActive
-                          ? "border-white/15 bg-[#f1ece4] text-[#0b0b0b]"
-                          : "border-transparent text-neutral-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-[#f1ece4]"
+                          ? "text-neutral-500"
+                          : "text-neutral-600"
                       }`}
                     >
+                      {item.icon}
+                    </span>
+
+                    <span>
+                      <span className="block text-xs uppercase tracking-[0.25em]">
+                        {item.label}
+                      </span>
+
                       <span
-                        className={`text-[9px] tracking-[0.25em] ${
+                        className={`mt-1 block text-[10px] ${
                           isActive
-                            ? "text-neutral-500"
+                            ? "text-neutral-600"
                             : "text-neutral-600"
                         }`}
                       >
-                        {item.icon}
+                        {item.description}
                       </span>
+                    </span>
 
-                      <span>
-                        <span className="block text-xs uppercase tracking-[0.25em]">
-                          {item.label}
-                        </span>
-
-                        <span
-                          className={`mt-1 block text-[10px] ${
-                            isActive
-                              ? "text-neutral-600"
-                              : "text-neutral-600"
-                          }`}
-                        >
-                          {item.description}
-                        </span>
-                      </span>
-
-                      <span
-                        aria-hidden="true"
-                        className={`text-sm transition group-hover:translate-x-1 ${
-                          isActive
-                            ? "opacity-100"
-                            : "opacity-35"
-                        }`}
-                      >
-                        →
-                      </span>
-                    </Link>
-                  );
-                }
-              )}
+                    <span
+                      aria-hidden="true"
+                      className={`text-sm transition group-hover:translate-x-1 ${
+                        isActive ? "opacity-100" : "opacity-35"
+                      }`}
+                    >
+                      →
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           </nav>
 
@@ -256,9 +237,7 @@ export default function AdminShell({ children }) {
               className="flex w-full items-center justify-between border border-white/10 px-5 py-4 text-[10px] uppercase tracking-[0.28em] text-neutral-400 transition hover:bg-white/5 hover:text-[#f1ece4]"
             >
               View Store
-              <span aria-hidden="true">
-                ↗
-              </span>
+              <span aria-hidden="true">↗</span>
             </Link>
 
             <div className="mt-3">
@@ -273,9 +252,7 @@ export default function AdminShell({ children }) {
               <div className="flex min-w-0 items-center gap-4">
                 <button
                   type="button"
-                  onClick={() =>
-                    setIsMobileMenuOpen(true)
-                  }
+                  onClick={() => setIsMobileMenuOpen(true)}
                   aria-label="Open admin navigation"
                   className="flex h-11 w-11 shrink-0 items-center justify-center border border-white/15 text-xs uppercase tracking-[0.2em] transition hover:bg-white/5 lg:hidden"
                 >
@@ -288,9 +265,7 @@ export default function AdminShell({ children }) {
                   </p>
 
                   <p className="mt-1 truncate text-sm uppercase tracking-[0.24em] text-neutral-300">
-                    {
-                      currentNavigationItem.label
-                    }
+                    {currentNavigationItem.label}
                   </p>
                 </div>
               </div>
@@ -312,9 +287,7 @@ export default function AdminShell({ children }) {
             </div>
           </header>
 
-          <div className="min-h-[calc(100vh-5rem)]">
-            {children}
-          </div>
+          <div className="min-h-[calc(100vh-5rem)]">{children}</div>
         </div>
       </div>
 
@@ -323,9 +296,7 @@ export default function AdminShell({ children }) {
           <button
             type="button"
             aria-label="Close admin navigation"
-            onClick={() =>
-              setIsMobileMenuOpen(false)
-            }
+            onClick={() => setIsMobileMenuOpen(false)}
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
           />
 
@@ -333,9 +304,7 @@ export default function AdminShell({ children }) {
             <div className="flex items-start justify-between border-b border-white/10 px-6 py-7">
               <Link
                 href="/admin"
-                onClick={() =>
-                  setIsMobileMenuOpen(false)
-                }
+                onClick={() => setIsMobileMenuOpen(false)}
               >
                 <p className="text-[9px] uppercase tracking-[0.4em] text-neutral-600">
                   Commerce Platform
@@ -348,9 +317,7 @@ export default function AdminShell({ children }) {
 
               <button
                 type="button"
-                onClick={() =>
-                  setIsMobileMenuOpen(false)
-                }
+                onClick={() => setIsMobileMenuOpen(false)}
                 aria-label="Close navigation"
                 className="flex h-10 w-10 items-center justify-center border border-white/15 text-xl text-neutral-400 transition hover:text-white"
               >
@@ -363,55 +330,42 @@ export default function AdminShell({ children }) {
               className="flex-1 overflow-y-auto p-4"
             >
               <div className="space-y-2">
-                {navigationItems.map(
-                  (item) => {
-                    const isActive =
-                      isNavigationItemActive(
-                        pathname,
-                        item.href
-                      );
+                {navigationItems.map((item) => {
+                  const isActive = isNavigationItemActive(
+                    pathname,
+                    item.href
+                  );
 
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={
-                          isActive
-                            ? "page"
-                            : undefined
-                        }
-                        onClick={() =>
-                          setIsMobileMenuOpen(
-                            false
-                          )
-                        }
-                        className={`grid grid-cols-[34px_1fr_auto] items-center gap-3 border px-4 py-4 transition ${
-                          isActive
-                            ? "border-white/15 bg-[#f1ece4] text-[#0b0b0b]"
-                            : "border-transparent text-neutral-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-[#f1ece4]"
-                        }`}
-                      >
-                        <span className="text-[9px] tracking-[0.25em] opacity-50">
-                          {item.icon}
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={isActive ? "page" : undefined}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`grid grid-cols-[34px_1fr_auto] items-center gap-3 border px-4 py-4 transition ${
+                        isActive
+                          ? "border-white/15 bg-[#f1ece4] text-[#0b0b0b]"
+                          : "border-transparent text-neutral-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-[#f1ece4]"
+                      }`}
+                    >
+                      <span className="text-[9px] tracking-[0.25em] opacity-50">
+                        {item.icon}
+                      </span>
+
+                      <span>
+                        <span className="block text-xs uppercase tracking-[0.25em]">
+                          {item.label}
                         </span>
 
-                        <span>
-                          <span className="block text-xs uppercase tracking-[0.25em]">
-                            {item.label}
-                          </span>
-
-                          <span className="mt-1 block text-[10px] opacity-50">
-                            {item.description}
-                          </span>
+                        <span className="mt-1 block text-[10px] opacity-50">
+                          {item.description}
                         </span>
+                      </span>
 
-                        <span aria-hidden="true">
-                          →
-                        </span>
-                      </Link>
-                    );
-                  }
-                )}
+                      <span aria-hidden="true">→</span>
+                    </Link>
+                  );
+                })}
               </div>
             </nav>
 
@@ -423,9 +377,7 @@ export default function AdminShell({ children }) {
                 className="flex w-full items-center justify-between border border-white/10 px-5 py-4 text-[10px] uppercase tracking-[0.28em] text-neutral-400 transition hover:bg-white/5 hover:text-[#f1ece4]"
               >
                 View Store
-                <span aria-hidden="true">
-                  ↗
-                </span>
+                <span aria-hidden="true">↗</span>
               </Link>
 
               <div className="mt-3">
