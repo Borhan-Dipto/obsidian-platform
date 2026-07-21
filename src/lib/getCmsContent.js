@@ -214,3 +214,7 @@ export async function getSizeGuideContent() {
 export async function getTrackOrderContent() {
   return getCmsContent("track-order");
 }
+
+export async function getSuccessContent() {
+  return getCmsContent("success");
+}

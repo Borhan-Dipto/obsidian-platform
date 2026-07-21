@@ -947,24 +947,27 @@ const DEFAULT_TRACK_ORDER_PAGE = {
 
     emptyTrackingMessage: "Please enter your tracking ID.",
     orderNotFoundMessage: "Order not found.",
-    requestErrorMessage:
+    genericErrorMessage:
       "Something went wrong. Please try again.",
 
     orderStatusLabel: "Order Status",
     trackingIdPrefix: "Tracking ID:",
-    totalPrefix: "Total:",
+    totalLabel: "Total:",
 
     customerSectionTitle: "Customer",
-    itemsSectionTitle: "Items",
-    sizePrefix: "Size",
+    customerEmptyMessage:
+      "Customer information is unavailable.",
 
-    backButtonText: "Back To Shop",
-    backButtonHref: "/shop",
+    itemsSectionTitle: "Items",
+    itemSizeLabel: "Size",
+    itemsEmptyMessage:
+      "No item information is available for this order.",
+
+    backToShopText: "Back To Shop",
+    backToShopHref: "/shop",
 
     currencySymbol: "৳",
     currencyLocale: "en-BD",
-
-    fallbackStatusLabel: "Pending",
 
     statusLabels: {
       pending: "Pending",
@@ -973,14 +976,45 @@ const DEFAULT_TRACK_ORDER_PAGE = {
       shipped: "Shipped",
       delivered: "Delivered",
       cancelled: "Cancelled",
+      fallback: "Pending",
     },
+  },
+};
 
-    unknownCustomerName: "Customer information unavailable",
-    unknownCustomerPhone: "",
-    unknownCustomerAddress: "",
+const DEFAULT_SUCCESS_PAGE = {
+  key: "success",
+  schemaVersion: CMS_SCHEMA_VERSION,
+  status: "published",
 
-    emptyItemsMessage:
-      "No item information is available for this order.",
+  title: "Order Success",
+  slug: "success",
+
+  seo: {
+    title: "Order Submitted",
+    description:
+      "Your OBSIDIAN order has been successfully submitted. Save your tracking ID to follow the latest order status.",
+    keywords:
+      "OBSIDIAN order success, order submitted, tracking ID Bangladesh",
+    ogImage: "/images/collection-artifact.jpeg",
+    canonical: "/success",
+    index: false,
+  },
+
+  content: {
+    eyebrow: "Order Submitted",
+    title: "Thank You",
+    description:
+      "Your order has been received. We will confirm it manually through WhatsApp or phone.",
+
+    trackingIdLabel: "Tracking ID",
+    trackingIdDescription:
+      "Save this ID to track your order status later.",
+
+    continueShoppingText: "Continue Shopping",
+    continueShoppingHref: "/shop",
+
+    backToHomeText: "Back To Home",
+    backToHomeHref: "/",
   },
 };
 
@@ -996,6 +1030,7 @@ const CMS_DEFAULTS = {
   product: DEFAULT_PRODUCT_PAGE,
   "size-guide": DEFAULT_SIZE_GUIDE_PAGE,
   "track-order": DEFAULT_TRACK_ORDER_PAGE,
+  success: DEFAULT_SUCCESS_PAGE,
 };
 
 const PUBLIC_CMS_KEYS = Object.freeze(
@@ -1193,6 +1228,7 @@ export {
   DEFAULT_PRODUCT_PAGE,
   DEFAULT_SIZE_GUIDE_PAGE,
   DEFAULT_TRACK_ORDER_PAGE,
+  DEFAULT_SUCCESS_PAGE,
   cloneValue,
   deepMerge,
   normalizeActiveItems,
