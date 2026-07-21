@@ -49,40 +49,52 @@ const navigationItems = [
     icon: "07",
   },
   {
+    label: "Navbar CMS",
+    href: "/admin/content/navbar",
+    description: "Navigation Content",
+    icon: "08",
+  },
+  {
     label: "About CMS",
     href: "/admin/content/about",
     description: "Brand Story",
-    icon: "08",
+    icon: "09",
   },
   {
     label: "Contact CMS",
     href: "/admin/content/contact",
     description: "Support Content",
-    icon: "09",
+    icon: "10",
   },
   {
     label: "Journal CMS",
     href: "/admin/content/journal",
     description: "Stories & Editorial",
-    icon: "10",
+    icon: "11",
   },
   {
     label: "Collections CMS",
     href: "/admin/content/collections",
     description: "Page Content",
-    icon: "11",
+    icon: "12",
+  },
+  {
+    label: "Shop CMS",
+    href: "/admin/content/shop",
+    description: "Shop Page Content",
+    icon: "13",
   },
   {
     label: "Footer CMS",
     href: "/admin/content/footer",
     description: "Footer Content",
-    icon: "12",
+    icon: "14",
   },
   {
     label: "Settings",
     href: "/admin/settings",
     description: "Configuration",
-    icon: "13",
+    icon: "15",
   },
 ];
 
@@ -91,7 +103,10 @@ function isNavigationItemActive(pathname, href) {
     return pathname === "/admin";
   }
 
-  return pathname === href || pathname.startsWith(`${href}/`);
+  return (
+    pathname === href ||
+    pathname.startsWith(`${href}/`)
+  );
 }
 
 export default function AdminShell({ children }) {
@@ -117,7 +132,10 @@ export default function AdminShell({ children }) {
       }
     }
 
-    window.addEventListener("keydown", handleEscape);
+    window.addEventListener(
+      "keydown",
+      handleEscape
+    );
 
     return () => {
       document.body.style.overflow = "";
@@ -209,9 +227,7 @@ export default function AdminShell({ children }) {
                               : "text-neutral-600"
                           }`}
                         >
-                          {
-                            item.description
-                          }
+                          {item.description}
                         </span>
                       </span>
 
@@ -385,9 +401,7 @@ export default function AdminShell({ children }) {
                           </span>
 
                           <span className="mt-1 block text-[10px] opacity-50">
-                            {
-                              item.description
-                            }
+                            {item.description}
                           </span>
                         </span>
 
