@@ -874,6 +874,7 @@ function SecurityItem({
 
 function RecentOrderCard({ order }) {
   const status = getStatusDetails(order?.status);
+
   const items = Array.isArray(order?.items)
     ? order.items
     : [];
@@ -892,8 +893,8 @@ function RecentOrderCard({ order }) {
     "Order";
 
   return (
-    <article className="group grid overflow-hidden border border-black/10 bg-[#f4f0e8] transition-all duration-500 hover:border-black/20 hover:shadow-[0_22px_60px_rgba(25,22,17,0.08)] md:grid-cols-[108px_minmax(0,1fr)_190px]">
-      <div className="relative min-h-32 overflow-hidden bg-[#e5ded2] md:min-h-full">
+    <article className="group grid overflow-hidden border border-black/10 bg-[#f4f0e8] transition-all duration-500 hover:border-black/20 hover:shadow-[0_22px_60px_rgba(25,22,17,0.08)] md:grid-cols-[148px_minmax(0,1fr)_190px]">
+      <div className="relative flex h-64 items-center justify-center overflow-hidden border-b border-black/10 bg-[#e5ded2] p-4 sm:h-72 md:h-auto md:min-h-[210px] md:border-b-0 md:border-r md:p-3">
         {primaryItem?.image ? (
           <img
             src={primaryItem.image}
@@ -901,10 +902,12 @@ function RecentOrderCard({ order }) {
               normalizeText(primaryItem?.name) ||
               "Ordered OBSIDIAN product"
             }
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-contain object-center transition-transform duration-700 group-hover:scale-[1.02]"
           />
         ) : (
-          <div className="flex h-full min-h-32 items-center justify-center">
+          <div className="flex h-full w-full items-center justify-center">
             <span className="font-serif text-4xl text-black/15">
               O
             </span>
@@ -940,6 +943,7 @@ function RecentOrderCard({ order }) {
         <p className="mt-3 truncate text-sm text-black/52">
           {normalizeText(primaryItem?.name) ||
             "OBSIDIAN Piece"}
+
           {items.length > 1
             ? ` and ${items.length - 1} more`
             : ""}

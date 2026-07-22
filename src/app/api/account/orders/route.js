@@ -2,6 +2,7 @@ import clientPromise from "@/lib/mongodb";
 import { requireCustomerAuth } from "@/lib/customerAuth";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -14,7 +15,10 @@ function normalizeEmail(value) {
 function normalizeNumber(value) {
   const parsedValue = Number(value);
 
-  if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+  if (
+    !Number.isFinite(parsedValue) ||
+    parsedValue < 0
+  ) {
     return 0;
   }
 
@@ -22,7 +26,10 @@ function normalizeNumber(value) {
 }
 
 function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return String(value || "").replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&"
+  );
 }
 
 function serializeDate(value) {
@@ -41,17 +48,40 @@ function serializeDate(value) {
 
 function serializeOrderItem(item) {
   return {
-    id: normalizeText(item?.id),
+    id: normalizeText(
+      item?.id ||
+        item?.productId ||
+        item?._id
+    ),
+
     name: normalizeText(item?.name),
+
     series: normalizeText(item?.series),
+
     color: normalizeText(item?.color),
+
     size: normalizeText(item?.size),
+
     quantity: Math.max(
       1,
-      Math.floor(normalizeNumber(item?.quantity) || 1)
+      Math.floor(
+        normalizeNumber(item?.quantity) || 1
+      )
     ),
+
     price: normalizeNumber(item?.price),
-    image: normalizeText(item?.image),
+
+    lineTotal: normalizeNumber(
+      item?.lineTotal ??
+        Number(item?.price || 0) *
+          Number(item?.quantity || 0)
+    ),
+
+    image: normalizeText(
+      item?.image ||
+        item?.imageUrl ||
+        item?.thumbnail
+    ),
   };
 }
 
@@ -59,37 +89,63 @@ function serializeOrder(order) {
   const pricing = order?.pricing || {};
 
   const subtotal = normalizeNumber(
-    pricing?.subtotal ?? order?.subtotal
+    pricing.subtotal ??
+      order?.subtotal
   );
 
-  const deliveryCharge = normalizeNumber(
-    pricing?.deliveryPayable ??
-      pricing?.deliveryCharge ??
-      order?.deliveryCharge
-  );
+  const originalDeliveryCharge =
+    normalizeNumber(
+      pricing.originalDeliveryCharge ??
+        pricing.deliveryCharge ??
+        order?.originalDeliveryCharge ??
+        order?.deliveryCharge
+    );
 
-  const originalDeliveryCharge = normalizeNumber(
-    pricing?.deliveryCharge ??
-      order?.originalDeliveryCharge ??
-      order?.deliveryCharge
-  );
+  const payableDeliveryCharge =
+    normalizeNumber(
+      pricing.payableDeliveryCharge ??
+        pricing.deliveryPayable ??
+        order?.deliveryCharge
+    );
 
-  const discount = normalizeNumber(
-    pricing?.discount ?? order?.discount
-  );
+  const productDiscount =
+    normalizeNumber(
+      pricing.productDiscount ??
+        order?.productDiscount
+    );
+
+  const deliveryDiscount =
+    normalizeNumber(
+      pricing.deliveryDiscount ??
+        order?.deliveryDiscount
+    );
+
+  const totalDiscount =
+    normalizeNumber(
+      pricing.totalDiscount ??
+        pricing.discount ??
+        order?.discount ??
+        productDiscount +
+          deliveryDiscount
+    );
 
   const total = normalizeNumber(
-    pricing?.total ?? order?.total
+    pricing.total ??
+      order?.total
+  );
+
+  const orderId = normalizeText(
+    order?.orderId ||
+      order?.id ||
+      order?._id
   );
 
   return {
-    _id: order?._id?.toString?.() || "",
-    id: normalizeText(
-      order?.orderId || order?.id || order?._id
-    ),
-    orderId: normalizeText(
-      order?.orderId || order?.id || order?._id
-    ),
+    _id:
+      order?._id?.toString?.() || "",
+
+    id: orderId,
+    orderId,
 
     status: normalizeText(
       order?.status || "pending"
@@ -100,40 +156,81 @@ function serializeOrder(order) {
     ).toLowerCase(),
 
     paymentMethod: normalizeText(
-      order?.paymentMethod || "cash_on_delivery"
+      order?.paymentMethod ||
+        "cash_on_delivery"
     ).toLowerCase(),
+
+    paymentMethodLabel: normalizeText(
+      order?.paymentMethodLabel
+    ),
+
+    deliveryArea: normalizeText(
+      order?.deliveryArea ||
+        order?.customer?.deliveryArea
+    ),
 
     customer: {
       fullName: normalizeText(
         order?.customer?.fullName
       ),
-      phone: normalizeText(order?.customer?.phone),
-      email: normalizeEmail(order?.customer?.email),
+
+      phone: normalizeText(
+        order?.customer?.phone
+      ),
+
+      email: normalizeEmail(
+        order?.customer?.email
+      ),
+
       address: normalizeText(
         order?.customer?.address
       ),
+
       deliveryArea: normalizeText(
-        order?.customer?.deliveryArea
+        order?.customer?.deliveryArea ||
+          order?.deliveryArea
       ),
-      note: normalizeText(order?.customer?.note),
+
+      note: normalizeText(
+        order?.customer?.note
+      ),
     },
 
     items: Array.isArray(order?.items)
-      ? order.items.map(serializeOrderItem)
+      ? order.items.map(
+          serializeOrderItem
+        )
       : [],
 
     pricing: {
+      currency: normalizeText(
+        pricing.currency || "BDT"
+      ),
+
       subtotal,
-      deliveryCharge,
       originalDeliveryCharge,
-      discount,
+      payableDeliveryCharge,
+      deliveryCharge:
+        payableDeliveryCharge,
+
+      productDiscount,
+      deliveryDiscount,
+      totalDiscount,
+      discount: totalDiscount,
+
       total,
     },
 
     subtotal,
-    deliveryCharge,
     originalDeliveryCharge,
-    discount,
+
+    deliveryCharge:
+      payableDeliveryCharge,
+
+    productDiscount,
+    deliveryDiscount,
+
+    discount: totalDiscount,
     total,
 
     coupon: order?.coupon
@@ -141,43 +238,66 @@ function serializeOrder(order) {
           code: normalizeText(
             order.coupon.code
           ).toUpperCase(),
+
           type: normalizeText(
             order.coupon.type
           ).toLowerCase(),
+
           value: normalizeNumber(
             order.coupon.value
           ),
-          productDiscount: normalizeNumber(
-            order.coupon.productDiscount
-          ),
-          deliveryDiscount: normalizeNumber(
-            order.coupon.deliveryDiscount
-          ),
-          totalDiscount: normalizeNumber(
-            order.coupon.totalDiscount
-          ),
+
+          productDiscount:
+            normalizeNumber(
+              order.coupon
+                .productDiscount
+            ),
+
+          deliveryDiscount:
+            normalizeNumber(
+              order.coupon
+                .deliveryDiscount
+            ),
+
+          totalDiscount:
+            normalizeNumber(
+              order.coupon
+                .totalDiscount
+            ),
         }
       : null,
 
     statusHistory: Array.isArray(
       order?.statusHistory
     )
-      ? order.statusHistory.map((entry) => ({
-          status: normalizeText(
-            entry?.status
-          ).toLowerCase(),
-          note: normalizeText(entry?.note),
-          changedBy: normalizeText(
-            entry?.changedBy
-          ),
-          createdAt: serializeDate(
-            entry?.createdAt
-          ),
-        }))
+      ? order.statusHistory.map(
+          (entry) => ({
+            status: normalizeText(
+              entry?.status
+            ).toLowerCase(),
+
+            note: normalizeText(
+              entry?.note
+            ),
+
+            changedBy: normalizeText(
+              entry?.changedBy
+            ),
+
+            createdAt: serializeDate(
+              entry?.createdAt
+            ),
+          })
+        )
       : [],
 
-    createdAt: serializeDate(order?.createdAt),
-    updatedAt: serializeDate(order?.updatedAt),
+    createdAt: serializeDate(
+      order?.createdAt
+    ),
+
+    updatedAt: serializeDate(
+      order?.updatedAt
+    ),
   };
 }
 
@@ -222,67 +342,203 @@ function calculateOrderSummary(orders) {
 
     if (completedStatuses.has(status)) {
       summary.completedOrders += 1;
-      summary.totalSpent += normalizeNumber(
-        order?.pricing?.total ?? order?.total
-      );
+
+      summary.totalSpent +=
+        normalizeNumber(
+          order?.pricing?.total ??
+            order?.total
+        );
     }
 
-    if (cancelledStatuses.has(status)) {
+    if (
+      cancelledStatuses.has(status)
+    ) {
       summary.cancelledOrders += 1;
     }
   }
 
-  summary.totalSpent = Math.round(
-    summary.totalSpent
-  );
+  summary.totalSpent =
+    Math.round(
+      summary.totalSpent * 100
+    ) / 100;
 
   return summary;
 }
 
-export async function GET() {
-  try {
-    const customer = await requireCustomerAuth();
+function createCustomerOrderFilter(
+  customer
+) {
+  const accountId = normalizeText(
+    customer?._id
+  );
 
-    const customerEmail = normalizeEmail(
+  const customerId = normalizeText(
+    customer?.customerId
+  );
+
+  const customerEmail =
+    normalizeEmail(
       customer?.email ||
         customer?.emailNormalized
     );
 
-    if (!customerEmail) {
+  const filters = [];
+
+  if (customerId) {
+    filters.push(
+      {
+        customerId,
+      },
+      {
+        "customer.customerId":
+          customerId,
+      }
+    );
+  }
+
+  if (accountId) {
+    filters.push(
+      {
+        customerAccountId:
+          accountId,
+      },
+      {
+        "customer.accountId":
+          accountId,
+      }
+    );
+  }
+
+  if (customerEmail) {
+    const escapedEmail =
+      escapeRegExp(customerEmail);
+
+    filters.push({
+      "customer.email": {
+        $regex: `^${escapedEmail}$`,
+        $options: "i",
+      },
+    });
+  }
+
+  if (filters.length === 0) {
+    return null;
+  }
+
+  return {
+    $or: filters,
+  };
+}
+
+async function ensureOrderIndexes(
+  ordersCollection
+) {
+  try {
+    await Promise.all([
+      ordersCollection.createIndex(
+        {
+          customerId: 1,
+          createdAt: -1,
+        },
+        {
+          name:
+            "account_orders_customer_id",
+
+          partialFilterExpression: {
+            customerId: {
+              $type: "string",
+            },
+          },
+        }
+      ),
+
+      ordersCollection.createIndex(
+        {
+          customerAccountId: 1,
+          createdAt: -1,
+        },
+        {
+          name:
+            "account_orders_customer_account",
+
+          partialFilterExpression: {
+            customerAccountId: {
+              $type: "string",
+            },
+          },
+        }
+      ),
+
+      ordersCollection.createIndex(
+        {
+          "customer.email": 1,
+          createdAt: -1,
+        },
+        {
+          name:
+            "account_orders_customer_email",
+        }
+      ),
+    ]);
+  } catch (error) {
+    console.warn(
+      "Customer order index warning:",
+      error?.message || error
+    );
+  }
+}
+
+export async function GET() {
+  try {
+    const customer =
+      await requireCustomerAuth();
+
+    const orderFilter =
+      createCustomerOrderFilter(
+        customer
+      );
+
+    if (!orderFilter) {
       return Response.json(
         {
           success: false,
           message:
-            "Your customer account does not have a valid email address.",
+            "Your customer account does not contain a valid order identity.",
         },
         {
           status: 400,
+
+          headers: {
+            "Cache-Control":
+              "private, no-store, max-age=0",
+          },
         }
       );
     }
 
-    const client = await clientPromise;
+    const client =
+      await clientPromise;
 
-    const db = client.db(
-      process.env.MONGODB_DB || "obsidian"
+    const database = client.db(
+      process.env.MONGODB_DB ||
+        "obsidian"
     );
 
-    const escapedEmail =
-      escapeRegExp(customerEmail);
+    const ordersCollection =
+      database.collection("orders");
 
-    const orders = await db
-      .collection("orders")
-      .find({
-        "customer.email": {
-          $regex: `^${escapedEmail}$`,
-          $options: "i",
-        },
-      })
-      .sort({
-        createdAt: -1,
-        _id: -1,
-      })
-      .toArray();
+    await ensureOrderIndexes(
+      ordersCollection
+    );
+
+    const orders =
+      await ordersCollection
+        .find(orderFilter)
+        .sort({
+          createdAt: -1,
+          _id: -1,
+        })
+        .toArray();
 
     const serializedOrders =
       orders.map(serializeOrder);
@@ -300,6 +556,7 @@ export async function GET() {
       },
       {
         status: 200,
+
         headers: {
           "Cache-Control":
             "private, no-store, max-age=0",
@@ -328,6 +585,11 @@ export async function GET() {
       },
       {
         status: 500,
+
+        headers: {
+          "Cache-Control":
+            "private, no-store, max-age=0",
+        },
       }
     );
   }

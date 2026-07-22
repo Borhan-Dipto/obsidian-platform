@@ -16,6 +16,12 @@ const INITIAL_FORM_DATA = {
   expiresAt: "",
   usageLimit: "",
   active: true,
+
+  isPublic: false,
+  promoted: false,
+  publicTitle: "",
+  publicDescription: "",
+  displayOrder: "0",
 };
 
 function normalizeMoney(value) {
@@ -93,16 +99,35 @@ export default function AddCouponPage() {
     formData.type === "percentage";
 
   function handleChange(event) {
-    const { name, value, type, checked } =
-      event.target;
+    const {
+      name,
+      value,
+      type,
+      checked,
+    } = event.target;
 
     setErrorMessage("");
 
-    setFormData((currentData) => ({
-      ...currentData,
-      [name]:
-        type === "checkbox" ? checked : value,
-    }));
+    setFormData((currentData) => {
+      const nextValue =
+        type === "checkbox"
+          ? checked
+          : value;
+
+      const nextData = {
+        ...currentData,
+        [name]: nextValue,
+      };
+
+      if (
+        name === "isPublic" &&
+        checked === false
+      ) {
+        nextData.promoted = false;
+      }
+
+      return nextData;
+    });
   }
 
   function handleCodeChange(event) {
@@ -124,10 +149,12 @@ export default function AddCouponPage() {
     setFormData((currentData) => ({
       ...currentData,
       type: nextType,
+
       value:
         nextType === "free_shipping"
           ? ""
           : currentData.value,
+
       maximumDiscount:
         nextType === "percentage"
           ? currentData.maximumDiscount
@@ -204,6 +231,28 @@ export default function AddCouponPage() {
     }
 
     if (
+      formData.displayOrder !== "" &&
+      Number(formData.displayOrder) < 0
+    ) {
+      return "Display order cannot be negative.";
+    }
+
+    if (
+      formData.isPublic &&
+      formData.publicTitle.trim().length > 120
+    ) {
+      return "Public title cannot exceed 120 characters.";
+    }
+
+    if (
+      formData.isPublic &&
+      formData.publicDescription.trim().length >
+        500
+    ) {
+      return "Public description cannot exceed 500 characters.";
+    }
+
+    if (
       formData.startsAt &&
       formData.expiresAt
     ) {
@@ -216,8 +265,12 @@ export default function AddCouponPage() {
       );
 
       if (
-        !Number.isNaN(startDate.getTime()) &&
-        !Number.isNaN(expiryDate.getTime()) &&
+        !Number.isNaN(
+          startDate.getTime()
+        ) &&
+        !Number.isNaN(
+          expiryDate.getTime()
+        ) &&
         expiryDate <= startDate
       ) {
         return "Expiry date must be later than the start date.";
@@ -231,7 +284,8 @@ export default function AddCouponPage() {
     event.preventDefault();
     setErrorMessage("");
 
-    const validationError = validateForm();
+    const validationError =
+      validateForm();
 
     if (validationError) {
       setErrorMessage(validationError);
@@ -241,7 +295,9 @@ export default function AddCouponPage() {
     setIsSubmitting(true);
 
     const normalizedCode =
-      normalizeCouponCode(formData.code);
+      normalizeCouponCode(
+        formData.code
+      );
 
     const couponData = {
       code: normalizedCode,
@@ -255,16 +311,20 @@ export default function AddCouponPage() {
       type: formData.type,
 
       value:
-        formData.type === "free_shipping"
+        formData.type ===
+        "free_shipping"
           ? 0
-          : normalizeMoney(formData.value),
+          : normalizeMoney(
+              formData.value
+            ),
 
       minimumOrder: normalizeMoney(
         formData.minimumOrder
       ),
 
       maximumDiscount:
-        formData.type === "percentage"
+        formData.type ===
+        "percentage"
           ? normalizeMoney(
               formData.maximumDiscount
             )
@@ -274,9 +334,10 @@ export default function AddCouponPage() {
         formData.startsAt
       ),
 
-      expiresAt: convertDateTimeToIso(
-        formData.expiresAt
-      ),
+      expiresAt:
+        convertDateTimeToIso(
+          formData.expiresAt
+        ),
 
       usageLimit: normalizeInteger(
         formData.usageLimit
@@ -289,6 +350,22 @@ export default function AddCouponPage() {
       status: formData.active
         ? "active"
         : "inactive",
+
+      isPublic: formData.isPublic,
+
+      promoted:
+        formData.isPublic &&
+        formData.promoted,
+
+      publicTitle:
+        formData.publicTitle.trim(),
+
+      publicDescription:
+        formData.publicDescription.trim(),
+
+      displayOrder: normalizeInteger(
+        formData.displayOrder
+      ),
     };
 
     try {
@@ -302,13 +379,19 @@ export default function AddCouponPage() {
               "application/json",
           },
 
-          body: JSON.stringify(couponData),
+          body: JSON.stringify(
+            couponData
+          ),
         }
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
-      if (!response.ok || !data.success) {
+      if (
+        !response.ok ||
+        !data.success
+      ) {
         setErrorMessage(
           data.message ||
             "Coupon could not be created."
@@ -318,7 +401,10 @@ export default function AddCouponPage() {
         return;
       }
 
-      router.push("/admin/coupons");
+      router.push(
+        "/admin/coupons"
+      );
+
       router.refresh();
     } catch {
       setErrorMessage(
@@ -343,9 +429,9 @@ export default function AddCouponPage() {
             </h1>
 
             <p className="mt-5 max-w-2xl text-sm leading-7 text-neutral-500">
-              Create a promotional code with
-              discount rules, order requirements,
-              validity dates and redemption limits.
+              Create discount rules and
+              choose whether customers can
+              discover the coupon publicly.
             </p>
           </div>
 
@@ -392,17 +478,14 @@ export default function AddCouponPage() {
                   name="code"
                   type="text"
                   value={formData.code}
-                  onChange={handleCodeChange}
+                  onChange={
+                    handleCodeChange
+                  }
                   placeholder="Example: OBSIDIAN20"
                   required
                   autoComplete="off"
                   className="w-full border border-white/10 bg-white/5 px-5 py-4 uppercase tracking-[0.15em] outline-none transition placeholder:normal-case placeholder:tracking-normal placeholder:text-neutral-600 focus:border-white/30"
                 />
-
-                <p className="mt-2 text-xs leading-6 text-neutral-600">
-                  Spaces are removed automatically
-                  and the code is saved in uppercase.
-                </p>
               </div>
 
               <div>
@@ -430,16 +513,19 @@ export default function AddCouponPage() {
                   htmlFor="description"
                   className="mb-3 block text-xs uppercase tracking-[0.25em] text-neutral-400"
                 >
-                  Description
+                  Internal Description
                 </label>
 
                 <textarea
                   id="description"
                   name="description"
-                  value={formData.description}
+                  value={
+                    formData.description
+                  }
                   onChange={handleChange}
-                  placeholder="Add an internal description or campaign note..."
+                  placeholder="Internal campaign note..."
                   rows={4}
+                  maxLength={1000}
                   className="w-full resize-y border border-white/10 bg-white/5 px-5 py-4 outline-none transition placeholder:text-neutral-600 focus:border-white/30"
                 />
               </div>
@@ -470,7 +556,9 @@ export default function AddCouponPage() {
                   id="type"
                   name="type"
                   value={formData.type}
-                  onChange={handleTypeChange}
+                  onChange={
+                    handleTypeChange
+                  }
                   className="w-full border border-white/10 bg-[#111111] px-5 py-4 outline-none transition focus:border-white/30"
                 >
                   <option value="percentage">
@@ -500,20 +588,20 @@ export default function AddCouponPage() {
                       htmlFor="value"
                       className="mb-3 block text-xs uppercase tracking-[0.25em] text-neutral-400"
                     >
-                      {discountValueLabel}
+                      {
+                        discountValueLabel
+                      }
                     </label>
 
                     <input
                       id="value"
                       name="value"
                       type="number"
-                      value={formData.value}
-                      onChange={handleChange}
-                      placeholder={
-                        formData.type ===
-                        "percentage"
-                          ? "Example: 20"
-                          : "Example: 500"
+                      value={
+                        formData.value
+                      }
+                      onChange={
+                        handleChange
                       }
                       min="0.01"
                       max={
@@ -524,14 +612,14 @@ export default function AddCouponPage() {
                       }
                       step="0.01"
                       required
-                      className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none transition placeholder:text-neutral-600 focus:border-white/30"
+                      className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none transition focus:border-white/30"
                     />
                   </div>
                 ) : (
                   <div className="border border-white/10 bg-white/[0.03] p-5 text-sm leading-7 text-neutral-400">
-                    Free shipping coupons remove the
-                    applicable delivery charge from the
-                    order. No discount value is required.
+                    Free shipping removes
+                    the applicable delivery
+                    charge.
                   </div>
                 )}
 
@@ -551,17 +639,14 @@ export default function AddCouponPage() {
                       value={
                         formData.maximumDiscount
                       }
-                      onChange={handleChange}
+                      onChange={
+                        handleChange
+                      }
                       placeholder="0 means no maximum"
                       min="0"
                       step="0.01"
                       className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none transition placeholder:text-neutral-600 focus:border-white/30"
                     />
-
-                    <p className="mt-2 text-xs leading-6 text-neutral-600">
-                      Optional cap for percentage-based
-                      discounts.
-                    </p>
                   </div>
                 ) : null}
               </div>
@@ -578,9 +663,11 @@ export default function AddCouponPage() {
                   id="minimumOrder"
                   name="minimumOrder"
                   type="number"
-                  value={formData.minimumOrder}
+                  value={
+                    formData.minimumOrder
+                  }
                   onChange={handleChange}
-                  placeholder="0 means no minimum order"
+                  placeholder="0 means no minimum"
                   min="0"
                   step="0.01"
                   className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none transition placeholder:text-neutral-600 focus:border-white/30"
@@ -592,7 +679,159 @@ export default function AddCouponPage() {
           <section className="border border-white/10 bg-white/[0.02] p-6 md:p-8">
             <div className="mb-8">
               <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">
-                03 / Availability
+                03 / Public Visibility
+              </p>
+
+              <h2 className="mt-3 font-heading text-3xl font-light">
+                Customer Promotion
+              </h2>
+
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-neutral-500">
+                Public coupons may be shown
+                to customers on the storefront
+                and during checkout.
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              <label className="flex cursor-pointer items-start gap-4 border border-white/10 bg-white/[0.03] p-5">
+                <input
+                  type="checkbox"
+                  name="isPublic"
+                  checked={
+                    formData.isPublic
+                  }
+                  onChange={handleChange}
+                  className="mt-1 h-4 w-4 accent-[#f1ece4]"
+                />
+
+                <span>
+                  <span className="block text-sm text-[#f1ece4]">
+                    Show this coupon to customers
+                  </span>
+
+                  <span className="mt-2 block text-xs leading-6 text-neutral-500">
+                    The coupon remains usable
+                    even when this option is
+                    disabled, but customers will
+                    not see it publicly.
+                  </span>
+                </span>
+              </label>
+
+              {formData.isPublic ? (
+                <>
+                  <label className="flex cursor-pointer items-start gap-4 border border-white/10 bg-white/[0.03] p-5">
+                    <input
+                      type="checkbox"
+                      name="promoted"
+                      checked={
+                        formData.promoted
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      className="mt-1 h-4 w-4 accent-[#f1ece4]"
+                    />
+
+                    <span>
+                      <span className="block text-sm text-[#f1ece4]">
+                        Feature this coupon
+                      </span>
+
+                      <span className="mt-2 block text-xs leading-6 text-neutral-500">
+                        Featured coupons appear
+                        before other public
+                        coupons.
+                      </span>
+                    </span>
+                  </label>
+
+                  <div>
+                    <label
+                      htmlFor="publicTitle"
+                      className="mb-3 block text-xs uppercase tracking-[0.25em] text-neutral-400"
+                    >
+                      Public Title
+                    </label>
+
+                    <input
+                      id="publicTitle"
+                      name="publicTitle"
+                      type="text"
+                      value={
+                        formData.publicTitle
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      maxLength={120}
+                      placeholder="Leave blank to use the internal name"
+                      className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none transition placeholder:text-neutral-600 focus:border-white/30"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="publicDescription"
+                      className="mb-3 block text-xs uppercase tracking-[0.25em] text-neutral-400"
+                    >
+                      Public Description
+                    </label>
+
+                    <textarea
+                      id="publicDescription"
+                      name="publicDescription"
+                      value={
+                        formData.publicDescription
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      maxLength={500}
+                      rows={4}
+                      placeholder="Example: Save 20% on orders over ৳2,000."
+                      className="w-full resize-y border border-white/10 bg-white/5 px-5 py-4 outline-none transition placeholder:text-neutral-600 focus:border-white/30"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="displayOrder"
+                      className="mb-3 block text-xs uppercase tracking-[0.25em] text-neutral-400"
+                    >
+                      Display Order
+                    </label>
+
+                    <input
+                      id="displayOrder"
+                      name="displayOrder"
+                      type="number"
+                      value={
+                        formData.displayOrder
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      min="0"
+                      step="1"
+                      className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none transition focus:border-white/30"
+                    />
+
+                    <p className="mt-2 text-xs leading-6 text-neutral-600">
+                      Lower numbers appear
+                      first.
+                    </p>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="border border-white/10 bg-white/[0.02] p-6 md:p-8">
+            <div className="mb-8">
+              <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">
+                04 / Availability
               </p>
 
               <h2 className="mt-3 font-heading text-3xl font-light">
@@ -614,15 +853,14 @@ export default function AddCouponPage() {
                     id="startsAt"
                     name="startsAt"
                     type="datetime-local"
-                    value={formData.startsAt}
-                    onChange={handleChange}
+                    value={
+                      formData.startsAt
+                    }
+                    onChange={
+                      handleChange
+                    }
                     className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none transition focus:border-white/30 [color-scheme:dark]"
                   />
-
-                  <p className="mt-2 text-xs leading-6 text-neutral-600">
-                    Leave blank to make it available
-                    immediately.
-                  </p>
                 </div>
 
                 <div>
@@ -637,15 +875,14 @@ export default function AddCouponPage() {
                     id="expiresAt"
                     name="expiresAt"
                     type="datetime-local"
-                    value={formData.expiresAt}
-                    onChange={handleChange}
+                    value={
+                      formData.expiresAt
+                    }
+                    onChange={
+                      handleChange
+                    }
                     className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none transition focus:border-white/30 [color-scheme:dark]"
                   />
-
-                  <p className="mt-2 text-xs leading-6 text-neutral-600">
-                    Leave blank if the coupon should not
-                    expire.
-                  </p>
                 </div>
               </div>
 
@@ -661,9 +898,11 @@ export default function AddCouponPage() {
                   id="usageLimit"
                   name="usageLimit"
                   type="number"
-                  value={formData.usageLimit}
+                  value={
+                    formData.usageLimit
+                  }
                   onChange={handleChange}
-                  placeholder="0 means unlimited usage"
+                  placeholder="0 means unlimited"
                   min="0"
                   step="1"
                   className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none transition placeholder:text-neutral-600 focus:border-white/30"
@@ -674,7 +913,9 @@ export default function AddCouponPage() {
                 <input
                   type="checkbox"
                   name="active"
-                  checked={formData.active}
+                  checked={
+                    formData.active
+                  }
                   onChange={handleChange}
                   className="mt-1 h-4 w-4 accent-[#f1ece4]"
                 />
@@ -685,10 +926,8 @@ export default function AddCouponPage() {
                   </span>
 
                   <span className="mt-2 block text-xs leading-6 text-neutral-500">
-                    An inactive coupon remains saved but
-                    cannot be applied during checkout.
-                    Scheduled start dates are still
-                    respected.
+                    Start and expiry dates are
+                    still respected.
                   </span>
                 </span>
               </label>

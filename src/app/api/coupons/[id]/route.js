@@ -1,14 +1,50 @@
 import { ObjectId } from "mongodb";
 import clientPromise from "../../../../lib/mongodb";
+import { isAdminAuthenticated } from "../../../../lib/adminAuth";
 
-const SUPPORTED_COUPON_TYPES = [
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+const SUPPORTED_COUPON_TYPES = new Set([
   "percentage",
   "fixed",
   "free_shipping",
-];
+]);
+
+const MAX_REQUEST_SIZE = 100_000;
+const MAX_MONEY_VALUE = 10_000_000;
+const MAX_USAGE_LIMIT = 10_000_000;
+const MAX_DISPLAY_ORDER = 10_000;
+
+function jsonResponse(body, status = 200) {
+  return Response.json(body, {
+    status,
+    headers: {
+      "Cache-Control":
+        "no-store, no-cache, must-revalidate",
+    },
+  });
+}
+
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(
+    object,
+    key
+  );
+}
+
+function isPlainObject(value) {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+  );
+}
 
 function normalizeText(value) {
-  return String(value || "").trim();
+  return String(value ?? "")
+    .normalize("NFKC")
+    .trim();
 }
 
 function normalizeCouponCode(value) {
@@ -17,53 +53,35 @@ function normalizeCouponCode(value) {
     .replace(/\s+/g, "");
 }
 
-function normalizeMoney(value) {
-  const amount = Number(value);
-
-  if (!Number.isFinite(amount)) {
-    return 0;
-  }
-
-  return Math.max(
-    0,
-    Math.round(amount * 100) / 100
-  );
-}
-
-function normalizeInteger(value) {
-  const amount = Number(value);
-
-  if (!Number.isFinite(amount)) {
-    return 0;
-  }
-
-  return Math.max(0, Math.floor(amount));
-}
-
 function normalizeCouponType(value) {
-  const type = normalizeText(value).toLowerCase();
+  const type = normalizeText(
+    value
+  ).toLowerCase();
 
   if (
-    type === "percentage" ||
-    type === "percent"
+    ["percentage", "percent"].includes(type)
   ) {
     return "percentage";
   }
 
   if (
-    type === "fixed" ||
-    type === "fixed_amount" ||
-    type === "fixed-amount" ||
-    type === "amount"
+    [
+      "fixed",
+      "fixed_amount",
+      "fixed-amount",
+      "amount",
+    ].includes(type)
   ) {
     return "fixed";
   }
 
   if (
-    type === "free_shipping" ||
-    type === "free-shipping" ||
-    type === "free_delivery" ||
-    type === "shipping"
+    [
+      "free_shipping",
+      "free-shipping",
+      "free_delivery",
+      "shipping",
+    ].includes(type)
   ) {
     return "free_shipping";
   }
@@ -71,27 +89,37 @@ function normalizeCouponType(value) {
   return "";
 }
 
-function normalizeBoolean(value, fallback = true) {
+function normalizeBoolean(
+  value,
+  fallback = true
+) {
   if (typeof value === "boolean") {
     return value;
   }
 
-  const normalizedValue = normalizeText(
-    value
-  ).toLowerCase();
+  const normalizedValue =
+    normalizeText(value).toLowerCase();
 
   if (
-    normalizedValue === "false" ||
-    normalizedValue === "inactive" ||
-    normalizedValue === "0"
+    [
+      "false",
+      "inactive",
+      "0",
+      "disabled",
+      "no",
+    ].includes(normalizedValue)
   ) {
     return false;
   }
 
   if (
-    normalizedValue === "true" ||
-    normalizedValue === "active" ||
-    normalizedValue === "1"
+    [
+      "true",
+      "active",
+      "1",
+      "enabled",
+      "yes",
+    ].includes(normalizedValue)
   ) {
     return true;
   }
@@ -99,44 +127,149 @@ function normalizeBoolean(value, fallback = true) {
   return fallback;
 }
 
-function parseOptionalDate(value) {
-  if (!value) {
+function normalizeUsageCount(coupon) {
+  return Math.max(
+    0,
+    Math.floor(
+      Number(
+        coupon?.usageCount ??
+          coupon?.usedCount ??
+          0
+      ) || 0
+    )
+  );
+}
+
+function parseMoney(value, fieldName) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
+    return 0;
+  }
+
+  const amount = Number(value);
+
+  if (
+    !Number.isFinite(amount) ||
+    amount < 0 ||
+    amount > MAX_MONEY_VALUE
+  ) {
+    throw new Error(
+      `${fieldName} is invalid.`
+    );
+  }
+
+  return (
+    Math.round(amount * 100) / 100
+  );
+}
+
+function parseUsageLimit(value) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
+    return 0;
+  }
+
+  const amount = Number(value);
+
+  if (
+    !Number.isInteger(amount) ||
+    amount < 0 ||
+    amount > MAX_USAGE_LIMIT
+  ) {
+    throw new Error(
+      "Usage limit is invalid."
+    );
+  }
+
+  return amount;
+}
+
+function parseDisplayOrder(value) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
+    return 0;
+  }
+
+  const displayOrder = Number(value);
+
+  if (
+    !Number.isInteger(displayOrder) ||
+    displayOrder < 0 ||
+    displayOrder > MAX_DISPLAY_ORDER
+  ) {
+    throw new Error(
+      "Display order is invalid."
+    );
+  }
+
+  return displayOrder;
+}
+
+function parseOptionalDate(
+  value,
+  fieldName
+) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
     return null;
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return null;
+    throw new Error(
+      `${fieldName} is invalid.`
+    );
   }
 
   return date;
 }
 
 function escapeRegex(value) {
-  return value.replace(
+  return String(value || "").replace(
     /[.*+?^${}()|[\]\\]/g,
     "\\$&"
   );
 }
 
 function createCouponFilter(identifier) {
-  const value = normalizeText(identifier);
+  const value = normalizeText(
+    identifier
+  );
 
   if (!value) {
     return null;
   }
 
+  const normalizedCode =
+    normalizeCouponCode(value);
+
   const filters = [
     {
-      code: value.toUpperCase(),
+      normalizedCode,
     },
+
     {
-      normalizedCode: value.toUpperCase(),
+      code: normalizedCode,
     },
+
     {
       code: {
-        $regex: `^${escapeRegex(value)}$`,
+        $regex: `^${escapeRegex(
+          value
+        )}$`,
         $options: "i",
       },
     },
@@ -153,14 +286,34 @@ function createCouponFilter(identifier) {
   };
 }
 
-async function getCouponCollection() {
-  const client = await clientPromise;
+function createDuplicateCouponFilter(
+  code,
+  existingCouponId
+) {
+  return {
+    _id: {
+      $ne: existingCouponId,
+    },
 
-  const db = client.db(
-    process.env.MONGODB_DB || "obsidian"
-  );
+    $or: [
+      {
+        normalizedCode: code,
+      },
 
-  return db.collection("coupons");
+      {
+        code,
+      },
+
+      {
+        code: {
+          $regex: `^${escapeRegex(
+            code
+          )}$`,
+          $options: "i",
+        },
+      },
+    ],
+  };
 }
 
 async function resolveCouponId(context) {
@@ -169,78 +322,151 @@ async function resolveCouponId(context) {
   return normalizeText(params?.id);
 }
 
-async function findDuplicateCoupon(
-  collection,
-  code,
-  currentCouponId
-) {
-  const duplicateFilter = {
-    $or: [
-      {
-        code,
-      },
-      {
-        normalizedCode: code,
-      },
-      {
-        code: {
-          $regex: `^${escapeRegex(code)}$`,
-          $options: "i",
-        },
-      },
-    ],
-  };
+async function getDatabase() {
+  const client = await clientPromise;
 
-  if (ObjectId.isValid(currentCouponId)) {
-    duplicateFilter._id = {
-      $ne: new ObjectId(currentCouponId),
-    };
+  if (
+    !client ||
+    typeof client.db !== "function"
+  ) {
+    throw new TypeError(
+      "MongoDB connection did not return a valid MongoClient."
+    );
   }
 
-  return collection.findOne(duplicateFilter);
+  return client.db(
+    process.env.MONGODB_DB ||
+      "obsidian"
+  );
 }
 
-export async function GET(request, context) {
-  try {
-    const id = await resolveCouponId(context);
-    const couponFilter = createCouponFilter(id);
+function serializeCoupon(coupon) {
+  if (!coupon) {
+    return null;
+  }
 
-    if (!couponFilter) {
-      return Response.json(
+  const active =
+    coupon.active !== false &&
+    coupon.isActive !== false &&
+    normalizeText(
+      coupon.status
+    ).toLowerCase() !== "inactive";
+
+  const isPublic =
+    coupon.isPublic === true;
+
+  return {
+    ...coupon,
+
+    usageCount:
+      normalizeUsageCount(coupon),
+
+    active,
+    isActive: active,
+
+    status: active
+      ? "active"
+      : "inactive",
+
+    startsAt:
+      coupon.startsAt ||
+      coupon.startDate ||
+      null,
+
+    expiresAt:
+      coupon.expiresAt ||
+      coupon.expiryDate ||
+      null,
+
+    isPublic,
+
+    promoted:
+      isPublic &&
+      coupon.promoted === true,
+
+    publicTitle:
+      normalizeText(
+        coupon.publicTitle
+      ) ||
+      normalizeText(coupon.name),
+
+    publicDescription:
+      normalizeText(
+        coupon.publicDescription
+      ) ||
+      normalizeText(
+        coupon.description
+      ),
+
+    displayOrder:
+      Math.max(
+        0,
+        Math.floor(
+          Number(
+            coupon.displayOrder
+          ) || 0
+        )
+      ),
+  };
+}
+
+export async function GET(
+  request,
+  context
+) {
+  try {
+    if (
+      !(await isAdminAuthenticated())
+    ) {
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            "Admin authentication required.",
+        },
+        401
+      );
+    }
+
+    const id =
+      await resolveCouponId(context);
+
+    const filter =
+      createCouponFilter(id);
+
+    if (!filter) {
+      return jsonResponse(
         {
           success: false,
           message:
             "A valid coupon identifier is required.",
         },
-        {
-          status: 400,
-        }
+        400
       );
     }
 
-    const couponsCollection =
-      await getCouponCollection();
+    const database =
+      await getDatabase();
 
-    const coupon =
-      await couponsCollection.findOne(
-        couponFilter
-      );
+    const coupon = await database
+      .collection("coupons")
+      .findOne(filter);
 
     if (!coupon) {
-      return Response.json(
+      return jsonResponse(
         {
           success: false,
-          message: "Coupon not found.",
+          message:
+            "Coupon not found.",
         },
-        {
-          status: 404,
-        }
+        404
       );
     }
 
-    return Response.json({
+    return jsonResponse({
       success: true,
-      coupon,
+      coupon:
+        serializeCoupon(coupon),
     });
   } catch (error) {
     console.error(
@@ -248,219 +474,484 @@ export async function GET(request, context) {
       error
     );
 
-    return Response.json(
+    return jsonResponse(
       {
         success: false,
-        message: "Failed to fetch coupon.",
+        message:
+          "Failed to fetch coupon.",
       },
-      {
-        status: 500,
-      }
+      500
     );
   }
 }
 
-export async function PATCH(request, context) {
+export async function PATCH(
+  request,
+  context
+) {
   try {
-    const id = await resolveCouponId(context);
-    const couponFilter = createCouponFilter(id);
+    if (
+      !(await isAdminAuthenticated())
+    ) {
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            "Admin authentication required.",
+        },
+        401
+      );
+    }
 
-    if (!couponFilter) {
-      return Response.json(
+    const id =
+      await resolveCouponId(context);
+
+    const filter =
+      createCouponFilter(id);
+
+    if (!filter) {
+      return jsonResponse(
         {
           success: false,
           message:
             "A valid coupon identifier is required.",
         },
-        {
-          status: 400,
-        }
+        400
       );
     }
 
-    const couponsCollection =
-      await getCouponCollection();
+    const contentLength = Number(
+      request.headers.get(
+        "content-length"
+      ) || 0
+    );
+
+    if (
+      Number.isFinite(
+        contentLength
+      ) &&
+      contentLength > MAX_REQUEST_SIZE
+    ) {
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            "Request body is too large.",
+        },
+        413
+      );
+    }
+
+    let body;
+
+    try {
+      body = await request.json();
+    } catch {
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            "Invalid request body.",
+        },
+        400
+      );
+    }
+
+    if (!isPlainObject(body)) {
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            "Invalid request body.",
+        },
+        400
+      );
+    }
+
+    const database =
+      await getDatabase();
+
+    const collection =
+      database.collection(
+        "coupons"
+      );
 
     const existingCoupon =
-      await couponsCollection.findOne(
-        couponFilter
+      await collection.findOne(
+        filter
       );
 
     if (!existingCoupon) {
-      return Response.json(
+      return jsonResponse(
         {
           success: false,
-          message: "Coupon not found.",
+          message:
+            "Coupon not found.",
         },
-        {
-          status: 404,
-        }
+        404
       );
     }
 
-    const coupon = await request.json();
+    const quickUpdateKeys =
+      new Set([
+        "active",
+        "isActive",
+        "status",
+        "isPublic",
+        "public",
+        "promoted",
+        "isPromoted",
+        "displayOrder",
+      ]);
 
-    const isToggleOnly =
-      Object.prototype.hasOwnProperty.call(
-        coupon,
-        "isActive"
-      ) &&
-      Object.keys(coupon).every((key) =>
-        ["isActive", "active", "status"].includes(
-          key
-        )
+    const bodyKeys =
+      Object.keys(body);
+
+    const isQuickUpdate =
+      bodyKeys.length > 0 &&
+      bodyKeys.every((key) =>
+        quickUpdateKeys.has(key)
       );
 
-    if (isToggleOnly) {
-      const active = normalizeBoolean(
-        coupon.isActive ??
-          coupon.active ??
-          coupon.status,
-        existingCoupon.active !== false
-      );
+    if (isQuickUpdate) {
+      const active =
+        normalizeBoolean(
+          body.isActive ??
+            body.active ??
+            body.status,
+          existingCoupon.active !==
+            false
+        );
+
+      const isPublic =
+        normalizeBoolean(
+          body.isPublic ??
+            body.public,
+          existingCoupon.isPublic ===
+            true
+        );
+
+      const promoted =
+        isPublic &&
+        normalizeBoolean(
+          body.promoted ??
+            body.isPromoted,
+          existingCoupon.promoted ===
+            true
+        );
+
+      let displayOrder;
+
+      try {
+        displayOrder =
+          parseDisplayOrder(
+            hasOwn(
+              body,
+              "displayOrder"
+            )
+              ? body.displayOrder
+              : existingCoupon.displayOrder
+          );
+      } catch (error) {
+        return jsonResponse(
+          {
+            success: false,
+            message:
+              error.message,
+          },
+          400
+        );
+      }
 
       const now = new Date();
 
-      await couponsCollection.updateOne(
-        {
-          _id: existingCoupon._id,
+      const updateOperation = {
+        $set: {
+          active,
+          isActive: active,
+
+          status: active
+            ? "active"
+            : "inactive",
+
+          isPublic,
+          promoted,
+          displayOrder,
+          updatedAt: now,
         },
+      };
+
+      if (active) {
+        updateOperation.$unset = {
+          archivedAt: "",
+        };
+      }
+
+      await collection.updateOne(
         {
-          $set: {
-            active,
-            isActive: active,
-            status: active
-              ? "active"
-              : "inactive",
-            updatedAt: now,
-          },
-        }
+          _id:
+            existingCoupon._id,
+        },
+        updateOperation
       );
 
       const updatedCoupon =
-        await couponsCollection.findOne({
-          _id: existingCoupon._id,
+        await collection.findOne({
+          _id:
+            existingCoupon._id,
         });
 
-      return Response.json({
+      return jsonResponse({
         success: true,
-        message: active
-          ? "Coupon activated successfully."
-          : "Coupon deactivated successfully.",
-        coupon: updatedCoupon,
+        message:
+          "Coupon settings updated successfully.",
+
+        coupon:
+          serializeCoupon(
+            updatedCoupon
+          ),
       });
     }
 
-    const code = normalizeCouponCode(
-      coupon.code ?? existingCoupon.code
-    );
+    const code =
+      normalizeCouponCode(
+        body.code ??
+          existingCoupon.code
+      );
 
     const name = normalizeText(
-      coupon.name ?? existingCoupon.name
+      body.name ??
+        existingCoupon.name
     );
 
-    const description = normalizeText(
-      coupon.description ??
-        existingCoupon.description
-    );
-
-    const type = normalizeCouponType(
-      coupon.type ??
-        coupon.discountType ??
-        existingCoupon.type
-    );
-
-    if (!code) {
-      return Response.json(
-        {
-          success: false,
-          message:
-            "Coupon code is required.",
-        },
-        {
-          status: 400,
-        }
+    const description =
+      normalizeText(
+        body.description ??
+          existingCoupon.description
       );
-    }
 
-    if (code.length < 3) {
-      return Response.json(
-        {
-          success: false,
-          message:
-            "Coupon code must contain at least 3 characters.",
-        },
-        {
-          status: 400,
-        }
+    const type =
+      normalizeCouponType(
+        body.type ??
+          body.discountType ??
+          existingCoupon.type
       );
-    }
 
-    if (code.length > 50) {
-      return Response.json(
+    if (
+      !/^[A-Z0-9][A-Z0-9._-]{2,49}$/.test(
+        code
+      )
+    ) {
+      return jsonResponse(
         {
           success: false,
           message:
-            "Coupon code cannot exceed 50 characters.",
+            "Coupon code must be 3–50 characters and use only letters, numbers, dots, underscores or hyphens.",
         },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    if (!name) {
-      return Response.json(
-        {
-          success: false,
-          message:
-            "Coupon name is required.",
-        },
-        {
-          status: 400,
-        }
+        400
       );
     }
 
     if (
-      !type ||
-      !SUPPORTED_COUPON_TYPES.includes(type)
+      !name ||
+      name.length > 120
     ) {
-      return Response.json(
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            "Coupon name is required and cannot exceed 120 characters.",
+        },
+        400
+      );
+    }
+
+    if (
+      description.length > 1000
+    ) {
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            "Coupon description cannot exceed 1000 characters.",
+        },
+        400
+      );
+    }
+
+    if (
+      !SUPPORTED_COUPON_TYPES.has(
+        type
+      )
+    ) {
+      return jsonResponse(
         {
           success: false,
           message:
             "Please select a valid coupon type.",
         },
-        {
-          status: 400,
-        }
+        400
       );
     }
 
-    const value =
-      type === "free_shipping"
-        ? 0
-        : normalizeMoney(
-            coupon.value ??
-              coupon.discountValue ??
-              coupon.amount ??
-              existingCoupon.value
-          );
+    const isPublic =
+      normalizeBoolean(
+        body.isPublic ??
+          body.public,
+        existingCoupon.isPublic ===
+          true
+      );
+
+    const promoted =
+      isPublic &&
+      normalizeBoolean(
+        body.promoted ??
+          body.isPromoted,
+        existingCoupon.promoted ===
+          true
+      );
+
+    const publicTitle =
+      normalizeText(
+        body.publicTitle ??
+          body.publicName ??
+          existingCoupon.publicTitle
+      ) || name;
+
+    const publicDescription =
+      normalizeText(
+        body.publicDescription ??
+          existingCoupon.publicDescription
+      ) || description;
+
+    if (
+      publicTitle.length > 120
+    ) {
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            "Public coupon title cannot exceed 120 characters.",
+        },
+        400
+      );
+    }
+
+    if (
+      publicDescription.length >
+      500
+    ) {
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            "Public coupon description cannot exceed 500 characters.",
+        },
+        400
+      );
+    }
+
+    let value;
+    let minimumOrder;
+    let maximumDiscount;
+    let usageLimit;
+    let startsAt;
+    let expiresAt;
+    let displayOrder;
+
+    const rawStartsAt =
+      hasOwn(body, "startsAt")
+        ? body.startsAt
+        : hasOwn(body, "startDate")
+          ? body.startDate
+          : existingCoupon.startsAt ??
+            existingCoupon.startDate;
+
+    const rawExpiresAt =
+      hasOwn(body, "expiresAt")
+        ? body.expiresAt
+        : hasOwn(body, "expiryDate")
+          ? body.expiryDate
+          : existingCoupon.expiresAt ??
+            existingCoupon.expiryDate;
+
+    try {
+      value =
+        type === "free_shipping"
+          ? 0
+          : parseMoney(
+              body.value ??
+                body.discountValue ??
+                body.amount ??
+                existingCoupon.value,
+              "Discount value"
+            );
+
+      minimumOrder =
+        parseMoney(
+          body.minimumOrder ??
+            body.minimumSpend ??
+            body.minOrderAmount ??
+            existingCoupon.minimumOrder,
+          "Minimum order"
+        );
+
+      maximumDiscount =
+        type === "percentage"
+          ? parseMoney(
+              body.maximumDiscount ??
+                body.maxDiscount ??
+                existingCoupon.maximumDiscount,
+              "Maximum discount"
+            )
+          : 0;
+
+      usageLimit =
+        parseUsageLimit(
+          body.usageLimit ??
+            body.maxUses ??
+            existingCoupon.usageLimit
+        );
+
+      startsAt =
+        parseOptionalDate(
+          rawStartsAt,
+          "Coupon start date"
+        );
+
+      expiresAt =
+        parseOptionalDate(
+          rawExpiresAt,
+          "Coupon expiry date"
+        );
+
+      displayOrder =
+        parseDisplayOrder(
+          body.displayOrder ??
+            existingCoupon.displayOrder
+        );
+    } catch (error) {
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            error.message,
+        },
+        400
+      );
+    }
 
     if (
       type !== "free_shipping" &&
       value <= 0
     ) {
-      return Response.json(
+      return jsonResponse(
         {
           success: false,
           message:
             "Discount value must be greater than zero.",
         },
-        {
-          status: 400,
-        }
+        400
       );
     }
 
@@ -468,91 +959,13 @@ export async function PATCH(request, context) {
       type === "percentage" &&
       value > 100
     ) {
-      return Response.json(
+      return jsonResponse(
         {
           success: false,
           message:
             "Percentage discount cannot exceed 100%.",
         },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    const minimumOrder = normalizeMoney(
-      coupon.minimumOrder ??
-        coupon.minimumSpend ??
-        coupon.minOrderAmount ??
-        existingCoupon.minimumOrder
-    );
-
-    const maximumDiscount =
-      type === "percentage"
-        ? normalizeMoney(
-            coupon.maximumDiscount ??
-              coupon.maxDiscount ??
-              existingCoupon.maximumDiscount
-          )
-        : 0;
-
-    const usageLimit = normalizeInteger(
-      coupon.usageLimit ??
-        coupon.maxUses ??
-        existingCoupon.usageLimit
-    );
-
-    const usageCount = normalizeInteger(
-      coupon.usageCount ??
-        coupon.usedCount ??
-        existingCoupon.usageCount
-    );
-
-    const startsAtValue =
-      coupon.startsAt ??
-      coupon.startDate ??
-      existingCoupon.startsAt ??
-      existingCoupon.startDate ??
-      null;
-
-    const expiresAtValue =
-      coupon.expiresAt ??
-      coupon.expiryDate ??
-      existingCoupon.expiresAt ??
-      existingCoupon.expiryDate ??
-      null;
-
-    const startsAt = parseOptionalDate(
-      startsAtValue
-    );
-
-    const expiresAt = parseOptionalDate(
-      expiresAtValue
-    );
-
-    if (startsAtValue && !startsAt) {
-      return Response.json(
-        {
-          success: false,
-          message:
-            "Coupon start date is invalid.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    if (expiresAtValue && !expiresAt) {
-      return Response.json(
-        {
-          success: false,
-          message:
-            "Coupon expiry date is invalid.",
-        },
-        {
-          status: 400,
-        }
+        400
       );
     }
 
@@ -561,107 +974,130 @@ export async function PATCH(request, context) {
       expiresAt &&
       expiresAt <= startsAt
     ) {
-      return Response.json(
+      return jsonResponse(
         {
           success: false,
           message:
             "Coupon expiry date must be later than its start date.",
         },
-        {
-          status: 400,
-        }
+        400
       );
     }
+
+    const usageCount =
+      normalizeUsageCount(
+        existingCoupon
+      );
 
     if (
       usageLimit > 0 &&
       usageCount > usageLimit
     ) {
-      return Response.json(
+      return jsonResponse(
         {
           success: false,
           message:
-            "Coupon usage count cannot exceed its usage limit.",
+            "Usage limit cannot be lower than the current usage count.",
         },
-        {
-          status: 400,
-        }
+        400
       );
     }
 
-    const active = normalizeBoolean(
-      coupon.isActive ??
-        coupon.active ??
-        coupon.status,
-      existingCoupon.active ??
-        existingCoupon.isActive ??
-        true
-    );
+    const active =
+      normalizeBoolean(
+        body.isActive ??
+          body.active ??
+          body.status,
+        existingCoupon.active !==
+          false
+      );
 
     const duplicateCoupon =
-      await findDuplicateCoupon(
-        couponsCollection,
-        code,
-        String(existingCoupon._id)
+      await collection.findOne(
+        createDuplicateCouponFilter(
+          code,
+          existingCoupon._id
+        )
       );
 
     if (duplicateCoupon) {
-      return Response.json(
+      return jsonResponse(
         {
           success: false,
           message:
             "A coupon with this code already exists.",
         },
-        {
-          status: 409,
-        }
+        409
       );
     }
 
     const now = new Date();
 
-    const updateData = {
-      code,
-      normalizedCode: code,
-      name,
-      description,
-      type,
-      value,
-      minimumOrder,
-      maximumDiscount,
-      startsAt,
-      expiresAt,
-      startDate: startsAt,
-      expiryDate: expiresAt,
-      usageLimit,
-      usageCount,
-      active,
-      isActive: active,
-      status: active
-        ? "active"
-        : "inactive",
-      updatedAt: now,
+    const updateOperation = {
+      $set: {
+        code,
+        normalizedCode: code,
+        name,
+        description,
+        type,
+        value,
+        minimumOrder,
+        maximumDiscount,
+        startsAt,
+        expiresAt,
+        usageLimit,
+        usageCount,
+
+        active,
+        isActive: active,
+
+        status: active
+          ? "active"
+          : "inactive",
+
+        isPublic,
+        promoted,
+        publicTitle,
+        publicDescription,
+        displayOrder,
+
+        updatedAt: now,
+      },
+
+      $unset: {
+        startDate: "",
+        expiryDate: "",
+        usedCount: "",
+        endsAt: "",
+      },
     };
 
-    await couponsCollection.updateOne(
+    if (active) {
+      updateOperation.$unset.archivedAt =
+        "";
+    }
+
+    await collection.updateOne(
       {
         _id: existingCoupon._id,
       },
-      {
-        $set: updateData,
-      }
+      updateOperation
     );
 
     const updatedCoupon =
-      await couponsCollection.findOne({
+      await collection.findOne({
         _id: existingCoupon._id,
       });
 
-    return Response.json({
+    return jsonResponse({
       success: true,
       message:
         "Coupon updated successfully.",
-      coupon: updatedCoupon,
+
+      coupon:
+        serializeCoupon(
+          updatedCoupon
+        ),
     });
   } catch (error) {
     console.error(
@@ -670,27 +1106,23 @@ export async function PATCH(request, context) {
     );
 
     if (error?.code === 11000) {
-      return Response.json(
+      return jsonResponse(
         {
           success: false,
           message:
             "A coupon with this code already exists.",
         },
-        {
-          status: 409,
-        }
+        409
       );
     }
 
-    return Response.json(
+    return jsonResponse(
       {
         success: false,
         message:
           "Failed to update coupon.",
       },
-      {
-        status: 500,
-      }
+      500
     );
   }
 }
@@ -700,55 +1132,128 @@ export async function DELETE(
   context
 ) {
   try {
-    const id = await resolveCouponId(context);
-    const couponFilter = createCouponFilter(id);
+    if (
+      !(await isAdminAuthenticated())
+    ) {
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            "Admin authentication required.",
+        },
+        401
+      );
+    }
 
-    if (!couponFilter) {
-      return Response.json(
+    const id =
+      await resolveCouponId(context);
+
+    const filter =
+      createCouponFilter(id);
+
+    if (!filter) {
+      return jsonResponse(
         {
           success: false,
           message:
             "A valid coupon identifier is required.",
         },
-        {
-          status: 400,
-        }
+        400
       );
     }
 
-    const couponsCollection =
-      await getCouponCollection();
+    const database =
+      await getDatabase();
+
+    const collection =
+      database.collection(
+        "coupons"
+      );
 
     const existingCoupon =
-      await couponsCollection.findOne(
-        couponFilter
+      await collection.findOne(
+        filter
       );
 
     if (!existingCoupon) {
-      return Response.json(
+      return jsonResponse(
         {
           success: false,
-          message: "Coupon not found.",
+          message:
+            "Coupon not found.",
         },
-        {
-          status: 404,
-        }
+        404
       );
     }
 
-    await couponsCollection.deleteOne({
+    const couponCode =
+      normalizeCouponCode(
+        existingCoupon.code ||
+          existingCoupon.normalizedCode
+      );
+
+    const usageCount =
+      normalizeUsageCount(
+        existingCoupon
+      );
+
+    const linkedOrderCount =
+      couponCode
+        ? await database
+            .collection("orders")
+            .countDocuments({
+              "coupon.code":
+                couponCode,
+            })
+        : 0;
+
+    if (
+      usageCount > 0 ||
+      linkedOrderCount > 0
+    ) {
+      const now = new Date();
+
+      await collection.updateOne(
+        {
+          _id:
+            existingCoupon._id,
+        },
+        {
+          $set: {
+            active: false,
+            isActive: false,
+            status: "inactive",
+
+            isPublic: false,
+            promoted: false,
+
+            archivedAt: now,
+            updatedAt: now,
+          },
+        }
+      );
+
+      return jsonResponse({
+        success: true,
+        archived: true,
+        deleted: false,
+
+        message:
+          "Used coupon was archived instead of permanently deleted.",
+      });
+    }
+
+    await collection.deleteOne({
       _id: existingCoupon._id,
     });
 
-    return Response.json({
+    return jsonResponse({
       success: true,
+      archived: false,
+      deleted: true,
+
       message:
         "Coupon deleted successfully.",
-      deletedCoupon: {
-        _id: existingCoupon._id,
-        code: existingCoupon.code,
-        name: existingCoupon.name,
-      },
     });
   } catch (error) {
     console.error(
@@ -756,15 +1261,15 @@ export async function DELETE(
       error
     );
 
-    return Response.json(
+    return jsonResponse(
       {
         success: false,
         message:
           "Failed to delete coupon.",
       },
-      {
-        status: 500,
-      }
+      500
     );
   }
 }
+
+export const PUT = PATCH;

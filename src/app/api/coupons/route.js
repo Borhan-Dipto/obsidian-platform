@@ -1,13 +1,43 @@
 import clientPromise from "../../../lib/mongodb";
+import { isAdminAuthenticated } from "../../../lib/adminAuth";
 
-const SUPPORTED_COUPON_TYPES = [
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+const SUPPORTED_COUPON_TYPES = new Set([
   "percentage",
   "fixed",
   "free_shipping",
-];
+]);
+
+const MAX_REQUEST_SIZE = 100_000;
+const MAX_MONEY_VALUE = 10_000_000;
+const MAX_USAGE_LIMIT = 10_000_000;
+const MAX_DISPLAY_ORDER = 10_000;
+const MAX_PUBLIC_COUPONS = 24;
+
+function jsonResponse(body, status = 200) {
+  return Response.json(body, {
+    status,
+    headers: {
+      "Cache-Control":
+        "no-store, no-cache, must-revalidate",
+    },
+  });
+}
+
+function isPlainObject(value) {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+  );
+}
 
 function normalizeText(value) {
-  return String(value || "").trim();
+  return String(value ?? "")
+    .normalize("NFKC")
+    .trim();
 }
 
 function normalizeCouponCode(value) {
@@ -16,50 +46,35 @@ function normalizeCouponCode(value) {
     .replace(/\s+/g, "");
 }
 
-function normalizeMoney(value) {
-  const amount = Number(value);
-
-  if (!Number.isFinite(amount)) {
-    return 0;
-  }
-
-  return Math.max(
-    0,
-    Math.round(amount * 100) / 100
-  );
-}
-
-function normalizeInteger(value) {
-  const amount = Number(value);
-
-  if (!Number.isFinite(amount)) {
-    return 0;
-  }
-
-  return Math.max(0, Math.floor(amount));
-}
-
 function normalizeCouponType(value) {
-  const type = normalizeText(value).toLowerCase();
+  const type = normalizeText(
+    value
+  ).toLowerCase();
 
   if (
-    type === "percentage" ||
-    type === "percent"
+    ["percentage", "percent"].includes(type)
   ) {
     return "percentage";
   }
 
   if (
-    type === "fixed" ||
-    type === "fixed_amount" ||
-    type === "amount"
+    [
+      "fixed",
+      "fixed_amount",
+      "fixed-amount",
+      "amount",
+    ].includes(type)
   ) {
     return "fixed";
   }
 
   if (
-    type === "free_shipping" ||
-    type === "free_delivery"
+    [
+      "free_shipping",
+      "free-shipping",
+      "free_delivery",
+      "shipping",
+    ].includes(type)
   ) {
     return "free_shipping";
   }
@@ -67,27 +82,37 @@ function normalizeCouponType(value) {
   return "";
 }
 
-function normalizeBoolean(value, fallback = true) {
+function normalizeBoolean(
+  value,
+  fallback = true
+) {
   if (typeof value === "boolean") {
     return value;
   }
 
-  const normalizedValue = normalizeText(
-    value
-  ).toLowerCase();
+  const normalizedValue =
+    normalizeText(value).toLowerCase();
 
   if (
-    normalizedValue === "false" ||
-    normalizedValue === "inactive" ||
-    normalizedValue === "0"
+    [
+      "false",
+      "inactive",
+      "0",
+      "disabled",
+      "no",
+    ].includes(normalizedValue)
   ) {
     return false;
   }
 
   if (
-    normalizedValue === "true" ||
-    normalizedValue === "active" ||
-    normalizedValue === "1"
+    [
+      "true",
+      "active",
+      "1",
+      "enabled",
+      "yes",
+    ].includes(normalizedValue)
   ) {
     return true;
   }
@@ -95,7 +120,84 @@ function normalizeBoolean(value, fallback = true) {
   return fallback;
 }
 
-function parseOptionalDate(value) {
+function parseMoney(value, fieldName) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
+    return 0;
+  }
+
+  const amount = Number(value);
+
+  if (
+    !Number.isFinite(amount) ||
+    amount < 0 ||
+    amount > MAX_MONEY_VALUE
+  ) {
+    throw new Error(
+      `${fieldName} is invalid.`
+    );
+  }
+
+  return (
+    Math.round(amount * 100) / 100
+  );
+}
+
+function parseUsageLimit(value) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
+    return 0;
+  }
+
+  const amount = Number(value);
+
+  if (
+    !Number.isInteger(amount) ||
+    amount < 0 ||
+    amount > MAX_USAGE_LIMIT
+  ) {
+    throw new Error(
+      "Usage limit is invalid."
+    );
+  }
+
+  return amount;
+}
+
+function parseDisplayOrder(value) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
+    return 0;
+  }
+
+  const displayOrder = Number(value);
+
+  if (
+    !Number.isInteger(displayOrder) ||
+    displayOrder < 0 ||
+    displayOrder > MAX_DISPLAY_ORDER
+  ) {
+    throw new Error(
+      "Display order is invalid."
+    );
+  }
+
+  return displayOrder;
+}
+
+function parseOptionalDate(
+  value,
+  fieldName
+) {
   if (!value) {
     return null;
   }
@@ -103,61 +205,281 @@ function parseOptionalDate(value) {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return null;
+    throw new Error(
+      `${fieldName} is invalid.`
+    );
   }
 
   return date;
 }
 
-function escapeRegex(value) {
-  return value.replace(
-    /[.*+?^${}()|[\]\\]/g,
-    "\\$&"
+function serializePublicCoupon(coupon) {
+  const publicTitle =
+    normalizeText(coupon.publicTitle) ||
+    normalizeText(coupon.name) ||
+    normalizeText(coupon.code);
+
+  const publicDescription =
+    normalizeText(
+      coupon.publicDescription
+    ) ||
+    normalizeText(coupon.description);
+
+  return {
+    code: normalizeText(coupon.code),
+
+    title: publicTitle,
+
+    description: publicDescription,
+
+    type: normalizeCouponType(
+      coupon.type
+    ),
+
+    value:
+      Number(coupon.value) || 0,
+
+    minimumOrder:
+      Number(coupon.minimumOrder) || 0,
+
+    maximumDiscount:
+      Number(coupon.maximumDiscount) ||
+      0,
+
+    startsAt:
+      coupon.startsAt || null,
+
+    expiresAt:
+      coupon.expiresAt || null,
+
+    promoted: Boolean(
+      coupon.promoted
+    ),
+
+    displayOrder:
+      Number(coupon.displayOrder) || 0,
+  };
+}
+
+async function ensureCouponIndexes(
+  collection
+) {
+  try {
+    await collection.createIndex(
+      {
+        normalizedCode: 1,
+      },
+      {
+        unique: true,
+        name:
+          "coupon_normalized_code_unique",
+
+        partialFilterExpression: {
+          normalizedCode: {
+            $type: "string",
+          },
+        },
+      }
+    );
+
+    await collection.createIndex(
+      {
+        createdAt: -1,
+      },
+      {
+        name: "coupon_created_at",
+      }
+    );
+
+    await collection.createIndex(
+      {
+        isPublic: 1,
+        active: 1,
+        promoted: -1,
+        displayOrder: 1,
+        expiresAt: 1,
+      },
+      {
+        name:
+          "coupon_public_visibility",
+      }
+    );
+  } catch (error) {
+    console.warn(
+      "Coupon index warning:",
+      error?.message || error
+    );
+  }
+}
+
+async function getCouponsCollection() {
+  const client = await clientPromise;
+
+  if (
+    !client ||
+    typeof client.db !== "function"
+  ) {
+    throw new TypeError(
+      "MongoDB connection did not return a valid MongoClient."
+    );
+  }
+
+  const database = client.db(
+    process.env.MONGODB_DB ||
+      "obsidian"
+  );
+
+  const collection =
+    database.collection("coupons");
+
+  await ensureCouponIndexes(
+    collection
+  );
+
+  return collection;
+}
+
+function isPublicRequest(request) {
+  const requestUrl = new URL(
+    request.url
+  );
+
+  return (
+    requestUrl.searchParams.get(
+      "public"
+    ) === "1"
   );
 }
 
-async function findExistingCoupon(
-  collection,
-  couponCode
+async function getPublicCoupons(
+  collection
 ) {
-  return collection.findOne({
-    $or: [
-      {
-        code: couponCode,
-      },
-      {
-        normalizedCode: couponCode,
-      },
-      {
-        code: {
-          $regex: `^${escapeRegex(
-            couponCode
-          )}$`,
-          $options: "i",
+  const now = new Date();
+
+  const coupons = await collection
+    .find({
+      active: true,
+      isPublic: true,
+
+      $and: [
+        {
+          $or: [
+            {
+              startsAt: null,
+            },
+            {
+              startsAt: {
+                $lte: now,
+              },
+            },
+          ],
         },
-      },
-    ],
-  });
+
+        {
+          $or: [
+            {
+              expiresAt: null,
+            },
+            {
+              expiresAt: {
+                $gt: now,
+              },
+            },
+          ],
+        },
+
+        {
+          $expr: {
+            $or: [
+              {
+                $lte: [
+                  {
+                    $ifNull: [
+                      "$usageLimit",
+                      0,
+                    ],
+                  },
+                  0,
+                ],
+              },
+
+              {
+                $lt: [
+                  {
+                    $ifNull: [
+                      "$usageCount",
+                      0,
+                    ],
+                  },
+
+                  {
+                    $ifNull: [
+                      "$usageLimit",
+                      0,
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    })
+    .sort({
+      promoted: -1,
+      displayOrder: 1,
+      createdAt: -1,
+    })
+    .limit(MAX_PUBLIC_COUPONS)
+    .toArray();
+
+  return coupons.map(
+    serializePublicCoupon
+  );
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
-    const client = await clientPromise;
+    const collection =
+      await getCouponsCollection();
 
-    const db = client.db(
-      process.env.MONGODB_DB || "obsidian"
-    );
+    if (isPublicRequest(request)) {
+      const coupons =
+        await getPublicCoupons(
+          collection
+        );
 
-    const coupons = await db
-      .collection("coupons")
+      return jsonResponse({
+        success: true,
+        public: true,
+        coupons,
+        count: coupons.length,
+      });
+    }
+
+    if (
+      !(await isAdminAuthenticated())
+    ) {
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            "Admin authentication required.",
+        },
+        401
+      );
+    }
+
+    const coupons = await collection
       .find({})
       .sort({
         createdAt: -1,
       })
       .toArray();
 
-    return Response.json({
+    return jsonResponse({
       success: true,
+      public: false,
       coupons,
     });
   } catch (error) {
@@ -166,126 +488,288 @@ export async function GET() {
       error
     );
 
-    return Response.json(
+    return jsonResponse(
       {
         success: false,
-        message: "Failed to fetch coupons.",
+        message:
+          "Failed to fetch coupons.",
       },
-      {
-        status: 500,
-      }
+      500
     );
   }
 }
 
 export async function POST(request) {
   try {
-    const coupon = await request.json();
-
-    const code = normalizeCouponCode(
-      coupon.code
-    );
-
-    const name = normalizeText(coupon.name);
-
-    const description = normalizeText(
-      coupon.description
-    );
-
-    const type = normalizeCouponType(
-      coupon.type || coupon.discountType
-    );
-
-    if (!code) {
-      return Response.json(
+    if (
+      !(await isAdminAuthenticated())
+    ) {
+      return jsonResponse(
         {
           success: false,
           message:
-            "Coupon code is required.",
+            "Admin authentication required.",
         },
-        {
-          status: 400,
-        }
+        401
       );
     }
 
-    if (code.length < 3) {
-      return Response.json(
+    const contentLength = Number(
+      request.headers.get(
+        "content-length"
+      ) || 0
+    );
+
+    if (
+      Number.isFinite(
+        contentLength
+      ) &&
+      contentLength > MAX_REQUEST_SIZE
+    ) {
+      return jsonResponse(
         {
           success: false,
           message:
-            "Coupon code must contain at least 3 characters.",
+            "Request body is too large.",
         },
-        {
-          status: 400,
-        }
+        413
       );
     }
 
-    if (code.length > 50) {
-      return Response.json(
+    let body;
+
+    try {
+      body = await request.json();
+    } catch {
+      return jsonResponse(
         {
           success: false,
           message:
-            "Coupon code cannot exceed 50 characters.",
+            "Invalid request body.",
         },
-        {
-          status: 400,
-        }
+        400
       );
     }
 
-    if (!name) {
-      return Response.json(
+    if (!isPlainObject(body)) {
+      return jsonResponse(
         {
           success: false,
           message:
-            "Coupon name is required.",
+            "Invalid request body.",
         },
+        400
+      );
+    }
+
+    const code =
+      normalizeCouponCode(
+        body.code
+      );
+
+    const name = normalizeText(
+      body.name
+    );
+
+    const description =
+      normalizeText(
+        body.description
+      );
+
+    const type =
+      normalizeCouponType(
+        body.type ||
+          body.discountType
+      );
+
+    if (
+      !/^[A-Z0-9][A-Z0-9._-]{2,49}$/.test(
+        code
+      )
+    ) {
+      return jsonResponse(
         {
-          status: 400,
-        }
+          success: false,
+          message:
+            "Coupon code must be 3–50 characters and use only letters, numbers, dots, underscores or hyphens.",
+        },
+        400
       );
     }
 
     if (
-      !type ||
-      !SUPPORTED_COUPON_TYPES.includes(type)
+      !name ||
+      name.length > 120
     ) {
-      return Response.json(
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            "Coupon name is required and cannot exceed 120 characters.",
+        },
+        400
+      );
+    }
+
+    if (description.length > 1000) {
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            "Coupon description cannot exceed 1000 characters.",
+        },
+        400
+      );
+    }
+
+    if (
+      !SUPPORTED_COUPON_TYPES.has(
+        type
+      )
+    ) {
+      return jsonResponse(
         {
           success: false,
           message:
             "Please select a valid coupon type.",
         },
-        {
-          status: 400,
-        }
+        400
       );
     }
 
-    const value =
-      type === "free_shipping"
-        ? 0
-        : normalizeMoney(
-            coupon.value ??
-              coupon.discountValue ??
-              coupon.amount
-          );
+    const isPublic =
+      normalizeBoolean(
+        body.isPublic ??
+          body.public,
+        false
+      );
+
+    const promoted =
+      isPublic &&
+      normalizeBoolean(
+        body.promoted ??
+          body.isPromoted,
+        false
+      );
+
+    const publicTitle =
+      normalizeText(
+        body.publicTitle ??
+          body.publicName
+      ) || name;
+
+    const publicDescription =
+      normalizeText(
+        body.publicDescription
+      ) || description;
+
+    if (publicTitle.length > 120) {
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            "Public coupon title cannot exceed 120 characters.",
+        },
+        400
+      );
+    }
+
+    if (
+      publicDescription.length >
+      500
+    ) {
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            "Public coupon description cannot exceed 500 characters.",
+        },
+        400
+      );
+    }
+
+    let value;
+    let minimumOrder;
+    let maximumDiscount;
+    let usageLimit;
+    let startsAt;
+    let expiresAt;
+    let displayOrder;
+
+    try {
+      value =
+        type === "free_shipping"
+          ? 0
+          : parseMoney(
+              body.value ??
+                body.discountValue ??
+                body.amount,
+              "Discount value"
+            );
+
+      minimumOrder =
+        parseMoney(
+          body.minimumOrder ??
+            body.minimumSpend ??
+            body.minOrderAmount,
+          "Minimum order"
+        );
+
+      maximumDiscount =
+        type === "percentage"
+          ? parseMoney(
+              body.maximumDiscount ??
+                body.maxDiscount,
+              "Maximum discount"
+            )
+          : 0;
+
+      usageLimit =
+        parseUsageLimit(
+          body.usageLimit ??
+            body.maxUses
+        );
+
+      startsAt =
+        parseOptionalDate(
+          body.startsAt ??
+            body.startDate,
+          "Coupon start date"
+        );
+
+      expiresAt =
+        parseOptionalDate(
+          body.expiresAt ??
+            body.expiryDate,
+          "Coupon expiry date"
+        );
+
+      displayOrder =
+        parseDisplayOrder(
+          body.displayOrder
+        );
+    } catch (error) {
+      return jsonResponse(
+        {
+          success: false,
+          message:
+            error.message,
+        },
+        400
+      );
+    }
 
     if (
       type !== "free_shipping" &&
       value <= 0
     ) {
-      return Response.json(
+      return jsonResponse(
         {
           success: false,
           message:
             "Discount value must be greater than zero.",
         },
-        {
-          status: 400,
-        }
+        400
       );
     }
 
@@ -293,84 +777,13 @@ export async function POST(request) {
       type === "percentage" &&
       value > 100
     ) {
-      return Response.json(
+      return jsonResponse(
         {
           success: false,
           message:
             "Percentage discount cannot exceed 100%.",
         },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    const minimumOrder = normalizeMoney(
-      coupon.minimumOrder ??
-        coupon.minimumSpend ??
-        coupon.minOrderAmount
-    );
-
-    const maximumDiscount =
-      type === "percentage"
-        ? normalizeMoney(
-            coupon.maximumDiscount ??
-              coupon.maxDiscount
-          )
-        : 0;
-
-    const usageLimit = normalizeInteger(
-      coupon.usageLimit ??
-        coupon.maxUses
-    );
-
-    const requestedUsageCount =
-      normalizeInteger(
-        coupon.usageCount ??
-          coupon.usedCount
-      );
-
-    const startsAtValue =
-      coupon.startsAt ??
-      coupon.startDate ??
-      null;
-
-    const expiresAtValue =
-      coupon.expiresAt ??
-      coupon.expiryDate ??
-      null;
-
-    const startsAt = parseOptionalDate(
-      startsAtValue
-    );
-
-    const expiresAt = parseOptionalDate(
-      expiresAtValue
-    );
-
-    if (startsAtValue && !startsAt) {
-      return Response.json(
-        {
-          success: false,
-          message:
-            "Coupon start date is invalid.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    if (expiresAtValue && !expiresAt) {
-      return Response.json(
-        {
-          success: false,
-          message:
-            "Coupon expiry date is invalid.",
-        },
-        {
-          status: 400,
-        }
+        400
       );
     }
 
@@ -379,70 +792,46 @@ export async function POST(request) {
       expiresAt &&
       expiresAt <= startsAt
     ) {
-      return Response.json(
+      return jsonResponse(
         {
           success: false,
           message:
             "Coupon expiry date must be later than its start date.",
         },
-        {
-          status: 400,
-        }
+        400
       );
     }
 
-    if (
-      usageLimit > 0 &&
-      requestedUsageCount > usageLimit
-    ) {
-      return Response.json(
-        {
-          success: false,
-          message:
-            "Coupon usage count cannot exceed its usage limit.",
-        },
-        {
-          status: 400,
-        }
+    const active =
+      normalizeBoolean(
+        body.isActive ??
+          body.active ??
+          body.status,
+        true
       );
-    }
 
-    const active = normalizeBoolean(
-      coupon.active ?? coupon.status,
-      true
-    );
-
-    const client = await clientPromise;
-
-    const db = client.db(
-      process.env.MONGODB_DB || "obsidian"
-    );
-
-    const couponsCollection =
-      db.collection("coupons");
+    const collection =
+      await getCouponsCollection();
 
     const existingCoupon =
-      await findExistingCoupon(
-        couponsCollection,
-        code
-      );
+      await collection.findOne({
+        normalizedCode: code,
+      });
 
     if (existingCoupon) {
-      return Response.json(
+      return jsonResponse(
         {
           success: false,
           message:
             "A coupon with this code already exists.",
         },
-        {
-          status: 409,
-        }
+        409
       );
     }
 
     const now = new Date();
 
-    const newCoupon = {
+    const coupon = {
       code,
       normalizedCode: code,
       name,
@@ -454,33 +843,40 @@ export async function POST(request) {
       startsAt,
       expiresAt,
       usageLimit,
-      usageCount: requestedUsageCount,
+      usageCount: 0,
+
       active,
       status: active
         ? "active"
         : "inactive",
+
+      isPublic,
+      promoted,
+      publicTitle,
+      publicDescription,
+      displayOrder,
+
       createdAt: now,
       updatedAt: now,
     };
 
     const result =
-      await couponsCollection.insertOne(
-        newCoupon
+      await collection.insertOne(
+        coupon
       );
 
-    return Response.json(
+    return jsonResponse(
       {
         success: true,
         message:
           "Coupon created successfully.",
+
         coupon: {
-          ...newCoupon,
+          ...coupon,
           _id: result.insertedId,
         },
       },
-      {
-        status: 201,
-      }
+      201
     );
   } catch (error) {
     console.error(
@@ -489,27 +885,23 @@ export async function POST(request) {
     );
 
     if (error?.code === 11000) {
-      return Response.json(
+      return jsonResponse(
         {
           success: false,
           message:
             "A coupon with this code already exists.",
         },
-        {
-          status: 409,
-        }
+        409
       );
     }
 
-    return Response.json(
+    return jsonResponse(
       {
         success: false,
         message:
           "Failed to create coupon.",
       },
-      {
-        status: 500,
-      }
+      500
     );
   }
 }

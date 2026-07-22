@@ -10,19 +10,20 @@ const DEFAULT_CONTENT = {
     "Explore the first OBSIDIAN fashion drops—oversized T-shirts, graphic essentials, and future-ready collection stories.",
   buttonText: "View All",
   buttonHref: "/collections",
-  maximumItems: 3,
-  source: "featured",
+  maximumItems: 6,
+  source: "all",
   selectedCollectionIds: [],
   showDescription: true,
   showIndex: true,
   showFeaturedBadge: true,
   cardButtonText: "View Products",
-  emptyStateTitle: "No featured collections yet.",
+  emptyStateTitle: "No collections yet.",
   emptyStateDescription:
-    "Feature a collection from the Admin Panel. This section will update automatically.",
+    "Create an active collection from the Admin Panel. This section will update automatically.",
 };
 
-const FALLBACK_IMAGE = "/images/collection-artifact.jpeg";
+const FALLBACK_IMAGE =
+  "/images/collection-artifact.jpeg";
 
 function isPlainObject(value) {
   return Boolean(
@@ -57,17 +58,21 @@ function mergeContent(base, incoming) {
   );
 }
 
-function normalizeText(value, fallback = "") {
+function normalizeText(
+  value,
+  fallback = ""
+) {
   if (typeof value !== "string") {
     return fallback;
   }
 
-  const normalizedValue = value.trim();
-
-  return normalizedValue || fallback;
+  return value.trim() || fallback;
 }
 
-function normalizePositiveInteger(value, fallback = 3) {
+function normalizePositiveInteger(
+  value,
+  fallback = 6
+) {
   const numericValue = Number(value);
 
   if (
@@ -79,7 +84,7 @@ function normalizePositiveInteger(value, fallback = 3) {
 
   return Math.min(
     Math.floor(numericValue),
-    12
+    24
   );
 }
 
@@ -89,7 +94,9 @@ function normalizeCollectionIds(value) {
   }
 
   return value
-    .map((item) => String(item || "").trim())
+    .map((item) =>
+      String(item || "").trim()
+    )
     .filter(Boolean);
 }
 
@@ -128,6 +135,7 @@ function renderMultilineTitle(title) {
   return lines.map((line, index) => (
     <span key={`${line}-${index}`}>
       {line}
+
       {index < lines.length - 1 ? (
         <br />
       ) : null}
@@ -137,7 +145,7 @@ function renderMultilineTitle(title) {
 
 function getGridClasses(itemCount) {
   if (itemCount === 1) {
-    return "grid gap-7 max-w-xl";
+    return "grid max-w-xl gap-7";
   }
 
   if (itemCount === 2) {
@@ -148,24 +156,27 @@ function getGridClasses(itemCount) {
 }
 
 async function getCollections({
-  source = "featured",
-  maximumItems = 3,
+  maximumItems = 6,
+  source = "all",
   selectedCollectionIds = [],
 }) {
   try {
     const client = await clientPromise;
-    const db = client.db(
-      process.env.MONGODB_DB || "obsidian"
+
+    const database = client.db(
+      process.env.MONGODB_DB ||
+        "obsidian"
     );
 
     const query = {
       isActive: true,
     };
 
-    if (
+    const useSelectedCollections =
       source === "selected" &&
-      selectedCollectionIds.length > 0
-    ) {
+      selectedCollectionIds.length > 0;
+
+    if (useSelectedCollections) {
       query.$or = [
         {
           slug: {
@@ -178,16 +189,15 @@ async function getCollections({
           },
         },
       ];
-    } else if (source === "featured") {
-      query.isFeatured = true;
     }
 
-    const collections = await db
+    const collections = await database
       .collection("collections")
       .find(query)
       .sort({
         displayOrder: 1,
         createdAt: -1,
+        _id: -1,
       })
       .limit(maximumItems)
       .toArray();
@@ -197,10 +207,7 @@ async function getCollections({
         JSON.stringify(collections)
       );
 
-    if (
-      source === "selected" &&
-      selectedCollectionIds.length > 0
-    ) {
+    if (useSelectedCollections) {
       const orderMap = new Map(
         selectedCollectionIds.map(
           (id, index) => [id, index]
@@ -208,7 +215,10 @@ async function getCollections({
       );
 
       return serializedCollections.sort(
-        (firstCollection, secondCollection) => {
+        (
+          firstCollection,
+          secondCollection
+        ) => {
           const firstKey =
             firstCollection.slug ||
             firstCollection.series;
@@ -267,23 +277,18 @@ export default async function Collections({
       cmsContent.selectedCollectionIds
     );
 
-  const allowedSources = [
-    "featured",
-    "all",
-    "selected",
-  ];
+  const source =
+    cmsContent.source === "selected" &&
+    selectedCollectionIds.length > 0
+      ? "selected"
+      : "all";
 
-  const source = allowedSources.includes(
-    cmsContent.source
-  )
-    ? cmsContent.source
-    : DEFAULT_CONTENT.source;
-
-  const collections = await getCollections({
-    source,
-    maximumItems,
-    selectedCollectionIds,
-  });
+  const collections =
+    await getCollections({
+      maximumItems,
+      source,
+      selectedCollectionIds,
+    });
 
   const eyebrow = normalizeText(
     cmsContent.eyebrow,
@@ -313,15 +318,17 @@ export default async function Collections({
     DEFAULT_CONTENT.buttonHref
   );
 
-  const cardButtonText = normalizeText(
-    cmsContent.cardButtonText,
-    DEFAULT_CONTENT.cardButtonText
-  );
+  const cardButtonText =
+    normalizeText(
+      cmsContent.cardButtonText,
+      DEFAULT_CONTENT.cardButtonText
+    );
 
-  const emptyStateTitle = normalizeText(
-    cmsContent.emptyStateTitle,
-    DEFAULT_CONTENT.emptyStateTitle
-  );
+  const emptyStateTitle =
+    normalizeText(
+      cmsContent.emptyStateTitle,
+      DEFAULT_CONTENT.emptyStateTitle
+    );
 
   const emptyStateDescription =
     normalizeText(
@@ -339,7 +346,7 @@ export default async function Collections({
     cmsContent.showFeaturedBadge !== false;
 
   return (
-    <section className="relative overflow-hidden bg-[#eee7dd] px-6 pt-16 pb-32 text-[#0b0b0b] lg:pt-20 lg:pb-40">
+    <section className="relative overflow-hidden bg-[#eee7dd] px-6 pb-32 pt-16 text-[#0b0b0b] lg:pb-40 lg:pt-20">
       <div className="pointer-events-none absolute inset-0 opacity-[0.018]">
         <div className="absolute inset-0 bg-[linear-gradient(90deg,#0b0b0b_1px,transparent_1px),linear-gradient(#0b0b0b_1px,transparent_1px)] bg-[size:104px_104px]" />
       </div>
@@ -360,7 +367,9 @@ export default async function Collections({
             <div>
               {title ? (
                 <h2 className="font-heading text-[4rem] font-light leading-[0.9] tracking-[-0.055em] text-[#0b0b0b] sm:text-[5.3rem] lg:text-[6.6rem]">
-                  {renderMultilineTitle(title)}
+                  {renderMultilineTitle(
+                    title
+                  )}
                 </h2>
               ) : null}
 
@@ -441,7 +450,9 @@ export default async function Collections({
                   );
 
                 const collectionHref =
-                  getCollectionHref(collection);
+                  getCollectionHref(
+                    collection
+                  );
 
                 const collectionKey =
                   collection._id ||
@@ -454,10 +465,15 @@ export default async function Collections({
                     key={String(
                       collectionKey
                     )}
-                    delay={index * 140}
+                    delay={Math.min(
+                      index * 100,
+                      500
+                    )}
                   >
                     <Link
-                      href={collectionHref}
+                      href={
+                        collectionHref
+                      }
                       className="group block h-full overflow-hidden border border-black/10 bg-[#f1ece4] transition duration-500 hover:-translate-y-2 hover:border-black/30 hover:shadow-2xl hover:shadow-black/10"
                       aria-label={`View ${collectionTitle}`}
                     >
@@ -470,9 +486,7 @@ export default async function Collections({
                             collectionTitle
                           }
                           fill
-                          priority={
-                            index < 3
-                          }
+                          priority={index < 3}
                           sizes="(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 33vw"
                           className="object-cover object-center transition-transform duration-1000 ease-out group-hover:scale-[1.055]"
                         />
@@ -507,9 +521,7 @@ export default async function Collections({
                         </p>
 
                         <h3 className="mt-4 font-heading text-3xl font-light leading-none tracking-[-0.035em] text-[#0b0b0b]">
-                          {
-                            collectionTitle
-                          }
+                          {collectionTitle}
                         </h3>
 
                         {showDescription &&
@@ -523,9 +535,7 @@ export default async function Collections({
 
                         <div className="mt-7 flex items-center justify-between border-t border-black/10 pt-5">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-neutral-500">
-                            {
-                              cardButtonText
-                            }
+                            {cardButtonText}
                           </p>
 
                           <span className="text-xl leading-none text-[#0b0b0b] transition duration-300 group-hover:translate-x-1">

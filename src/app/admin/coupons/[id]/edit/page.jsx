@@ -24,6 +24,12 @@ const INITIAL_FORM_DATA = {
   usageLimit: "",
   usageCount: 0,
   active: true,
+
+  isPublic: false,
+  promoted: false,
+  publicTitle: "",
+  publicDescription: "",
+  displayOrder: "0",
 };
 
 function normalizeMoney(value) {
@@ -46,7 +52,10 @@ function normalizeInteger(value) {
     return 0;
   }
 
-  return Math.max(0, Math.floor(amount));
+  return Math.max(
+    0,
+    Math.floor(amount)
+  );
 }
 
 function normalizeCouponCode(value) {
@@ -233,7 +242,10 @@ export default function EditCouponPage() {
           return;
         }
 
-        if (!response.ok || !data?.success) {
+        if (
+          !response.ok ||
+          !data?.success
+        ) {
           if (response.status === 404) {
             setCouponNotFound(true);
           }
@@ -251,10 +263,14 @@ export default function EditCouponPage() {
 
         const coupon = data.coupon;
 
-        const type = normalizeCouponType(
-          coupon.type ??
-            coupon.discountType
-        );
+        const type =
+          normalizeCouponType(
+            coupon.type ??
+              coupon.discountType
+          );
+
+        const isPublic =
+          coupon.isPublic === true;
 
         setFormData({
           code: normalizeCouponCode(
@@ -297,15 +313,17 @@ export default function EditCouponPage() {
                 )
               : "",
 
-          startsAt: convertDateToLocalInput(
-            coupon.startsAt ??
-              coupon.startDate
-          ),
+          startsAt:
+            convertDateToLocalInput(
+              coupon.startsAt ??
+                coupon.startDate
+            ),
 
-          expiresAt: convertDateToLocalInput(
-            coupon.expiresAt ??
-              coupon.expiryDate
-          ),
+          expiresAt:
+            convertDateToLocalInput(
+              coupon.expiresAt ??
+                coupon.expiryDate
+            ),
 
           usageLimit: String(
             coupon.usageLimit ??
@@ -313,13 +331,34 @@ export default function EditCouponPage() {
               ""
           ),
 
-          usageCount: normalizeInteger(
-            coupon.usageCount ??
-              coupon.usedCount
-          ),
+          usageCount:
+            normalizeInteger(
+              coupon.usageCount ??
+                coupon.usedCount
+            ),
 
           active:
-            getCouponActiveState(coupon),
+            getCouponActiveState(
+              coupon
+            ),
+
+          isPublic,
+
+          promoted:
+            isPublic &&
+            coupon.promoted === true,
+
+          publicTitle: String(
+            coupon.publicTitle || ""
+          ),
+
+          publicDescription: String(
+            coupon.publicDescription || ""
+          ),
+
+          displayOrder: String(
+            coupon.displayOrder ?? 0
+          ),
         });
 
         setIsLoading(false);
@@ -349,16 +388,34 @@ export default function EditCouponPage() {
   }, [couponId]);
 
   function handleChange(event) {
-    const { name, value, type, checked } =
-      event.target;
+    const {
+      name,
+      value,
+      type,
+      checked,
+    } = event.target;
 
     setErrorMessage("");
 
-    setFormData((currentData) => ({
-      ...currentData,
-      [name]:
-        type === "checkbox" ? checked : value,
-    }));
+    setFormData((currentData) => {
+      const nextData = {
+        ...currentData,
+
+        [name]:
+          type === "checkbox"
+            ? checked
+            : value,
+      };
+
+      if (
+        name === "isPublic" &&
+        checked === false
+      ) {
+        nextData.promoted = false;
+      }
+
+      return nextData;
+    });
   }
 
   function handleCodeChange(event) {
@@ -366,6 +423,7 @@ export default function EditCouponPage() {
 
     setFormData((currentData) => ({
       ...currentData,
+
       code: normalizeCouponCode(
         event.target.value
       ),
@@ -373,12 +431,14 @@ export default function EditCouponPage() {
   }
 
   function handleTypeChange(event) {
-    const nextType = event.target.value;
+    const nextType =
+      event.target.value;
 
     setErrorMessage("");
 
     setFormData((currentData) => ({
       ...currentData,
+
       type: nextType,
 
       value:
@@ -412,6 +472,19 @@ export default function EditCouponPage() {
 
     if (!formData.name.trim()) {
       return "Please enter a coupon name.";
+    }
+
+    if (
+      formData.name.trim().length > 120
+    ) {
+      return "Coupon name cannot exceed 120 characters.";
+    }
+
+    if (
+      formData.description.trim().length >
+      1000
+    ) {
+      return "Internal description cannot exceed 1000 characters.";
     }
 
     if (
@@ -465,15 +538,43 @@ export default function EditCouponPage() {
       return "Usage limit cannot be negative.";
     }
 
-    const usageLimit = normalizeInteger(
-      formData.usageLimit
-    );
+    const usageLimit =
+      normalizeInteger(
+        formData.usageLimit
+      );
 
     if (
       usageLimit > 0 &&
       formData.usageCount > usageLimit
     ) {
       return `Usage limit cannot be lower than the existing usage count of ${formData.usageCount}.`;
+    }
+
+    if (
+      formData.displayOrder !== "" &&
+      (
+        !Number.isInteger(
+          Number(formData.displayOrder)
+        ) ||
+        Number(formData.displayOrder) < 0
+      )
+    ) {
+      return "Display order must be a non-negative whole number.";
+    }
+
+    if (
+      formData.publicTitle.trim().length >
+      120
+    ) {
+      return "Public title cannot exceed 120 characters.";
+    }
+
+    if (
+      formData.publicDescription
+        .trim()
+        .length > 500
+    ) {
+      return "Public description cannot exceed 500 characters.";
     }
 
     if (
@@ -489,8 +590,12 @@ export default function EditCouponPage() {
       );
 
       if (
-        !Number.isNaN(startDate.getTime()) &&
-        !Number.isNaN(expiryDate.getTime()) &&
+        !Number.isNaN(
+          startDate.getTime()
+        ) &&
+        !Number.isNaN(
+          expiryDate.getTime()
+        ) &&
         expiryDate <= startDate
       ) {
         return "Expiry date must be later than the start date.";
@@ -504,10 +609,13 @@ export default function EditCouponPage() {
     event.preventDefault();
     setErrorMessage("");
 
-    const validationError = validateForm();
+    const validationError =
+      validateForm();
 
     if (validationError) {
-      setErrorMessage(validationError);
+      setErrorMessage(
+        validationError
+      );
       return;
     }
 
@@ -521,7 +629,9 @@ export default function EditCouponPage() {
     setIsSubmitting(true);
 
     const normalizedCode =
-      normalizeCouponCode(formData.code);
+      normalizeCouponCode(
+        formData.code
+      );
 
     const couponData = {
       code: normalizedCode,
@@ -535,42 +645,68 @@ export default function EditCouponPage() {
       type: formData.type,
 
       value:
-        formData.type === "free_shipping"
+        formData.type ===
+        "free_shipping"
           ? 0
-          : normalizeMoney(formData.value),
+          : normalizeMoney(
+              formData.value
+            ),
 
-      minimumOrder: normalizeMoney(
-        formData.minimumOrder
-      ),
+      minimumOrder:
+        normalizeMoney(
+          formData.minimumOrder
+        ),
 
       maximumDiscount:
-        formData.type === "percentage"
+        formData.type ===
+        "percentage"
           ? normalizeMoney(
               formData.maximumDiscount
             )
           : 0,
 
-      startsAt: convertDateTimeToIso(
-        formData.startsAt
-      ),
+      startsAt:
+        convertDateTimeToIso(
+          formData.startsAt
+        ),
 
-      expiresAt: convertDateTimeToIso(
-        formData.expiresAt
-      ),
+      expiresAt:
+        convertDateTimeToIso(
+          formData.expiresAt
+        ),
 
-      usageLimit: normalizeInteger(
-        formData.usageLimit
-      ),
+      usageLimit:
+        normalizeInteger(
+          formData.usageLimit
+        ),
 
-      usageCount: formData.usageCount,
+      usageCount:
+        formData.usageCount,
 
       active: formData.active,
-
       isActive: formData.active,
 
       status: formData.active
         ? "active"
         : "inactive",
+
+      isPublic:
+        formData.isPublic,
+
+      promoted:
+        formData.isPublic &&
+        formData.promoted,
+
+      publicTitle:
+        formData.publicTitle.trim(),
+
+      publicDescription:
+        formData.publicDescription.trim(),
+
+      displayOrder:
+        normalizeInteger(
+          formData.displayOrder
+        ),
     };
 
     try {
@@ -586,7 +722,9 @@ export default function EditCouponPage() {
               "application/json",
           },
 
-          body: JSON.stringify(couponData),
+          body: JSON.stringify(
+            couponData
+          ),
         }
       );
 
@@ -594,7 +732,10 @@ export default function EditCouponPage() {
         .json()
         .catch(() => null);
 
-      if (!response.ok || !data?.success) {
+      if (
+        !response.ok ||
+        !data?.success
+      ) {
         setErrorMessage(
           getErrorMessage(
             data,
@@ -606,7 +747,10 @@ export default function EditCouponPage() {
         return;
       }
 
-      router.push("/admin/coupons");
+      router.push(
+        "/admin/coupons"
+      );
+
       router.refresh();
     } catch (error) {
       console.error(
@@ -680,9 +824,9 @@ export default function EditCouponPage() {
             </h1>
 
             <p className="mt-5 max-w-2xl text-sm leading-7 text-neutral-500">
-              Update coupon identity, discount
-              rules, validity dates, usage limit
-              and activation status.
+              Update discount rules, public
+              promotion settings, validity dates
+              and usage limits.
             </p>
           </div>
 
@@ -732,9 +876,12 @@ export default function EditCouponPage() {
                   name="code"
                   type="text"
                   value={formData.code}
-                  onChange={handleCodeChange}
+                  onChange={
+                    handleCodeChange
+                  }
                   placeholder="Example: OBSIDIAN20"
                   required
+                  maxLength={50}
                   autoComplete="off"
                   disabled={isSubmitting}
                   className="w-full border border-white/10 bg-white/5 px-5 py-4 uppercase tracking-[0.15em] outline-none transition placeholder:normal-case placeholder:tracking-normal placeholder:text-neutral-600 focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50"
@@ -762,6 +909,7 @@ export default function EditCouponPage() {
                   onChange={handleChange}
                   placeholder="Example: Summer Launch Offer"
                   required
+                  maxLength={120}
                   disabled={isSubmitting}
                   className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none transition placeholder:text-neutral-600 focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50"
                 />
@@ -772,16 +920,19 @@ export default function EditCouponPage() {
                   htmlFor="description"
                   className="mb-3 block text-xs uppercase tracking-[0.25em] text-neutral-400"
                 >
-                  Description
+                  Internal Description
                 </label>
 
                 <textarea
                   id="description"
                   name="description"
-                  value={formData.description}
+                  value={
+                    formData.description
+                  }
                   onChange={handleChange}
-                  placeholder="Add an internal description or campaign note..."
+                  placeholder="Add an internal campaign note..."
                   rows={4}
+                  maxLength={1000}
                   disabled={isSubmitting}
                   className="w-full resize-y border border-white/10 bg-white/5 px-5 py-4 outline-none transition placeholder:text-neutral-600 focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50"
                 />
@@ -813,7 +964,9 @@ export default function EditCouponPage() {
                   id="type"
                   name="type"
                   value={formData.type}
-                  onChange={handleTypeChange}
+                  onChange={
+                    handleTypeChange
+                  }
                   disabled={isSubmitting}
                   className="w-full border border-white/10 bg-[#111111] px-5 py-4 outline-none transition focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -851,8 +1004,12 @@ export default function EditCouponPage() {
                       id="value"
                       name="value"
                       type="number"
-                      value={formData.value}
-                      onChange={handleChange}
+                      value={
+                        formData.value
+                      }
+                      onChange={
+                        handleChange
+                      }
                       placeholder={
                         formData.type ===
                         "percentage"
@@ -874,9 +1031,9 @@ export default function EditCouponPage() {
                   </div>
                 ) : (
                   <div className="border border-white/10 bg-white/[0.03] p-5 text-sm leading-7 text-neutral-400">
-                    Free shipping coupons remove the
-                    applicable delivery charge from the
-                    order. No discount value is required.
+                    Free shipping coupons remove
+                    the applicable delivery charge.
+                    No discount value is required.
                   </div>
                 )}
 
@@ -924,7 +1081,9 @@ export default function EditCouponPage() {
                   id="minimumOrder"
                   name="minimumOrder"
                   type="number"
-                  value={formData.minimumOrder}
+                  value={
+                    formData.minimumOrder
+                  }
                   onChange={handleChange}
                   placeholder="0 means no minimum order"
                   min="0"
@@ -939,7 +1098,173 @@ export default function EditCouponPage() {
           <section className="border border-white/10 bg-white/[0.02] p-6 md:p-8">
             <div className="mb-8">
               <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">
-                03 / Availability
+                03 / Public Visibility
+              </p>
+
+              <h2 className="mt-3 font-heading text-3xl font-light">
+                Customer Promotion
+              </h2>
+
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-neutral-500">
+                Choose whether customers can
+                discover this coupon publicly on
+                the storefront and checkout.
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              <label className="flex cursor-pointer items-start gap-4 border border-white/10 bg-white/[0.03] p-5">
+                <input
+                  type="checkbox"
+                  name="isPublic"
+                  checked={
+                    formData.isPublic
+                  }
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                  className="mt-1 h-4 w-4 accent-[#f1ece4] disabled:cursor-not-allowed disabled:opacity-50"
+                />
+
+                <span>
+                  <span className="block text-sm text-[#f1ece4]">
+                    Show this coupon to customers
+                  </span>
+
+                  <span className="mt-2 block text-xs leading-6 text-neutral-500">
+                    The coupon can remain usable
+                    without being displayed
+                    publicly.
+                  </span>
+                </span>
+              </label>
+
+              {formData.isPublic ? (
+                <>
+                  <label className="flex cursor-pointer items-start gap-4 border border-white/10 bg-white/[0.03] p-5">
+                    <input
+                      type="checkbox"
+                      name="promoted"
+                      checked={
+                        formData.promoted
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      disabled={
+                        isSubmitting
+                      }
+                      className="mt-1 h-4 w-4 accent-[#f1ece4] disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+
+                    <span>
+                      <span className="block text-sm text-[#f1ece4]">
+                        Feature this coupon
+                      </span>
+
+                      <span className="mt-2 block text-xs leading-6 text-neutral-500">
+                        Featured coupons appear
+                        before other public
+                        promotions.
+                      </span>
+                    </span>
+                  </label>
+
+                  <div>
+                    <label
+                      htmlFor="publicTitle"
+                      className="mb-3 block text-xs uppercase tracking-[0.25em] text-neutral-400"
+                    >
+                      Public Title
+                    </label>
+
+                    <input
+                      id="publicTitle"
+                      name="publicTitle"
+                      type="text"
+                      value={
+                        formData.publicTitle
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="Leave blank to use the internal name"
+                      maxLength={120}
+                      disabled={
+                        isSubmitting
+                      }
+                      className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none transition placeholder:text-neutral-600 focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="publicDescription"
+                      className="mb-3 block text-xs uppercase tracking-[0.25em] text-neutral-400"
+                    >
+                      Public Description
+                    </label>
+
+                    <textarea
+                      id="publicDescription"
+                      name="publicDescription"
+                      value={
+                        formData.publicDescription
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="Example: Save 20% on orders over ৳2,000."
+                      rows={4}
+                      maxLength={500}
+                      disabled={
+                        isSubmitting
+                      }
+                      className="w-full resize-y border border-white/10 bg-white/5 px-5 py-4 outline-none transition placeholder:text-neutral-600 focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="displayOrder"
+                      className="mb-3 block text-xs uppercase tracking-[0.25em] text-neutral-400"
+                    >
+                      Display Order
+                    </label>
+
+                    <input
+                      id="displayOrder"
+                      name="displayOrder"
+                      type="number"
+                      value={
+                        formData.displayOrder
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      min="0"
+                      max="10000"
+                      step="1"
+                      disabled={
+                        isSubmitting
+                      }
+                      className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none transition focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+
+                    <p className="mt-2 text-xs leading-6 text-neutral-600">
+                      Lower numbers appear first.
+                      Featured coupons still receive
+                      priority.
+                    </p>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="border border-white/10 bg-white/[0.02] p-6 md:p-8">
+            <div className="mb-8">
+              <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">
+                04 / Availability
               </p>
 
               <h2 className="mt-3 font-heading text-3xl font-light">
@@ -961,15 +1286,17 @@ export default function EditCouponPage() {
                     id="startsAt"
                     name="startsAt"
                     type="datetime-local"
-                    value={formData.startsAt}
+                    value={
+                      formData.startsAt
+                    }
                     onChange={handleChange}
                     disabled={isSubmitting}
                     className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none transition focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50 [color-scheme:dark]"
                   />
 
                   <p className="mt-2 text-xs leading-6 text-neutral-600">
-                    Leave blank to make it available
-                    immediately.
+                    Leave blank to make it
+                    available immediately.
                   </p>
                 </div>
 
@@ -985,15 +1312,17 @@ export default function EditCouponPage() {
                     id="expiresAt"
                     name="expiresAt"
                     type="datetime-local"
-                    value={formData.expiresAt}
+                    value={
+                      formData.expiresAt
+                    }
                     onChange={handleChange}
                     disabled={isSubmitting}
                     className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none transition focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50 [color-scheme:dark]"
                   />
 
                   <p className="mt-2 text-xs leading-6 text-neutral-600">
-                    Leave blank if the coupon should
-                    not expire.
+                    Leave blank if the coupon
+                    should not expire.
                   </p>
                 </div>
               </div>
@@ -1010,7 +1339,9 @@ export default function EditCouponPage() {
                   id="usageLimit"
                   name="usageLimit"
                   type="number"
-                  value={formData.usageLimit}
+                  value={
+                    formData.usageLimit
+                  }
                   onChange={handleChange}
                   placeholder="0 means unlimited usage"
                   min={formData.usageCount}
@@ -1020,12 +1351,12 @@ export default function EditCouponPage() {
                 />
 
                 <p className="mt-2 text-xs leading-6 text-neutral-600">
-                  This coupon has already been used{" "}
-                  {formData.usageCount}{" "}
+                  This coupon has already been
+                  used {formData.usageCount}{" "}
                   {formData.usageCount === 1
                     ? "time"
                     : "times"}
-                  . The usage limit cannot be lower
+                  . The limit cannot be lower
                   than the current usage count.
                 </p>
               </div>
@@ -1034,7 +1365,9 @@ export default function EditCouponPage() {
                 <input
                   type="checkbox"
                   name="active"
-                  checked={formData.active}
+                  checked={
+                    formData.active
+                  }
                   onChange={handleChange}
                   disabled={isSubmitting}
                   className="mt-1 h-4 w-4 accent-[#f1ece4] disabled:cursor-not-allowed disabled:opacity-50"
@@ -1046,10 +1379,9 @@ export default function EditCouponPage() {
                   </span>
 
                   <span className="mt-2 block text-xs leading-6 text-neutral-500">
-                    An inactive coupon remains saved
+                    Inactive coupons remain saved
                     but cannot be applied during
-                    checkout. Scheduled start dates
-                    are still respected.
+                    checkout.
                   </span>
                 </span>
               </label>

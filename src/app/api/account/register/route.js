@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import clientPromise from "@/lib/mongodb";
 import { setCustomerSession } from "@/lib/customerAuth";
+import { ORDERS_COLLECTION_NAME } from "@/lib/orderPricing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +11,19 @@ const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
 const MAX_NAME_LENGTH = 80;
 const MAX_EMAIL_LENGTH = 254;
+const MAX_PHONE_LENGTH = 14;
+
+const COMPLETED_ORDER_STATUSES = new Set([
+  "completed",
+  "delivered",
+]);
+
+const CANCELLED_ORDER_STATUSES = new Set([
+  "cancelled",
+  "canceled",
+  "refunded",
+  "returned",
+]);
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -19,23 +33,41 @@ function normalizeEmail(value) {
   return normalizeText(value).toLowerCase();
 }
 
+function normalizePhone(value) {
+  return String(value ?? "")
+    .replace(/\D/g, "")
+    .slice(0, MAX_PHONE_LENGTH);
+}
+
 function normalizeName(value) {
   return normalizeText(value)
     .replace(/\s+/g, " ")
     .slice(0, MAX_NAME_LENGTH);
 }
 
+function normalizeNumber(value) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number) || number < 0) {
+    return 0;
+  }
+
+  return number;
+}
+
+function escapeRegExp(value) {
+  return String(value || "").replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&"
+  );
+}
+
 function isValidEmail(email) {
-  if (
-    !email ||
-    email.length > MAX_EMAIL_LENGTH
-  ) {
+  if (!email || email.length > MAX_EMAIL_LENGTH) {
     return false;
   }
 
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-    email
-  );
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 function validatePassword(password) {
@@ -122,7 +154,8 @@ function createCustomerId() {
     .toString(36)
     .toUpperCase();
 
-  const randomPart = crypto.randomUUID()
+  const randomPart = crypto
+    .randomUUID()
     .replace(/-/g, "")
     .slice(0, 8)
     .toUpperCase();
@@ -143,6 +176,9 @@ function createErrorResponse(
     },
     {
       status,
+      headers: {
+        "Cache-Control": "no-store",
+      },
     }
   );
 }
@@ -158,7 +194,305 @@ function serializeCustomer(customer) {
     phone: customer.phone,
     status: customer.status,
     emailVerified: customer.emailVerified,
+    totalOrders: customer.totalOrders || 0,
+    completedOrders:
+      customer.completedOrders || 0,
+    cancelledOrders:
+      customer.cancelledOrders || 0,
+    totalSpent: customer.totalSpent || 0,
     createdAt: customer.createdAt,
+  };
+}
+
+async function ensureRegistrationIndexes(
+  customersCollection,
+  ordersCollection
+) {
+  try {
+    await Promise.all([
+      customersCollection.createIndex(
+        {
+          email: 1,
+        },
+        {
+          unique: true,
+          name: "unique_customer_email",
+        }
+      ),
+
+      ordersCollection.createIndex(
+        {
+          customerId: 1,
+          createdAt: -1,
+        },
+        {
+          name: "orders_customer_id",
+          partialFilterExpression: {
+            customerId: {
+              $type: "string",
+            },
+          },
+        }
+      ),
+
+      ordersCollection.createIndex(
+        {
+          customerAccountId: 1,
+          createdAt: -1,
+        },
+        {
+          name: "orders_customer_account",
+          partialFilterExpression: {
+            customerAccountId: {
+              $type: "string",
+            },
+          },
+        }
+      ),
+
+      ordersCollection.createIndex(
+        {
+          "customer.email": 1,
+          createdAt: -1,
+        },
+        {
+          name: "orders_customer_email",
+        }
+      ),
+
+      ordersCollection.createIndex(
+        {
+          "customer.phone": 1,
+          createdAt: -1,
+        },
+        {
+          name: "orders_customer_phone",
+        }
+      ),
+    ]);
+  } catch (indexError) {
+    console.warn(
+      "Customer registration index warning:",
+      indexError?.message || indexError
+    );
+  }
+}
+
+function createUnlinkedOrderFilter() {
+  return {
+    $and: [
+      {
+        $or: [
+          {
+            customerId: {
+              $exists: false,
+            },
+          },
+          {
+            customerId: null,
+          },
+          {
+            customerId: "",
+          },
+        ],
+      },
+      {
+        $or: [
+          {
+            customerAccountId: {
+              $exists: false,
+            },
+          },
+          {
+            customerAccountId: null,
+          },
+          {
+            customerAccountId: "",
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function createGuestOrderIdentityFilter({
+  email,
+  phone,
+  fullName,
+}) {
+  const identityFilters = [];
+
+  if (email) {
+    identityFilters.push({
+      "customer.email": {
+        $regex: `^${escapeRegExp(email)}$`,
+        $options: "i",
+      },
+    });
+  }
+
+  if (phone && fullName) {
+    identityFilters.push({
+      $and: [
+        {
+          "customer.phone": phone,
+        },
+        {
+          "customer.fullName": {
+            $regex: `^${escapeRegExp(fullName)}$`,
+            $options: "i",
+          },
+        },
+        {
+          $or: [
+            {
+              "customer.email": {
+                $exists: false,
+              },
+            },
+            {
+              "customer.email": null,
+            },
+            {
+              "customer.email": "",
+            },
+            {
+              "customer.email": {
+                $regex: `^${escapeRegExp(email)}$`,
+                $options: "i",
+              },
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  if (identityFilters.length === 0) {
+    return null;
+  }
+
+  return {
+    $or: identityFilters,
+  };
+}
+
+async function linkGuestOrders({
+  ordersCollection,
+  customer,
+  now,
+}) {
+  const identityFilter =
+    createGuestOrderIdentityFilter({
+      email: customer.email,
+      phone: customer.phoneNormalized,
+      fullName: customer.fullName,
+    });
+
+  if (!identityFilter) {
+    return 0;
+  }
+
+  const unlinkedFilter =
+    createUnlinkedOrderFilter();
+
+  const result = await ordersCollection.updateMany(
+    {
+      $and: [
+        ...unlinkedFilter.$and,
+        identityFilter,
+      ],
+    },
+    {
+      $set: {
+        customerId: customer.customerId,
+        customerAccountId: String(customer._id),
+
+        customerLinkedAt: now,
+        customerLinkSource:
+          "account_registration",
+
+        "customer.customerId":
+          customer.customerId,
+
+        "customer.accountId":
+          String(customer._id),
+
+        "customer.accountEmail":
+          customer.email,
+
+        "customer.accountPhone":
+          customer.phoneNormalized,
+
+        updatedAt: now,
+      },
+    }
+  );
+
+  return result.modifiedCount;
+}
+
+async function calculateCustomerOrderStats({
+  ordersCollection,
+  customer,
+}) {
+  const orders = await ordersCollection
+    .find(
+      {
+        $or: [
+          {
+            customerId: customer.customerId,
+          },
+          {
+            customerAccountId: String(
+              customer._id
+            ),
+          },
+        ],
+      },
+      {
+        projection: {
+          status: 1,
+          total: 1,
+          pricing: 1,
+        },
+      }
+    )
+    .toArray();
+
+  let completedOrders = 0;
+  let cancelledOrders = 0;
+  let totalSpent = 0;
+
+  for (const order of orders) {
+    const status = normalizeText(
+      order.status
+    ).toLowerCase();
+
+    if (
+      COMPLETED_ORDER_STATUSES.has(status)
+    ) {
+      completedOrders += 1;
+
+      totalSpent += normalizeNumber(
+        order?.pricing?.total ??
+          order?.total
+      );
+    }
+
+    if (
+      CANCELLED_ORDER_STATUSES.has(status)
+    ) {
+      cancelledOrders += 1;
+    }
+  }
+
+  return {
+    totalOrders: orders.length,
+    completedOrders,
+    cancelledOrders,
+    totalSpent:
+      Math.round(totalSpent * 100) / 100,
   };
 }
 
@@ -191,7 +525,10 @@ export async function POST(request) {
     const fullName =
       suppliedFullName ||
       normalizeName(
-        [suppliedFirstName, suppliedLastName]
+        [
+          suppliedFirstName,
+          suppliedLastName,
+        ]
           .filter(Boolean)
           .join(" ")
       );
@@ -200,7 +537,8 @@ export async function POST(request) {
       requestBody?.email
     );
 
-    const password = requestBody?.password;
+    const password =
+      requestBody?.password;
 
     const confirmPassword =
       requestBody?.confirmPassword;
@@ -208,6 +546,9 @@ export async function POST(request) {
     const phone = normalizeText(
       requestBody?.phone
     ).slice(0, 30);
+
+    const phoneNormalized =
+      normalizePhone(phone);
 
     const marketingConsent = Boolean(
       requestBody?.marketingConsent
@@ -249,6 +590,20 @@ export async function POST(request) {
       );
     }
 
+    if (
+      phoneNormalized &&
+      (
+        phoneNormalized.length < 10 ||
+        phoneNormalized.length > 14
+      )
+    ) {
+      return createErrorResponse(
+        "Please enter a valid phone number.",
+        400,
+        "phone"
+      );
+    }
+
     const passwordValidation =
       validatePassword(password);
 
@@ -282,28 +637,22 @@ export async function POST(request) {
     const client = await clientPromise;
 
     const db = client.db(
-      process.env.MONGODB_DB || "obsidian"
+      process.env.MONGODB_DB ||
+        "obsidian"
     );
 
     const customersCollection =
       db.collection("customers");
 
-    try {
-      await customersCollection.createIndex(
-        {
-          email: 1,
-        },
-        {
-          unique: true,
-          name: "unique_customer_email",
-        }
+    const ordersCollection =
+      db.collection(
+        ORDERS_COLLECTION_NAME
       );
-    } catch (indexError) {
-      console.error(
-        "Customer email index warning:",
-        indexError
-      );
-    }
+
+    await ensureRegistrationIndexes(
+      customersCollection,
+      ordersCollection
+    );
 
     const existingCustomer =
       await customersCollection.findOne(
@@ -326,10 +675,8 @@ export async function POST(request) {
       );
     }
 
-    const passwordHash = await bcrypt.hash(
-      password,
-      12
-    );
+    const passwordHash =
+      await bcrypt.hash(password, 12);
 
     const {
       firstName,
@@ -348,7 +695,9 @@ export async function POST(request) {
 
       email,
       emailNormalized: email,
+
       phone,
+      phoneNormalized,
 
       passwordHash,
 
@@ -362,9 +711,10 @@ export async function POST(request) {
       phoneVerifiedAt: null,
 
       marketingConsent,
-      marketingConsentAt: marketingConsent
-        ? now
-        : null,
+      marketingConsentAt:
+        marketingConsent
+          ? now
+          : null,
 
       termsAccepted: true,
       termsAcceptedAt: now,
@@ -420,10 +770,57 @@ export async function POST(request) {
       throw insertError;
     }
 
-    const createdCustomer = {
+    let createdCustomer = {
       ...customerDocument,
       _id: insertResult.insertedId,
     };
+
+    let linkedOrdersCount = 0;
+
+    try {
+      linkedOrdersCount =
+        await linkGuestOrders({
+          ordersCollection,
+          customer: createdCustomer,
+          now,
+        });
+
+      const orderStats =
+        await calculateCustomerOrderStats({
+          ordersCollection,
+          customer: createdCustomer,
+        });
+
+      await customersCollection.updateOne(
+        {
+          _id: insertResult.insertedId,
+        },
+        {
+          $set: {
+            ...orderStats,
+            guestOrdersLinkedAt:
+              linkedOrdersCount > 0
+                ? now
+                : null,
+            updatedAt: now,
+          },
+        }
+      );
+
+      createdCustomer = {
+        ...createdCustomer,
+        ...orderStats,
+        guestOrdersLinkedAt:
+          linkedOrdersCount > 0
+            ? now
+            : null,
+      };
+    } catch (linkError) {
+      console.error(
+        "Guest order linking warning:",
+        linkError
+      );
+    }
 
     await setCustomerSession(
       createdCustomer
@@ -432,8 +829,18 @@ export async function POST(request) {
     return NextResponse.json(
       {
         success: true,
+
         message:
-          "Your OBSIDIAN account has been created.",
+          linkedOrdersCount > 0
+            ? `Your OBSIDIAN account has been created and ${linkedOrdersCount} previous ${
+                linkedOrdersCount === 1
+                  ? "order has"
+                  : "orders have"
+              } been linked.`
+            : "Your OBSIDIAN account has been created.",
+
+        linkedOrdersCount,
+
         customer:
           serializeCustomer(
             createdCustomer
@@ -441,6 +848,9 @@ export async function POST(request) {
       },
       {
         status: 201,
+        headers: {
+          "Cache-Control": "no-store",
+        },
       }
     );
   } catch (error) {
