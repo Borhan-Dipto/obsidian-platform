@@ -3,9 +3,19 @@ import Link from "next/link";
 import { cache } from "react";
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
+import ShopFilters from "../../components/shop/ShopFilters";
 import WishlistButton from "../../components/product/WishlistButton";
 import QuickViewButton from "../../components/product/QuickViewButton";
-import clientPromise from "../../lib/mongodb";
+import {
+  PRODUCTS_COLLECTION_NAME,
+  getCatalogDatabase,
+  getPublicProductQuery,
+  normalizeSeriesKey,
+  normalizeSeriesName,
+} from "../../lib/catalog";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const SITE_NAME = "OBSIDIAN";
 
@@ -18,14 +28,37 @@ const FALLBACK_IMAGE = "/images/collection-artifact.jpeg";
 const DEFAULT_DESCRIPTION =
   "Discover premium OBSIDIAN menswear and engineered essentials built under pressure and finished with precision.";
 
+const VALID_AVAILABILITY_FILTERS = new Set([
+  "All",
+  "in_stock",
+  "out_of_stock",
+]);
+
+const VALID_SORT_OPTIONS = new Set([
+  "newest",
+  "price_low",
+  "price_high",
+  "name_az",
+]);
+
 function cleanText(value, fallback = "") {
-  if (typeof value !== "string") {
+  if (
+    value === undefined ||
+    value === null
+  ) {
     return fallback;
   }
 
-  const cleanedValue = value.replace(/\s+/g, " ").trim();
+  const cleanedValue = String(value)
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .trim();
 
   return cleanedValue || fallback;
+}
+
+function normalizeComparableText(value) {
+  return cleanText(value).toLocaleLowerCase("en");
 }
 
 function getSearchParam(value, fallback = "") {
@@ -36,33 +69,342 @@ function getSearchParam(value, fallback = "") {
   return cleanText(value, fallback);
 }
 
+function normalizePriceParam(value) {
+  const rawValue = getSearchParam(value);
+
+  if (!rawValue) {
+    return "";
+  }
+
+  const price = Number(rawValue);
+
+  if (
+    !Number.isFinite(price) ||
+    price < 0
+  ) {
+    return "";
+  }
+
+  return String(
+    Math.round(price * 100) / 100
+  );
+}
+
 function normalizeFilters(params = {}) {
-  return {
-    selectedSeries: getSearchParam(params?.series, "All"),
-    searchQuery: getSearchParam(params?.q, ""),
-    selectedColor: getSearchParam(params?.color, "All"),
-    selectedAvailability: getSearchParam(
+  const selectedAvailability =
+    getSearchParam(
       params?.availability,
       "All"
+    );
+
+  const selectedSort = getSearchParam(
+    params?.sort,
+    "newest"
+  );
+
+  let minimumPrice =
+    normalizePriceParam(
+      params?.minPrice
+    );
+
+  let maximumPrice =
+    normalizePriceParam(
+      params?.maxPrice
+    );
+
+  const minimumPriceNumber =
+    minimumPrice === ""
+      ? null
+      : Number(minimumPrice);
+
+  const maximumPriceNumber =
+    maximumPrice === ""
+      ? null
+      : Number(maximumPrice);
+
+  if (
+    minimumPriceNumber !== null &&
+    maximumPriceNumber !== null &&
+    minimumPriceNumber >
+      maximumPriceNumber
+  ) {
+    minimumPrice = String(
+      maximumPriceNumber
+    );
+
+    maximumPrice = String(
+      minimumPriceNumber
+    );
+  }
+
+  return {
+    selectedSeries: getSearchParam(
+      params?.series,
+      "All"
     ),
-    selectedSort: getSearchParam(params?.sort, "newest"),
+
+    searchQuery: getSearchParam(
+      params?.q,
+      ""
+    ),
+
+    selectedColor: getSearchParam(
+      params?.color,
+      "All"
+    ),
+
+    selectedAvailability:
+      VALID_AVAILABILITY_FILTERS.has(
+        selectedAvailability
+      )
+        ? selectedAvailability
+        : "All",
+
+    selectedSort:
+      VALID_SORT_OPTIONS.has(
+        selectedSort
+      )
+        ? selectedSort
+        : "newest",
+
+    minimumPrice,
+    maximumPrice,
+  };
+}
+
+function serializeData(value) {
+  return JSON.parse(
+    JSON.stringify(value)
+  );
+}
+
+function getProductImage(product) {
+  const image = cleanText(
+    product?.image
+  );
+
+  if (!image) {
+    return FALLBACK_IMAGE;
+  }
+
+  if (image.startsWith("/")) {
+    return image;
+  }
+
+  try {
+    const imageUrl = new URL(image);
+
+    if (
+      imageUrl.protocol === "http:" ||
+      imageUrl.protocol === "https:"
+    ) {
+      return imageUrl.toString();
+    }
+  } catch {
+    return FALLBACK_IMAGE;
+  }
+
+  return FALLBACK_IMAGE;
+}
+
+function getAbsoluteUrl(pathOrUrl) {
+  const normalizedValue = cleanText(
+    pathOrUrl,
+    FALLBACK_IMAGE
+  );
+
+  try {
+    const url = new URL(
+      normalizedValue,
+      `${SITE_URL}/`
+    );
+
+    if (
+      url.protocol !== "http:" &&
+      url.protocol !== "https:"
+    ) {
+      return new URL(
+        FALLBACK_IMAGE,
+        `${SITE_URL}/`
+      ).toString();
+    }
+
+    return url.toString();
+  } catch {
+    return new URL(
+      FALLBACK_IMAGE,
+      `${SITE_URL}/`
+    ).toString();
+  }
+}
+
+function createProductPath(productId) {
+  return `/product/${encodeURIComponent(
+    String(productId)
+  )}`;
+}
+
+function createMetadataDescription(value) {
+  const description = cleanText(
+    value,
+    DEFAULT_DESCRIPTION
+  );
+
+  if (description.length <= 160) {
+    return description;
+  }
+
+  return `${description
+    .slice(0, 157)
+    .trim()}...`;
+}
+
+function serializeJsonLd(data) {
+  return JSON.stringify(data).replace(
+    /</g,
+    "\\u003c"
+  );
+}
+
+function createCanonicalOptions(
+  products,
+  field
+) {
+  const optionMap = new Map();
+
+  for (const product of products) {
+    const option =
+      field === "series"
+        ? normalizeSeriesName(
+            product?.series
+          )
+        : cleanText(product?.[field]);
+
+    const optionKey =
+      normalizeComparableText(option);
+
+    if (
+      !option ||
+      !optionKey ||
+      optionMap.has(optionKey)
+    ) {
+      continue;
+    }
+
+    optionMap.set(
+      optionKey,
+      option
+    );
+  }
+
+  return Array.from(
+    optionMap.values()
+  ).sort((first, second) =>
+    first.localeCompare(second)
+  );
+}
+
+function resolveFiltersAgainstCatalog(
+  filters,
+  products
+) {
+  const seriesOptions =
+    createCanonicalOptions(
+      products,
+      "series"
+    );
+
+  const colorOptions =
+    createCanonicalOptions(
+      products,
+      "color"
+    );
+
+  let selectedSeries =
+    filters.selectedSeries;
+
+  let selectedColor =
+    filters.selectedColor;
+
+  if (selectedSeries !== "All") {
+    const selectedSeriesKey =
+      normalizeSeriesKey(
+        selectedSeries
+      );
+
+    const canonicalSeries =
+      seriesOptions.find(
+        (series) =>
+          normalizeSeriesKey(series) ===
+          selectedSeriesKey
+      );
+
+    if (canonicalSeries) {
+      selectedSeries =
+        canonicalSeries;
+    }
+  }
+
+  if (selectedColor !== "All") {
+    const selectedColorKey =
+      normalizeComparableText(
+        selectedColor
+      );
+
+    const canonicalColor =
+      colorOptions.find(
+        (color) =>
+          normalizeComparableText(
+            color
+          ) === selectedColorKey
+      );
+
+    if (canonicalColor) {
+      selectedColor =
+        canonicalColor;
+    }
+  }
+
+  return {
+    filters: {
+      ...filters,
+      selectedSeries,
+      selectedColor,
+    },
+    seriesOptions,
+    colorOptions,
   };
 }
 
 const getProducts = cache(async () => {
   try {
-    const client = await clientPromise;
-    const db = client.db(process.env.MONGODB_DB || "obsidian");
+    const database =
+      await getCatalogDatabase();
 
-    const products = await db
-      .collection("products")
-      .find({})
-      .sort({ createdAt: -1 })
+    const products = await database
+      .collection(
+        PRODUCTS_COLLECTION_NAME
+      )
+      .find(
+        getPublicProductQuery()
+      )
+      .sort({
+        createdAt: -1,
+        _id: -1,
+      })
       .toArray();
 
-    return JSON.parse(JSON.stringify(products));
+    return serializeData(
+      products.filter((product) =>
+        Boolean(cleanText(product?.id))
+      )
+    );
   } catch (error) {
-    console.error("Shop product lookup error:", error);
+    console.error(
+      "Shop product lookup error:",
+      error
+    );
+
     return [];
   }
 });
@@ -73,134 +415,300 @@ function createShopUrl({
   color = "All",
   availability = "All",
   sort = "newest",
+  minPrice = "",
+  maxPrice = "",
 }) {
-  const params = new URLSearchParams();
+  const params =
+    new URLSearchParams();
 
-  if (series && series !== "All") {
-    params.set("series", series);
+  const normalizedSeries =
+    cleanText(series, "All");
+
+  const normalizedSearch =
+    cleanText(q);
+
+  const normalizedColor =
+    cleanText(color, "All");
+
+  const normalizedMinimumPrice =
+    normalizePriceParam(minPrice);
+
+  const normalizedMaximumPrice =
+    normalizePriceParam(maxPrice);
+
+  if (
+    normalizedSeries &&
+    normalizedSeries !== "All"
+  ) {
+    params.set(
+      "series",
+      normalizedSeries
+    );
   }
 
-  if (q) {
-    params.set("q", q);
+  if (normalizedSearch) {
+    params.set(
+      "q",
+      normalizedSearch
+    );
   }
 
-  if (color && color !== "All") {
-    params.set("color", color);
+  if (
+    normalizedColor &&
+    normalizedColor !== "All"
+  ) {
+    params.set(
+      "color",
+      normalizedColor
+    );
   }
 
-  if (availability && availability !== "All") {
-    params.set("availability", availability);
+  if (
+    availability &&
+    availability !== "All"
+  ) {
+    params.set(
+      "availability",
+      availability
+    );
   }
 
-  if (sort && sort !== "newest") {
+  if (normalizedMinimumPrice) {
+    params.set(
+      "minPrice",
+      normalizedMinimumPrice
+    );
+  }
+
+  if (normalizedMaximumPrice) {
+    params.set(
+      "maxPrice",
+      normalizedMaximumPrice
+    );
+  }
+
+  if (
+    sort &&
+    sort !== "newest"
+  ) {
     params.set("sort", sort);
   }
 
   const query = params.toString();
 
-  return query ? `/shop?${query}` : "/shop";
+  return query
+    ? `/shop?${query}`
+    : "/shop";
 }
 
-function getProductImage(product) {
-  return cleanText(product?.image, FALLBACK_IMAGE);
-}
-
-function getAbsoluteUrl(pathOrUrl) {
-  try {
-    return new URL(pathOrUrl, `${SITE_URL}/`).toString();
-  } catch {
-    return new URL(FALLBACK_IMAGE, `${SITE_URL}/`).toString();
-  }
-}
-
-function createProductPath(productId) {
-  return `/product/${encodeURIComponent(String(productId))}`;
-}
-
-function createMetadataDescription(value) {
-  const description = cleanText(value, DEFAULT_DESCRIPTION);
-
-  if (description.length <= 160) {
-    return description;
-  }
-
-  return `${description.slice(0, 157).trim()}...`;
-}
-
-function serializeJsonLd(data) {
-  return JSON.stringify(data).replace(/</g, "\\u003c");
-}
-
-function filterAndSortProducts(products, filters) {
+function filterAndSortProducts(
+  products,
+  filters
+) {
   const {
     selectedSeries,
     searchQuery,
     selectedColor,
     selectedAvailability,
     selectedSort,
+    minimumPrice,
+    maximumPrice,
   } = filters;
 
-  const normalizedSearchQuery = searchQuery.toLowerCase();
+  const selectedSeriesKey =
+    selectedSeries === "All"
+      ? ""
+      : normalizeSeriesKey(
+          selectedSeries
+        );
 
-  const filteredProducts = products.filter((product) => {
-    const stock = Number(product.stock) || 0;
+  const selectedColorKey =
+    selectedColor === "All"
+      ? ""
+      : normalizeComparableText(
+          selectedColor
+        );
 
-    const matchesSeries =
-      selectedSeries === "All" ||
-      product.series === selectedSeries;
-
-    const matchesColor =
-      selectedColor === "All" ||
-      product.color === selectedColor;
-
-    const matchesAvailability =
-      selectedAvailability === "All" ||
-      (selectedAvailability === "in_stock" && stock > 0) ||
-      (selectedAvailability === "out_of_stock" && stock <= 0);
-
-    const searchableText = [
-      product.name,
-      product.series,
-      product.color,
-      product.description,
-      product.id,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-
-    const matchesSearch =
-      !normalizedSearchQuery ||
-      searchableText.includes(normalizedSearchQuery);
-
-    return (
-      matchesSeries &&
-      matchesColor &&
-      matchesAvailability &&
-      matchesSearch
+  const normalizedSearchQuery =
+    normalizeComparableText(
+      searchQuery
     );
-  });
 
-  return [...filteredProducts].sort((a, b) => {
-    if (selectedSort === "price_low") {
-      return Number(a.price || 0) - Number(b.price || 0);
-    }
+  const minimumPriceNumber =
+    minimumPrice === ""
+      ? null
+      : Number(minimumPrice);
 
-    if (selectedSort === "price_high") {
-      return Number(b.price || 0) - Number(a.price || 0);
-    }
+  const maximumPriceNumber =
+    maximumPrice === ""
+      ? null
+      : Number(maximumPrice);
 
-    if (selectedSort === "name_az") {
-      return String(a.name || "").localeCompare(
-        String(b.name || "")
+  const filteredProducts =
+    products.filter((product) => {
+      const stock = Number(
+        product?.stock || 0
+      );
+
+      const price = Number(
+        product?.price || 0
+      );
+
+      const productSeriesKey =
+        normalizeSeriesKey(
+          product?.seriesKey ||
+            product?.series
+        );
+
+      const productColorKey =
+        normalizeComparableText(
+          product?.color
+        );
+
+      const matchesSeries =
+        !selectedSeriesKey ||
+        productSeriesKey ===
+          selectedSeriesKey;
+
+      const matchesColor =
+        !selectedColorKey ||
+        productColorKey ===
+          selectedColorKey;
+
+      const matchesAvailability =
+        selectedAvailability === "All" ||
+        (selectedAvailability ===
+          "in_stock" &&
+          stock > 0) ||
+        (selectedAvailability ===
+          "out_of_stock" &&
+          stock <= 0);
+
+      const matchesMinimumPrice =
+        minimumPriceNumber === null ||
+        price >= minimumPriceNumber;
+
+      const matchesMaximumPrice =
+        maximumPriceNumber === null ||
+        price <= maximumPriceNumber;
+
+      const searchableText =
+        normalizeComparableText(
+          [
+            product?.name,
+            product?.series,
+            product?.color,
+            product?.description,
+            product?.id,
+          ]
+            .filter(Boolean)
+            .join(" ")
+        );
+
+      const matchesSearch =
+        !normalizedSearchQuery ||
+        searchableText.includes(
+          normalizedSearchQuery
+        );
+
+      return (
+        matchesSeries &&
+        matchesColor &&
+        matchesAvailability &&
+        matchesMinimumPrice &&
+        matchesMaximumPrice &&
+        matchesSearch
+      );
+    });
+
+  return [...filteredProducts].sort(
+    (first, second) => {
+      if (
+        selectedSort === "price_low"
+      ) {
+        const priceDifference =
+          Number(first?.price || 0) -
+          Number(second?.price || 0);
+
+        if (priceDifference !== 0) {
+          return priceDifference;
+        }
+      }
+
+      if (
+        selectedSort === "price_high"
+      ) {
+        const priceDifference =
+          Number(second?.price || 0) -
+          Number(first?.price || 0);
+
+        if (priceDifference !== 0) {
+          return priceDifference;
+        }
+      }
+
+      if (
+        selectedSort === "name_az"
+      ) {
+        const nameDifference =
+          cleanText(
+            first?.name
+          ).localeCompare(
+            cleanText(second?.name)
+          );
+
+        if (nameDifference !== 0) {
+          return nameDifference;
+        }
+      }
+
+      const dateDifference =
+        new Date(
+          second?.createdAt || 0
+        ).getTime() -
+        new Date(
+          first?.createdAt || 0
+        ).getTime();
+
+      if (dateDifference !== 0) {
+        return dateDifference;
+      }
+
+      return cleanText(
+        first?.name
+      ).localeCompare(
+        cleanText(second?.name)
       );
     }
+  );
+}
 
-    return (
-      new Date(b.createdAt || 0).getTime() -
-      new Date(a.createdAt || 0).getTime()
+function getPriceBounds(products) {
+  const validPrices = products
+    .map((product) =>
+      Number(product?.price)
+    )
+    .filter(
+      (price) =>
+        Number.isFinite(price) &&
+        price >= 0
     );
-  });
+
+  if (validPrices.length === 0) {
+    return {
+      minimum: 0,
+      maximum: 0,
+    };
+  }
+
+  return {
+    minimum: Math.min(
+      ...validPrices
+    ),
+    maximum: Math.max(
+      ...validPrices
+    ),
+  };
 }
 
 function getSeoConfiguration(filters) {
@@ -210,30 +718,52 @@ function getSeoConfiguration(filters) {
     selectedColor,
     selectedAvailability,
     selectedSort,
+    minimumPrice,
+    maximumPrice,
   } = filters;
 
-  const hasSearchQuery = Boolean(searchQuery);
+  const hasSearchQuery =
+    Boolean(searchQuery);
 
-  const hasColorFilter = selectedColor !== "All";
+  const hasColorFilter =
+    selectedColor !== "All";
 
   const hasAvailabilityFilter =
     selectedAvailability !== "All";
 
-  const hasCustomSort = selectedSort !== "newest";
+  const hasCustomSort =
+    selectedSort !== "newest";
 
-  const hasSeriesFilter = selectedSeries !== "All";
+  const hasMinimumPrice =
+    Boolean(minimumPrice);
+
+  const hasMaximumPrice =
+    Boolean(maximumPrice);
+
+  const hasPriceFilter =
+    hasMinimumPrice ||
+    hasMaximumPrice;
+
+  const hasSeriesFilter =
+    selectedSeries !== "All";
 
   const hasNonSeriesFilters =
     hasSearchQuery ||
     hasColorFilter ||
     hasAvailabilityFilter ||
-    hasCustomSort;
+    hasCustomSort ||
+    hasPriceFilter;
 
-  const shouldIndex = !hasNonSeriesFilters;
+  const shouldIndex =
+    !hasNonSeriesFilters;
 
   const canonicalPath =
-    hasSeriesFilter && !hasNonSeriesFilters
-      ? createShopUrl({ series: selectedSeries })
+    hasSeriesFilter &&
+    !hasNonSeriesFilters
+      ? createShopUrl({
+          series:
+            selectedSeries,
+        })
       : "/shop";
 
   let title = "Shop";
@@ -246,7 +776,8 @@ function getSeoConfiguration(filters) {
     title = `${selectedColor} Products`;
   }
 
-  let description = DEFAULT_DESCRIPTION;
+  let description =
+    DEFAULT_DESCRIPTION;
 
   if (hasSearchQuery) {
     description = `Browse OBSIDIAN products matching “${searchQuery}”. Explore premium menswear built with precision and purpose.`;
@@ -254,59 +785,93 @@ function getSeoConfiguration(filters) {
     description = `Explore the ${selectedSeries} from OBSIDIAN—premium pieces shaped by pressure, precision, and quiet confidence.`;
   } else if (hasColorFilter) {
     description = `Explore ${selectedColor} OBSIDIAN pieces designed with structure, comfort, and precision.`;
+  } else if (hasPriceFilter) {
+    description =
+      "Explore OBSIDIAN products within your selected price range.";
   }
 
   return {
     title,
-    description: createMetadataDescription(description),
+    description:
+      createMetadataDescription(
+        description
+      ),
     canonicalPath,
     shouldIndex,
   };
 }
 
-export async function generateMetadata({ searchParams }) {
+export async function generateMetadata({
+  searchParams,
+}) {
   const params = await searchParams;
-  const filters = normalizeFilters(params);
-  const products = await getProducts();
-  const filteredProducts = filterAndSortProducts(
-    products,
-    filters
-  );
+
+  const rawFilters =
+    normalizeFilters(params);
+
+  const products =
+    await getProducts();
+
+  const { filters } =
+    resolveFiltersAgainstCatalog(
+      rawFilters,
+      products
+    );
+
+  const filteredProducts =
+    filterAndSortProducts(
+      products,
+      filters
+    );
 
   const {
     title,
     description,
     canonicalPath,
     shouldIndex,
-  } = getSeoConfiguration(filters);
+  } = getSeoConfiguration(
+    filters
+  );
 
-  const firstProduct = filteredProducts[0];
+  const firstProduct =
+    filteredProducts[0];
 
-  const socialImage = firstProduct
-    ? getProductImage(firstProduct)
-    : FALLBACK_IMAGE;
+  const socialImage =
+    getAbsoluteUrl(
+      firstProduct
+        ? getProductImage(
+            firstProduct
+          )
+        : FALLBACK_IMAGE
+    );
+
+  const canonicalUrl =
+    getAbsoluteUrl(
+      canonicalPath
+    );
 
   return {
     title,
-
     description,
 
     alternates: {
-      canonical: canonicalPath,
+      canonical: canonicalUrl,
     },
 
     openGraph: {
       type: "website",
       locale: "en_BD",
       siteName: SITE_NAME,
-      url: canonicalPath,
+      url: canonicalUrl,
       title: `${title} | ${SITE_NAME}`,
       description,
+
       images: [
         {
           url: socialImage,
           width: 1200,
           height: 1500,
+
           alt: firstProduct?.name
             ? `${firstProduct.name} by ${SITE_NAME}`
             : `${SITE_NAME} premium menswear`,
@@ -324,6 +889,7 @@ export async function generateMetadata({ searchParams }) {
     robots: {
       index: shouldIndex,
       follow: true,
+
       googleBot: {
         index: shouldIndex,
         follow: true,
@@ -335,9 +901,26 @@ export async function generateMetadata({ searchParams }) {
   };
 }
 
-export default async function ShopPage({ searchParams }) {
+export default async function ShopPage({
+  searchParams,
+}) {
   const params = await searchParams;
-  const filters = normalizeFilters(params);
+
+  const rawFilters =
+    normalizeFilters(params);
+
+  const products =
+    await getProducts();
+
+  const {
+    filters,
+    seriesOptions,
+    colorOptions,
+  } =
+    resolveFiltersAgainstCatalog(
+      rawFilters,
+      products
+    );
 
   const {
     selectedSeries,
@@ -345,129 +928,181 @@ export default async function ShopPage({ searchParams }) {
     selectedColor,
     selectedAvailability,
     selectedSort,
+    minimumPrice,
+    maximumPrice,
   } = filters;
 
-  const products = await getProducts();
+  const filteredProducts =
+    filterAndSortProducts(
+      products,
+      filters
+    );
 
-  const seriesList = [
-    "All",
-    ...new Set(
-      products
-        .map((product) => cleanText(product.series))
-        .filter(Boolean)
-    ),
-  ];
-
-  const colorList = [
-    "All",
-    ...new Set(
-      products
-        .map((product) => cleanText(product.color))
-        .filter(Boolean)
-    ),
-  ];
-
-  const filteredProducts = filterAndSortProducts(
-    products,
-    filters
-  );
+  const priceBounds =
+    getPriceBounds(products);
 
   const {
     title: seoTitle,
+    description:
+      seoDescription,
     canonicalPath,
-  } = getSeoConfiguration(filters);
+  } = getSeoConfiguration(
+    filters
+  );
 
-  const canonicalUrl = getAbsoluteUrl(canonicalPath);
+  const canonicalUrl =
+    getAbsoluteUrl(
+      canonicalPath
+    );
 
-  const itemListElements = filteredProducts
-    .filter((product) => product?.id)
-    .slice(0, 100)
-    .map((product, index) => {
-      const productName = cleanText(
-        product.name,
-        "OBSIDIAN Product"
-      );
+  const itemListElements =
+    filteredProducts
+      .slice(0, 100)
+      .map(
+        (product, index) => {
+          const productName =
+            cleanText(
+              product?.name,
+              "OBSIDIAN Product"
+            );
 
-      const productPath = createProductPath(product.id);
-      const productUrl = getAbsoluteUrl(productPath);
-      const productImage = getAbsoluteUrl(
-        getProductImage(product)
-      );
+          const productPath =
+            createProductPath(
+              product.id
+            );
 
-      const price = Number(product.price) || 0;
-      const stock = Number(product.stock) || 0;
+          const productUrl =
+            getAbsoluteUrl(
+              productPath
+            );
 
-      return {
-        "@type": "ListItem",
-        position: index + 1,
-        url: productUrl,
-        item: {
-          "@type": "Product",
-          "@id": `${productUrl}#product`,
-          name: productName,
-          url: productUrl,
-          image: [productImage],
-          sku: String(product.id),
-          description: cleanText(
-            product.description,
-            `${productName} by ${SITE_NAME}.`
-          ),
-          brand: {
-            "@type": "Brand",
-            name: SITE_NAME,
-          },
-          category: cleanText(
-            product.series,
-            "OBSIDIAN"
-          ),
-          color: cleanText(
-            product.color,
-            "Obsidian Black"
-          ),
-          offers: {
-            "@type": "Offer",
+          const productImage =
+            getAbsoluteUrl(
+              getProductImage(
+                product
+              )
+            );
+
+          const price = Number(
+            product?.price || 0
+          );
+
+          const stock = Number(
+            product?.stock || 0
+          );
+
+          return {
+            "@type": "ListItem",
+            position: index + 1,
             url: productUrl,
-            priceCurrency: "BDT",
-            price: price.toFixed(2),
-            availability:
-              stock > 0
-                ? "https://schema.org/InStock"
-                : "https://schema.org/OutOfStock",
-            itemCondition:
-              "https://schema.org/NewCondition",
-          },
-        },
-      };
-    });
+
+            item: {
+              "@type": "Product",
+              "@id": `${productUrl}#product`,
+              name: productName,
+              url: productUrl,
+              image: [
+                productImage,
+              ],
+              sku: String(
+                product.id
+              ),
+
+              description:
+                cleanText(
+                  product?.description,
+                  `${productName} by ${SITE_NAME}.`
+                ),
+
+              brand: {
+                "@type": "Brand",
+                name: SITE_NAME,
+              },
+
+              category:
+                cleanText(
+                  product?.series,
+                  "OBSIDIAN"
+                ),
+
+              color: cleanText(
+                product?.color,
+                "Obsidian Black"
+              ),
+
+              offers: {
+                "@type": "Offer",
+                url: productUrl,
+                priceCurrency: "BDT",
+                price:
+                  price.toFixed(2),
+
+                availability:
+                  stock > 0
+                    ? "https://schema.org/InStock"
+                    : "https://schema.org/OutOfStock",
+
+                itemCondition:
+                  "https://schema.org/NewCondition",
+              },
+            },
+          };
+        }
+      );
 
   const shopPageJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    "@id": `${canonicalUrl}#webpage`,
+    "@context":
+      "https://schema.org",
+
+    "@type":
+      "CollectionPage",
+
+    "@id":
+      `${canonicalUrl}#webpage`,
+
     url: canonicalUrl,
-    name: `${seoTitle} | ${SITE_NAME}`,
-    description: DEFAULT_DESCRIPTION,
+
+    name:
+      `${seoTitle} | ${SITE_NAME}`,
+
+    description:
+      seoDescription,
+
     isPartOf: {
-      "@id": `${SITE_URL}/#website`,
+      "@id":
+        `${SITE_URL}/#website`,
     },
+
     about: {
-      "@id": `${SITE_URL}/#organization`,
+      "@id":
+        `${SITE_URL}/#organization`,
     },
+
     breadcrumb: {
-      "@id": `${canonicalUrl}#breadcrumb`,
+      "@id":
+        `${canonicalUrl}#breadcrumb`,
     },
+
     mainEntity: {
       "@type": "ItemList",
-      "@id": `${canonicalUrl}#product-list`,
+      "@id":
+        `${canonicalUrl}#product-list`,
+
       name:
         selectedSeries !== "All"
           ? `${selectedSeries} Products`
           : "OBSIDIAN Products",
-      numberOfItems: filteredProducts.length,
+
+      numberOfItems:
+        filteredProducts.length,
+
       itemListOrder:
         "https://schema.org/ItemListOrderAscending",
-      itemListElement: itemListElements,
+
+      itemListElement:
+        itemListElements,
     },
+
     inLanguage: "en-BD",
   };
 
@@ -486,82 +1121,114 @@ export default async function ShopPage({ searchParams }) {
     },
   ];
 
-  if (selectedSeries !== "All") {
+  if (
+    selectedSeries !== "All"
+  ) {
     breadcrumbItems.push({
       "@type": "ListItem",
       position: 3,
       name: selectedSeries,
+
       item: getAbsoluteUrl(
-        createShopUrl({ series: selectedSeries })
+        createShopUrl({
+          series:
+            selectedSeries,
+        })
       ),
     });
   }
 
   const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    "@id": `${canonicalUrl}#breadcrumb`,
-    itemListElement: breadcrumbItems,
+    "@context":
+      "https://schema.org",
+
+    "@type":
+      "BreadcrumbList",
+
+    "@id":
+      `${canonicalUrl}#breadcrumb`,
+
+    itemListElement:
+      breadcrumbItems,
   };
 
-  const activeFilterCount = [
-    selectedSeries !== "All",
-    Boolean(searchQuery),
-    selectedColor !== "All",
-    selectedAvailability !== "All",
-    selectedSort !== "newest",
-  ].filter(Boolean).length;
+  let pageDescription =
+    "Search, filter, and discover OBSIDIAN pieces built under pressure and finished with precision.";
+
+  if (searchQuery) {
+    pageDescription = `Showing OBSIDIAN pieces matching “${searchQuery}”.`;
+  } else if (
+    selectedSeries !== "All"
+  ) {
+    pageDescription = `Explore the ${selectedSeries}, built with pressure, precision, and purpose.`;
+  }
 
   return (
     <main className="min-h-screen bg-[#f1ece4] text-[#0b0b0b]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: serializeJsonLd(shopPageJsonLd),
+          __html:
+            serializeJsonLd(
+              shopPageJsonLd
+            ),
         }}
       />
 
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: serializeJsonLd(breadcrumbJsonLd),
+          __html:
+            serializeJsonLd(
+              breadcrumbJsonLd
+            ),
         }}
       />
 
       <Navbar />
 
-      <section className="px-6 pt-36 pb-28 lg:px-10 lg:pt-40 lg:pb-36">
+      <section
+        aria-labelledby="shop-page-title"
+        className="px-4 pb-24 pt-32 sm:px-6 sm:pb-28 sm:pt-36 lg:px-10 lg:pb-36 lg:pt-40"
+      >
         <div className="mx-auto max-w-[1440px]">
           <nav
             aria-label="Breadcrumb"
-            className="mb-10 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.28em] text-neutral-500"
+            className="mb-9 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-neutral-500 sm:mb-10 sm:tracking-[0.28em]"
           >
             <Link
               href="/"
-              className="transition hover:text-black"
+              className="transition hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:ring-offset-4 focus-visible:ring-offset-[#f1ece4]"
             >
               Home
             </Link>
 
-            <span aria-hidden="true">/</span>
+            <span aria-hidden="true">
+              /
+            </span>
 
             <Link
               href="/shop"
-              className={`transition hover:text-black ${
+              className={`transition hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:ring-offset-4 focus-visible:ring-offset-[#f1ece4] ${
                 selectedSeries === "All"
                   ? "text-[#0b0b0b]"
                   : ""
               }`}
               aria-current={
-                selectedSeries === "All" ? "page" : undefined
+                selectedSeries === "All"
+                  ? "page"
+                  : undefined
               }
             >
               Shop
             </Link>
 
-            {selectedSeries !== "All" && (
+            {selectedSeries !==
+            "All" ? (
               <>
-                <span aria-hidden="true">/</span>
+                <span aria-hidden="true">
+                  /
+                </span>
 
                 <span
                   className="max-w-[240px] truncate text-[#0b0b0b]"
@@ -570,22 +1237,26 @@ export default async function ShopPage({ searchParams }) {
                   {selectedSeries}
                 </span>
               </>
-            )}
+            ) : null}
           </nav>
 
-          <div className="max-w-4xl">
-            <p className="mb-5 text-xs uppercase tracking-[0.45em] text-neutral-500">
+          <header className="max-w-4xl">
+            <p className="mb-5 text-[10px] uppercase tracking-[0.38em] text-neutral-500 sm:text-xs sm:tracking-[0.45em]">
               Shop
             </p>
 
-            <h1 className="font-heading text-6xl font-light leading-none md:text-8xl">
+            <h1
+              id="shop-page-title"
+              className="font-heading text-5xl font-light leading-[0.95] sm:text-6xl md:text-8xl"
+            >
               {searchQuery ? (
                 <>
                   Search
                   <br />
                   Results
                 </>
-              ) : selectedSeries === "All" ? (
+              ) : selectedSeries ===
+                "All" ? (
                 <>
                   Engineered
                   <br />
@@ -596,290 +1267,214 @@ export default async function ShopPage({ searchParams }) {
               )}
             </h1>
 
-            <p className="mt-8 max-w-xl text-lg leading-8 text-neutral-600">
-              {searchQuery
-                ? `Showing OBSIDIAN pieces matching “${searchQuery}”.`
-                : selectedSeries !== "All"
-                  ? `Explore the ${selectedSeries}, built with pressure, precision, and purpose.`
-                  : "Search, filter, and discover OBSIDIAN pieces built under pressure and finished with precision."}
+            <p className="mt-7 max-w-xl text-base leading-8 text-neutral-600 sm:mt-8 sm:text-lg">
+              {pageDescription}
             </p>
+          </header>
 
-            {activeFilterCount > 0 && (
-              <div className="mt-8 flex flex-wrap items-center gap-3">
-                <p className="mr-2 text-[10px] uppercase tracking-[0.28em] text-neutral-500">
-                  Active Filters
-                </p>
+          <ShopFilters
+            initialFilters={{
+              selectedSeries,
+              searchQuery,
+              selectedColor,
+              selectedAvailability,
+              selectedSort,
+              minimumPrice,
+              maximumPrice,
+            }}
+            seriesOptions={
+              seriesOptions
+            }
+            colorOptions={
+              colorOptions
+            }
+            resultCount={
+              filteredProducts.length
+            }
+            totalProductCount={
+              products.length
+            }
+            priceBounds={
+              priceBounds
+            }
+          />
 
-                {selectedSeries !== "All" && (
-                  <span className="border border-black/15 bg-[#eee7dd] px-4 py-2 text-[10px] uppercase tracking-[0.23em]">
-                    {selectedSeries}
-                  </span>
-                )}
-
-                {searchQuery && (
-                  <span className="border border-black/15 bg-[#eee7dd] px-4 py-2 text-[10px] uppercase tracking-[0.23em]">
-                    Search: {searchQuery}
-                  </span>
-                )}
-
-                {selectedColor !== "All" && (
-                  <span className="border border-black/15 bg-[#eee7dd] px-4 py-2 text-[10px] uppercase tracking-[0.23em]">
-                    {selectedColor}
-                  </span>
-                )}
-
-                {selectedAvailability !== "All" && (
-                  <span className="border border-black/15 bg-[#eee7dd] px-4 py-2 text-[10px] uppercase tracking-[0.23em]">
-                    {selectedAvailability === "in_stock"
-                      ? "In Stock"
-                      : "Sold Out"}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="mt-14 border-y border-black/10 py-6">
-            <form className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr_auto]">
-              <input
-                type="search"
-                name="q"
-                defaultValue={searchQuery}
-                placeholder="Search product, color, series..."
-                aria-label="Search products"
-                className="border border-black/15 bg-[#eee7dd] px-5 py-4 text-sm outline-none transition placeholder:text-neutral-500 focus:border-black"
-              />
-
-              <select
-                name="series"
-                defaultValue={selectedSeries}
-                aria-label="Filter by series"
-                className="border border-black/15 bg-[#eee7dd] px-5 py-4 text-xs uppercase tracking-[0.2em] outline-none transition focus:border-black"
-              >
-                {seriesList.map((series) => (
-                  <option key={series} value={series}>
-                    {series}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                name="color"
-                defaultValue={selectedColor}
-                aria-label="Filter by color"
-                className="border border-black/15 bg-[#eee7dd] px-5 py-4 text-xs uppercase tracking-[0.2em] outline-none transition focus:border-black"
-              >
-                {colorList.map((color) => (
-                  <option key={color} value={color}>
-                    {color}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                name="sort"
-                defaultValue={selectedSort}
-                aria-label="Sort products"
-                className="border border-black/15 bg-[#eee7dd] px-5 py-4 text-xs uppercase tracking-[0.2em] outline-none transition focus:border-black"
-              >
-                <option value="newest">Newest</option>
-                <option value="price_low">Price Low</option>
-                <option value="price_high">Price High</option>
-                <option value="name_az">Name A–Z</option>
-              </select>
-
-              <button
-                type="submit"
-                className="bg-[#0b0b0b] px-8 py-4 text-xs font-semibold uppercase tracking-[0.28em] text-[#f1ece4] transition duration-300 hover:-translate-y-0.5 hover:shadow-lg"
-              >
-                Apply
-              </button>
-            </form>
-
-            <div className="mt-6 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-              <p
-                className="text-xs uppercase tracking-[0.3em] text-neutral-500"
-                aria-live="polite"
-              >
-                {filteredProducts.length}{" "}
-                {filteredProducts.length === 1
-                  ? "Product"
-                  : "Products"}
-              </p>
-
-              <div className="flex flex-wrap gap-3">
-                {["All", "in_stock", "out_of_stock"].map(
-                  (availability) => (
-                    <Link
-                      key={availability}
-                      href={createShopUrl({
-                        series: selectedSeries,
-                        q: searchQuery,
-                        color: selectedColor,
-                        availability,
-                        sort: selectedSort,
-                      })}
-                      className={`border px-4 py-2 text-xs uppercase tracking-[0.25em] transition ${
-                        selectedAvailability === availability
-                          ? "border-black bg-black text-[#f1ece4]"
-                          : "border-black/20 text-neutral-600 hover:bg-black hover:text-[#f1ece4]"
-                      }`}
-                    >
-                      {availability === "All"
-                        ? "All"
-                        : availability === "in_stock"
-                          ? "In Stock"
-                          : "Sold Out"}
-                    </Link>
-                  )
-                )}
-
-                <Link
-                  href="/wishlist"
-                  className="border border-black/20 px-4 py-2 text-xs uppercase tracking-[0.25em] text-neutral-600 transition hover:bg-black hover:text-[#f1ece4]"
-                >
-                  Wishlist
-                </Link>
-
-                <Link
-                  href="/shop"
-                  className="border border-black/20 px-4 py-2 text-xs uppercase tracking-[0.25em] text-neutral-600 transition hover:bg-black hover:text-[#f1ece4]"
-                >
-                  Reset
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {filteredProducts.length === 0 ? (
-            <div className="mt-12 border border-black/10 bg-[#eee7dd] p-10 md:p-14">
-              <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">
+          {filteredProducts.length ===
+          0 ? (
+            <section className="mt-10 border border-black/10 bg-[#eee7dd] p-8 sm:mt-12 sm:p-10 md:p-14">
+              <p className="text-[10px] uppercase tracking-[0.32em] text-neutral-500 sm:text-xs sm:tracking-[0.35em]">
                 No Results
               </p>
 
-              <h2 className="mt-5 font-heading text-4xl font-light">
-                No products found.
+              <h2 className="mt-5 max-w-2xl font-heading text-4xl font-light leading-tight sm:text-5xl">
+                No products match these filters.
               </h2>
 
               <p className="mt-4 max-w-xl text-base leading-8 text-neutral-600">
-                Try adjusting your search, series, color,
-                availability, or sorting option.
+                Adjust the search, series, color, availability, price range,
+                or sorting option to explore more OBSIDIAN pieces.
               </p>
 
               <Link
                 href="/shop"
-                className="mt-10 inline-flex border border-[#0b0b0b] px-8 py-4 text-xs uppercase tracking-[0.3em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
+                className="mt-9 inline-flex min-h-12 items-center justify-center border border-[#0b0b0b] px-7 py-3 text-center text-[10px] uppercase tracking-[0.26em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:ring-offset-4 focus-visible:ring-offset-[#f1ece4] sm:mt-10 sm:px-8 sm:text-xs sm:tracking-[0.3em]"
               >
-                Reset Shop
+                Show All Products
               </Link>
-            </div>
+            </section>
           ) : (
-            <div className="mt-12 grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-              {filteredProducts.map((product, index) => {
-                const stock = Number(product.stock) || 0;
+            <section
+              aria-label="Product results"
+              className="mt-10 sm:mt-12"
+            >
+              <div className="grid gap-7 sm:gap-8 md:grid-cols-2 xl:grid-cols-3">
+                {filteredProducts.map(
+                  (
+                    product,
+                    index
+                  ) => {
+                    const stock =
+                      Number(
+                        product?.stock ||
+                          0
+                      );
 
-                const productImage =
-                  getProductImage(product);
+                    const productImage =
+                      getProductImage(
+                        product
+                      );
 
-                const productPath = createProductPath(
-                  product.id
-                );
+                    const productPath =
+                      createProductPath(
+                        product.id
+                      );
 
-                const productName = cleanText(
-                  product.name,
-                  "OBSIDIAN Product"
-                );
+                    const productName =
+                      cleanText(
+                        product?.name,
+                        "OBSIDIAN Product"
+                      );
 
-                const productPrice =
-                  Number(product.price) || 0;
+                    const productPrice =
+                      Number(
+                        product?.price ||
+                          0
+                      );
 
-                return (
-                  <article
-                    key={String(product.id)}
-                    className="group overflow-hidden border border-black/10 bg-[#eee7dd] transition duration-500 hover:-translate-y-1 hover:border-black/25 hover:shadow-2xl hover:shadow-black/10"
-                  >
-                    <div className="relative aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
-                      <WishlistButton
-                        product={product}
-                        compact
-                      />
-
-                      <Link
-                        href={productPath}
-                        className="relative block h-full w-full"
-                        aria-label={`View ${productName}`}
+                    return (
+                      <article
+                        key={String(
+                          product.id
+                        )}
+                        className="group overflow-hidden border border-black/10 bg-[#eee7dd] transition duration-500 hover:-translate-y-1 hover:border-black/25 hover:shadow-2xl hover:shadow-black/10 focus-within:border-black/30"
                       >
-                        <Image
-                          src={productImage}
-                          alt={`${productName} by ${SITE_NAME}`}
-                          fill
-                          priority={index < 3}
-                          sizes="(max-width: 767px) 100vw, (max-width: 1279px) 50vw, 33vw"
-                          className="object-cover object-center transition-transform duration-1000 ease-out will-change-transform group-hover:scale-105"
-                        />
-                      </Link>
+                        <div className="relative aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
+                          <WishlistButton
+                            product={
+                              product
+                            }
+                            compact
+                          />
 
-                      <QuickViewButton product={product} />
-
-                      {stock <= 0 && (
-                        <div className="absolute left-4 top-4 z-10 bg-[#0b0b0b] px-4 py-2 text-[10px] uppercase tracking-[0.28em] text-[#f1ece4]">
-                          Sold Out
-                        </div>
-                      )}
-
-                      {stock > 0 && stock <= 5 && (
-                        <div className="absolute left-4 top-4 z-10 border border-[#f1ece4]/20 bg-black/45 px-4 py-2 text-[9px] uppercase tracking-[0.25em] text-[#f1ece4] backdrop-blur-md">
-                          Only {stock} Left
-                        </div>
-                      )}
-
-                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent opacity-0 transition duration-500 group-hover:opacity-100" />
-                    </div>
-
-                    <div className="p-6">
-                      <div className="flex items-start justify-between gap-6">
-                        <div className="min-w-0">
-                          <p className="truncate text-xs uppercase tracking-[0.28em] text-neutral-500">
-                            {cleanText(
-                              product.series,
-                              "OBSIDIAN"
-                            )}
-                          </p>
-
-                          <Link href={productPath}>
-                            <h2 className="mt-3 font-heading text-3xl font-light leading-none transition duration-300 group-hover:opacity-65">
-                              {productName}
-                            </h2>
+                          <Link
+                            href={
+                              productPath
+                            }
+                            className="relative block h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f1ece4] focus-visible:ring-inset"
+                            aria-label={`View ${productName}`}
+                          >
+                            <Image
+                              src={
+                                productImage
+                              }
+                              alt={`${productName} by ${SITE_NAME}`}
+                              fill
+                              priority={
+                                index < 3
+                              }
+                              sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1279px) 50vw, 33vw"
+                              className="object-cover object-center transition-transform duration-1000 ease-out motion-safe:group-hover:scale-105"
+                            />
                           </Link>
+
+                          <QuickViewButton
+                            product={
+                              product
+                            }
+                          />
+
+                          {stock <= 0 ? (
+                            <div className="absolute left-4 top-4 z-10 bg-[#0b0b0b] px-4 py-2 text-[9px] uppercase tracking-[0.25em] text-[#f1ece4] sm:text-[10px] sm:tracking-[0.28em]">
+                              Sold Out
+                            </div>
+                          ) : null}
+
+                          {stock > 0 &&
+                          stock <= 5 ? (
+                            <div className="absolute left-4 top-4 z-10 border border-[#f1ece4]/20 bg-black/50 px-4 py-2 text-[9px] uppercase tracking-[0.25em] text-[#f1ece4] backdrop-blur-md">
+                              Only {stock} Left
+                            </div>
+                          ) : null}
+
+                          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent opacity-0 transition duration-500 group-hover:opacity-100" />
                         </div>
 
-                        <p className="shrink-0 text-sm text-neutral-700">
-                          ৳{" "}
-                          {productPrice.toLocaleString(
-                            "en-BD"
-                          )}
-                        </p>
-                      </div>
+                        <div className="p-5 sm:p-6">
+                          <div className="flex items-start justify-between gap-5 sm:gap-6">
+                            <div className="min-w-0">
+                              <p className="truncate text-[10px] uppercase tracking-[0.25em] text-neutral-500 sm:text-xs sm:tracking-[0.28em]">
+                                {cleanText(
+                                  product?.series,
+                                  "OBSIDIAN"
+                                )}
+                              </p>
 
-                      <div className="mt-6 flex items-center justify-between gap-4 border-t border-black/10 pt-5">
-                        <p className="truncate text-xs uppercase tracking-[0.25em] text-neutral-500">
-                          {cleanText(
-                            product.color,
-                            "Obsidian Black"
-                          )}
-                        </p>
+                              <Link
+                                href={
+                                  productPath
+                                }
+                                className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:ring-offset-4 focus-visible:ring-offset-[#eee7dd]"
+                              >
+                                <h2 className="mt-3 font-heading text-3xl font-light leading-none transition duration-300 group-hover:opacity-65 sm:text-[2rem]">
+                                  {
+                                    productName
+                                  }
+                                </h2>
+                              </Link>
+                            </div>
 
-                        <p className="shrink-0 text-xs uppercase tracking-[0.25em] text-neutral-500">
-                          {stock > 0
-                            ? `${stock} In Stock`
-                            : "Out of Stock"}
-                        </p>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+                            <p className="shrink-0 text-sm text-neutral-700">
+                              ৳{" "}
+                              {productPrice.toLocaleString(
+                                "en-BD",
+                                {
+                                  maximumFractionDigits: 2,
+                                }
+                              )}
+                            </p>
+                          </div>
+
+                          <div className="mt-6 flex items-center justify-between gap-4 border-t border-black/10 pt-5">
+                            <p className="min-w-0 truncate text-[10px] uppercase tracking-[0.22em] text-neutral-500 sm:text-xs sm:tracking-[0.25em]">
+                              {cleanText(
+                                product?.color,
+                                "Obsidian Black"
+                              )}
+                            </p>
+
+                            <p className="shrink-0 text-[10px] uppercase tracking-[0.22em] text-neutral-500 sm:text-xs sm:tracking-[0.25em]">
+                              {stock > 0
+                                ? `${stock} In Stock`
+                                : "Out of Stock"}
+                            </p>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  }
+                )}
+              </div>
+            </section>
           )}
         </div>
       </section>

@@ -1,144 +1,262 @@
-import clientPromise from "../../../lib/mongodb";
+import { isAdminAuthenticated } from "../../../lib/adminAuth";
+import {
+  PRODUCTS_COLLECTION_NAME,
+  ensureCatalogIndexes,
+  ensureCollectionForProduct,
+  getCatalogDatabase,
+  getPublicProductQuery,
+  normalizeProductPayload,
+  normalizeSeriesKey,
+  resolveCanonicalSeries,
+} from "../../../lib/catalog";
 
-function createSlug(text) {
-  return String(text || "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+export const dynamic = "force-dynamic";
+
+function createErrorResponse(message, status = 500) {
+  return Response.json(
+    {
+      success: false,
+      message,
+    },
+    {
+      status,
+    }
+  );
 }
 
-export async function GET() {
-  try {
-    const client = await clientPromise;
-    const db = client.db(process.env.MONGODB_DB || "obsidian");
+function isPlainObject(value) {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+  );
+}
 
-    const products = await db
-      .collection("products")
-      .find({})
-      .sort({ createdAt: -1 })
+function serializeDocument(document) {
+  if (!document) {
+    return null;
+  }
+
+  return JSON.parse(JSON.stringify(document));
+}
+
+function normalizeBooleanQuery(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase() === "true";
+}
+
+export async function GET(request) {
+  try {
+    const requestUrl = new URL(request.url);
+
+    const includeInactive =
+      normalizeBooleanQuery(
+        requestUrl.searchParams.get(
+          "includeInactive"
+        )
+      );
+
+    let authenticated = false;
+
+    if (includeInactive) {
+      authenticated =
+        await isAdminAuthenticated();
+
+      if (!authenticated) {
+        return createErrorResponse(
+          "Unauthorized.",
+          401
+        );
+      }
+    }
+
+    const database =
+      await getCatalogDatabase();
+
+    await ensureCatalogIndexes(database);
+
+    const query = includeInactive
+      ? {}
+      : getPublicProductQuery();
+
+    const products = await database
+      .collection(PRODUCTS_COLLECTION_NAME)
+      .find(query)
+      .sort({
+        createdAt: -1,
+      })
       .toArray();
 
     return Response.json({
       success: true,
-      products,
+      products: serializeDocument(products),
     });
   } catch (error) {
-    console.error("GET Products Error:", error);
+    console.error(
+      "GET products error:",
+      error
+    );
 
-    return Response.json(
-      {
-        success: false,
-        message: "Failed to fetch products.",
-      },
-      { status: 500 }
+    return createErrorResponse(
+      "Failed to fetch products."
     );
   }
 }
 
 export async function POST(request) {
+  let insertedProductId = null;
+
   try {
-    const product = await request.json();
+    const authenticated =
+      await isAdminAuthenticated();
 
-    const requiredFields = [
-      "name",
-      "series",
-      "color",
-      "price",
-      "stock",
-      "image",
-      "description",
-    ];
-
-    const missingField = requiredFields.find((field) => !product[field]);
-
-    if (missingField) {
-      return Response.json(
-        {
-          success: false,
-          message: `Missing required field: ${missingField}`,
-        },
-        { status: 400 }
+    if (!authenticated) {
+      return createErrorResponse(
+        "Unauthorized.",
+        401
       );
     }
 
-    const price = Number(product.price);
-    const stock = Number(product.stock);
+    let requestBody;
 
-    if (Number.isNaN(price) || price < 0) {
-      return Response.json(
-        {
-          success: false,
-          message: "Invalid product price.",
-        },
-        { status: 400 }
+    try {
+      requestBody = await request.json();
+    } catch {
+      return createErrorResponse(
+        "Invalid JSON request body.",
+        400
       );
     }
 
-    if (Number.isNaN(stock) || stock < 0) {
-      return Response.json(
-        {
-          success: false,
-          message: "Invalid product stock.",
-        },
-        { status: 400 }
+    if (!isPlainObject(requestBody)) {
+      return createErrorResponse(
+        "Product data must be a valid object.",
+        400
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db(process.env.MONGODB_DB || "obsidian");
+    const normalizedResult =
+      normalizeProductPayload(requestBody);
 
-    const id = product.id?.trim() || createSlug(product.name);
-
-    const existingProduct = await db.collection("products").findOne({ id });
-
-    if (existingProduct) {
-      return Response.json(
-        {
-          success: false,
-          message: "A product with this ID already exists.",
-        },
-        { status: 409 }
+    if (!normalizedResult.success) {
+      return createErrorResponse(
+        normalizedResult.message,
+        400
       );
     }
+
+    const database =
+      await getCatalogDatabase();
+
+    await ensureCatalogIndexes(database);
+
+    const productStore =
+      database.collection(
+        PRODUCTS_COLLECTION_NAME
+      );
+
+    const canonicalSeries =
+      await resolveCanonicalSeries(
+        database,
+        normalizedResult.product.series
+      );
 
     const now = new Date();
 
     const newProduct = {
-      id,
-      name: product.name.trim(),
-      series: product.series.trim(),
-      color: product.color.trim(),
-      price,
-      stock,
-      image: product.image,
-      description: product.description.trim(),
+      ...normalizedResult.product,
+
+      series:
+        canonicalSeries ||
+        normalizedResult.product.series,
+
+      seriesKey: normalizeSeriesKey(
+        canonicalSeries ||
+          normalizedResult.product.series
+      ),
+
       createdAt: now,
       updatedAt: now,
     };
 
-    const result = await db.collection("products").insertOne(newProduct);
+    const existingProduct =
+      await productStore.findOne(
+        {
+          id: newProduct.id,
+        },
+        {
+          projection: {
+            _id: 1,
+          },
+        }
+      );
+
+    if (existingProduct) {
+      return createErrorResponse(
+        "A product with this ID already exists.",
+        409
+      );
+    }
+
+    const insertionResult =
+      await productStore.insertOne(
+        newProduct
+      );
+
+    insertedProductId =
+      insertionResult.insertedId;
+
+    try {
+      await ensureCollectionForProduct(
+        database,
+        {
+          ...newProduct,
+          _id: insertedProductId,
+        }
+      );
+    } catch (collectionError) {
+      await productStore.deleteOne({
+        _id: insertedProductId,
+      });
+
+      insertedProductId = null;
+
+      throw collectionError;
+    }
 
     return Response.json(
       {
         success: true,
-        message: "Product created successfully.",
-        product: {
+        message:
+          newProduct.isActive === false
+            ? "Draft product created successfully."
+            : "Product created successfully.",
+
+        product: serializeDocument({
           ...newProduct,
-          _id: result.insertedId,
-        },
+          _id: insertionResult.insertedId,
+        }),
       },
-      { status: 201 }
+      {
+        status: 201,
+      }
     );
   } catch (error) {
-    console.error("POST Product Error:", error);
+    if (error?.code === 11000) {
+      return createErrorResponse(
+        "A product with this ID already exists.",
+        409
+      );
+    }
 
-    return Response.json(
-      {
-        success: false,
-        message: "Failed to create product.",
-      },
-      { status: 500 }
+    console.error(
+      "POST product error:",
+      error
+    );
+
+    return createErrorResponse(
+      "Failed to create product."
     );
   }
 }

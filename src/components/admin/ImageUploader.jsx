@@ -1,89 +1,453 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
-export default function ImageUploader({ value, onChange }) {
+const DEFAULT_ACCEPTED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+];
+
+const DEFAULT_ACCEPT =
+  ".jpg,.jpeg,.png,.webp,.avif,image/jpeg,image/png,image/webp,image/avif";
+
+function formatFileSize(bytes) {
+  const size = Number(bytes || 0);
+
+  if (size < 1024) {
+    return `${size} B`;
+  }
+
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+async function readJsonResponse(response) {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+export default function ImageUploader({
+  value = "",
+  onChange,
+  label = "Product Image",
+  helperText = "JPEG, PNG, WebP or AVIF. Maximum file size: 10 MB.",
+  previewAlt = "Uploaded image preview",
+  previewClassName = "max-h-80 w-full object-contain",
+  required = false,
+  disabled = false,
+  maxSizeMB = 10,
+  acceptedTypes = DEFAULT_ACCEPTED_TYPES,
+  accept = DEFAULT_ACCEPT,
+  allowRemove = true,
+  onUploadingChange,
+  onError,
+}) {
+  const generatedId = useId();
+  const inputId = `image-upload-${generatedId.replace(/:/g, "")}`;
+
+  const fileInputRef = useRef(null);
+  const objectUrlRef = useRef("");
+  const abortControllerRef = useRef(null);
+  const mountedRef = useRef(true);
+
   const [previewUrl, setPreviewUrl] = useState(value || "");
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [status, setStatus] = useState({
+    type: "",
+    message: "",
+  });
 
   useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = "";
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = "";
+    }
+
     setPreviewUrl(value || "");
   }, [value]);
 
-  async function uploadImage(file) {
-    setIsUploading(true);
+  function updateUploadingState(nextState) {
+    if (mountedRef.current) {
+      setIsUploading(nextState);
+    }
 
-    const localPreview = URL.createObjectURL(file);
-    setPreviewUrl(localPreview);
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        alert("Image upload failed.");
-        return;
-      }
-
-      onChange(data.imageUrl);
-      setPreviewUrl(data.imageUrl);
-    } catch (error) {
-      alert("Something went wrong while uploading image.");
-    } finally {
-      setIsUploading(false);
+    if (typeof onUploadingChange === "function") {
+      onUploadingChange(nextState);
     }
   }
 
-  function handleFileChange(e) {
-    const file = e.target.files[0];
+  function reportError(message) {
+    const errorMessage =
+      String(message || "").trim() || "Image upload failed.";
 
-    if (!file) return;
+    if (mountedRef.current) {
+      setStatus({
+        type: "error",
+        message: errorMessage,
+      });
+    }
+
+    if (typeof onError === "function") {
+      onError(errorMessage);
+    }
+  }
+
+  function clearTemporaryPreview() {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = "";
+    }
+  }
+
+  function validateFile(file) {
+    if (!file) {
+      return "Please select an image.";
+    }
+
+    if (!acceptedTypes.includes(file.type)) {
+      return "Unsupported image format. Use JPEG, PNG, WebP or AVIF.";
+    }
+
+    const maximumBytes = Number(maxSizeMB) * 1024 * 1024;
+
+    if (!Number.isFinite(maximumBytes) || maximumBytes <= 0) {
+      return "Invalid upload size configuration.";
+    }
+
+    if (file.size > maximumBytes) {
+      return `The selected image is ${formatFileSize(
+        file.size
+      )}. Maximum allowed size is ${maxSizeMB} MB.`;
+    }
+
+    return "";
+  }
+
+  async function uploadImage(file) {
+    if (disabled || isUploading) {
+      return;
+    }
+
+    const validationError = validateFile(file);
+
+    if (validationError) {
+      reportError(validationError);
+      return;
+    }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    clearTemporaryPreview();
+
+    const localPreviewUrl = URL.createObjectURL(file);
+    objectUrlRef.current = localPreviewUrl;
+
+    setPreviewUrl(localPreviewUrl);
+    setStatus({
+      type: "info",
+      message: `Uploading ${file.name}...`,
+    });
+
+    updateUploadingState(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+        signal: controller.signal,
+      });
+
+      const data = await readJsonResponse(response);
+
+      if (!response.ok || !data?.success || !data?.imageUrl) {
+        if (response.status === 401) {
+          throw new Error(
+            "Your admin session has expired. Sign in again and retry."
+          );
+        }
+
+        if (response.status === 413) {
+          throw new Error(
+            `The image is too large. Maximum allowed size is ${maxSizeMB} MB.`
+          );
+        }
+
+        throw new Error(data?.message || "Image upload failed.");
+      }
+
+      clearTemporaryPreview();
+
+      if (!mountedRef.current) {
+        return;
+      }
+
+      setPreviewUrl(data.imageUrl);
+
+      if (typeof onChange === "function") {
+        onChange(data.imageUrl);
+      }
+
+      setStatus({
+        type: "success",
+        message: "Image uploaded successfully.",
+      });
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        return;
+      }
+
+      clearTemporaryPreview();
+
+      if (mountedRef.current) {
+        setPreviewUrl(value || "");
+      }
+
+      reportError(
+        error?.message || "Something went wrong while uploading the image."
+      );
+    } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+        updateUploadingState(false);
+      }
+    }
+  }
+
+  function handleFileChange(event) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
 
     uploadImage(file);
   }
 
+  function handleDragEnter(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!disabled && !isUploading) {
+      setIsDragging(true);
+    }
+  }
+
+  function handleDragOver(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!disabled && !isUploading) {
+      event.dataTransfer.dropEffect = "copy";
+      setIsDragging(true);
+    }
+  }
+
+  function handleDragLeave(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+      setIsDragging(false);
+    }
+  }
+
+  function handleDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    setIsDragging(false);
+
+    if (disabled || isUploading) {
+      return;
+    }
+
+    const file = event.dataTransfer.files?.[0];
+
+    if (file) {
+      uploadImage(file);
+    }
+  }
+
+  function openFilePicker() {
+    if (disabled || isUploading) {
+      return;
+    }
+
+    fileInputRef.current?.click();
+  }
+
+  function removeImage() {
+    if (disabled || isUploading) {
+      return;
+    }
+
+    clearTemporaryPreview();
+    setPreviewUrl("");
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
+    if (typeof onChange === "function") {
+      onChange("");
+    }
+
+    setStatus({
+      type: "success",
+      message: "Image removed.",
+    });
+  }
+
+  const isUnavailable = disabled || isUploading;
+
   return (
     <div className="space-y-4">
-      <label className="block text-xs uppercase tracking-[0.25em] text-neutral-500">
-        Product Image
-      </label>
+      <div>
+        <label
+          htmlFor={inputId}
+          className="block text-xs uppercase tracking-[0.25em] text-neutral-500"
+        >
+          {label}
+          {required ? (
+            <span className="ml-1 text-red-400" aria-hidden="true">
+              *
+            </span>
+          ) : null}
+        </label>
 
-      {previewUrl && (
-        <div className="overflow-hidden border border-white/10 bg-white/5 p-4">
-          <img
-            src={previewUrl}
-            alt="Product preview"
-            className="max-h-80 w-full object-contain"
-          />
+        {helperText ? (
+          <p className="mt-2 text-xs leading-6 text-neutral-500">
+            {helperText}
+          </p>
+        ) : null}
+      </div>
+
+      {previewUrl ? (
+        <div className="relative overflow-hidden border border-white/10 bg-black">
+          <div className="flex min-h-64 items-center justify-center bg-white/[0.025] p-4">
+            <img
+              src={previewUrl}
+              alt={previewAlt}
+              className={previewClassName}
+            />
+          </div>
+
+          {allowRemove ? (
+            <button
+              type="button"
+              onClick={removeImage}
+              disabled={isUnavailable}
+              className="absolute right-3 top-3 border border-white/20 bg-black/80 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-white backdrop-blur transition hover:border-red-400 hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label={`Remove ${label.toLowerCase()}`}
+            >
+              Remove
+            </button>
+          ) : null}
         </div>
-      )}
+      ) : null}
 
-      <input
-        type="file"
-        accept="image/*"
-        onChange={handleFileChange}
-        disabled={isUploading}
-        className="w-full border border-white/10 bg-white/5 px-5 py-4 text-sm outline-none file:mr-4 file:border-0 file:bg-[#f1ece4] file:px-4 file:py-2 file:text-xs file:uppercase file:tracking-[0.2em] file:text-[#0b0b0b] disabled:cursor-not-allowed disabled:opacity-50"
-      />
+      <div
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`border border-dashed p-6 text-center transition sm:p-8 ${
+          isDragging
+            ? "border-[#f1ece4] bg-white/10"
+            : "border-white/15 bg-white/[0.025]"
+        } ${
+          isUnavailable
+            ? "cursor-not-allowed opacity-50"
+            : "cursor-pointer hover:border-white/35 hover:bg-white/[0.045]"
+        }`}
+      >
+        <input
+          ref={fileInputRef}
+          id={inputId}
+          type="file"
+          accept={accept}
+          onChange={handleFileChange}
+          disabled={isUnavailable}
+          className="sr-only"
+        />
 
-      {isUploading && (
-        <p className="text-xs uppercase tracking-[0.25em] text-yellow-400">
-          Uploading image...
-        </p>
-      )}
+        <button
+          type="button"
+          onClick={openFilePicker}
+          disabled={isUnavailable}
+          className="w-full disabled:cursor-not-allowed"
+        >
+          <span className="block text-sm text-[#f1ece4]">
+            {isUploading
+              ? "Uploading image..."
+              : isDragging
+                ? "Drop the image here"
+                : "Choose an image or drag it here"}
+          </span>
 
-      {value && !isUploading && (
-        <p className="break-all text-xs leading-6 text-neutral-500">
-          Image URL: {value}
-        </p>
-      )}
+          <span className="mt-2 block text-xs leading-6 text-neutral-500">
+            {helperText}
+          </span>
+        </button>
+      </div>
+
+      <div
+        aria-live="polite"
+        aria-atomic="true"
+        className="min-h-5"
+      >
+        {status.message ? (
+          <p
+            className={`text-xs leading-5 ${
+              status.type === "error"
+                ? "text-red-300"
+                : status.type === "success"
+                  ? "text-emerald-300"
+                  : "text-yellow-300"
+            }`}
+          >
+            {status.message}
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }

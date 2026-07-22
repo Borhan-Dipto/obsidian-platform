@@ -1,347 +1,928 @@
-import { cookies } from "next/headers";
-import crypto from "crypto";
 import { ObjectId } from "mongodb";
-import clientPromise from "../../../../lib/mongodb";
+import { isAdminAuthenticated } from "../../../../lib/adminAuth";
+import {
+  COLLECTIONS_COLLECTION_NAME,
+  PRODUCTS_COLLECTION_NAME,
+  buildSeriesMatchQuery,
+  createCatalogSlug,
+  ensureCatalogIndexes,
+  findCollectionBySeries,
+  getCatalogDatabase,
+  normalizeBooleanValue,
+  normalizeCatalogText,
+  normalizeSeriesKey,
+  normalizeSeriesName,
+} from "../../../../lib/catalog";
 
-function createSlug(text) {
-  return String(text || "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+export const dynamic = "force-dynamic";
+
+function createErrorResponse(message, status = 500) {
+  return Response.json(
+    {
+      success: false,
+      message,
+    },
+    {
+      status,
+    }
+  );
 }
 
-function createAdminToken() {
-  const secret = process.env.ADMIN_SECRET;
+function isPlainObject(value) {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+  );
+}
 
-  if (!secret) {
-    throw new Error("ADMIN_SECRET is missing.");
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(
+    object,
+    key
+  );
+}
+
+function serializeDocument(document) {
+  if (!document) {
+    return null;
   }
 
-  return crypto
-    .createHmac("sha256", secret)
-    .update("obsidian-admin-session")
-    .digest("hex");
+  return JSON.parse(JSON.stringify(document));
 }
 
-async function isAdminRequest() {
-  const cookieStore = await cookies();
-  const adminCookie = cookieStore.get("obsidian-admin");
+function getObjectIdString(value) {
+  if (!value) {
+    return "";
+  }
 
-  return Boolean(adminCookie && adminCookie.value === createAdminToken());
+  if (typeof value === "string") {
+    return value;
+  }
+
+  return String(value);
 }
 
-function toBoolean(value, defaultValue = false) {
-  if (typeof value === "boolean") return value;
-  if (typeof value === "string") return value === "true";
-  return defaultValue;
+async function resolveCollectionId(context) {
+  const params = await context.params;
+
+  try {
+    return decodeURIComponent(
+      String(params?.id || "")
+    ).trim();
+  } catch {
+    return String(params?.id || "").trim();
+  }
 }
 
-function toNumber(value, defaultValue = 0) {
-  const number = Number(value);
-  return Number.isNaN(number) ? defaultValue : number;
-}
+function createCollectionLookup(identifier) {
+  const normalizedIdentifier =
+    normalizeCatalogText(identifier);
 
-function getCollectionQuery(id) {
-  const decodedId = decodeURIComponent(String(id || "").trim());
-  const queryParts = [{ slug: decodedId }, { series: decodedId }];
+  const slug = createCatalogSlug(
+    normalizedIdentifier
+  );
 
-  if (ObjectId.isValid(decodedId)) {
-    queryParts.push({ _id: new ObjectId(decodedId) });
+  const seriesQuery =
+    buildSeriesMatchQuery(
+      normalizedIdentifier
+    );
+
+  const queryParts = [];
+
+  if (ObjectId.isValid(normalizedIdentifier)) {
+    queryParts.push({
+      _id: new ObjectId(normalizedIdentifier),
+    });
+  }
+
+  if (normalizedIdentifier) {
+    queryParts.push({
+      slug: normalizedIdentifier,
+    });
+  }
+
+  if (
+    slug &&
+    slug !== normalizedIdentifier
+  ) {
+    queryParts.push({
+      slug,
+    });
+  }
+
+  if (Array.isArray(seriesQuery.$or)) {
+    queryParts.push(...seriesQuery.$or);
+  } else {
+    queryParts.push(seriesQuery);
   }
 
   return {
-    decodedId,
-    query: { $or: queryParts },
+    $or: queryParts,
   };
 }
 
-export async function GET(request, context) {
+function validateRequiredText(
+  value,
+  fieldName,
+  maximumLength
+) {
+  const normalizedValue =
+    normalizeCatalogText(value);
+
+  if (!normalizedValue) {
+    return {
+      error: `${fieldName} is required.`,
+      value: "",
+    };
+  }
+
+  if (normalizedValue.length > maximumLength) {
+    return {
+      error: `${fieldName} must not exceed ${maximumLength} characters.`,
+      value: normalizedValue,
+    };
+  }
+
+  return {
+    error: "",
+    value: normalizedValue,
+  };
+}
+
+function validateCoverImage(value) {
+  const coverImage =
+    normalizeCatalogText(value);
+
+  if (!coverImage) {
+    return {
+      error: "Collection cover image is required.",
+      value: "",
+    };
+  }
+
+  if (coverImage.length > 1000) {
+    return {
+      error:
+        "Collection cover image URL must not exceed 1000 characters.",
+      value: coverImage,
+    };
+  }
+
+  if (coverImage.startsWith("/")) {
+    return {
+      error: "",
+      value: coverImage,
+    };
+  }
+
   try {
-    const params = await context.params;
-    const { query } = getCollectionQuery(params.id);
+    const imageUrl = new URL(coverImage);
 
-    const client = await clientPromise;
-    const db = client.db(process.env.MONGODB_DB || "obsidian");
+    if (
+      imageUrl.protocol !== "http:" &&
+      imageUrl.protocol !== "https:"
+    ) {
+      return {
+        error:
+          "Collection cover image must use http or https.",
+        value: coverImage,
+      };
+    }
 
-    const collection = await db.collection("collections").findOne(query);
+    return {
+      error: "",
+      value: coverImage,
+    };
+  } catch {
+    return {
+      error:
+        "Collection cover image must be a valid uploaded image URL.",
+      value: coverImage,
+    };
+  }
+}
+
+function validateDisplayOrder(value) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
+    return {
+      error: "",
+      value: 0,
+    };
+  }
+
+  const displayOrder = Number(value);
+
+  if (
+    !Number.isFinite(displayOrder) ||
+    !Number.isInteger(displayOrder)
+  ) {
+    return {
+      error:
+        "Display order must be a whole number.",
+      value: 0,
+    };
+  }
+
+  if (displayOrder < 0) {
+    return {
+      error:
+        "Display order cannot be negative.",
+      value: displayOrder,
+    };
+  }
+
+  if (displayOrder > 1000000) {
+    return {
+      error: "Display order is too large.",
+      value: displayOrder,
+    };
+  }
+
+  return {
+    error: "",
+    value: displayOrder,
+  };
+}
+
+function normalizeCollectionUpdate(
+  updates,
+  existingCollection
+) {
+  const mergedCollection = {
+    title: hasOwn(updates, "title")
+      ? updates.title
+      : existingCollection.title,
+
+    slug: hasOwn(updates, "slug")
+      ? updates.slug
+      : existingCollection.slug,
+
+    series: hasOwn(updates, "series")
+      ? updates.series
+      : existingCollection.series,
+
+    description: hasOwn(
+      updates,
+      "description"
+    )
+      ? updates.description
+      : existingCollection.description,
+
+    coverImage: hasOwn(
+      updates,
+      "coverImage"
+    )
+      ? updates.coverImage
+      : existingCollection.coverImage,
+
+    displayOrder: hasOwn(
+      updates,
+      "displayOrder"
+    )
+      ? updates.displayOrder
+      : existingCollection.displayOrder,
+
+    isActive: hasOwn(updates, "isActive")
+      ? updates.isActive
+      : existingCollection.isActive,
+
+    isFeatured: hasOwn(
+      updates,
+      "isFeatured"
+    )
+      ? updates.isFeatured
+      : existingCollection.isFeatured,
+  };
+
+  const titleResult = validateRequiredText(
+    mergedCollection.title,
+    "Collection title",
+    140
+  );
+
+  if (titleResult.error) {
+    return {
+      success: false,
+      message: titleResult.error,
+      collection: null,
+    };
+  }
+
+  const seriesResult = validateRequiredText(
+    mergedCollection.series,
+    "Collection series",
+    120
+  );
+
+  if (seriesResult.error) {
+    return {
+      success: false,
+      message: seriesResult.error,
+      collection: null,
+    };
+  }
+
+  const descriptionResult =
+    validateRequiredText(
+      mergedCollection.description,
+      "Collection description",
+      5000
+    );
+
+  if (descriptionResult.error) {
+    return {
+      success: false,
+      message: descriptionResult.error,
+      collection: null,
+    };
+  }
+
+  const coverImageResult =
+    validateCoverImage(
+      mergedCollection.coverImage
+    );
+
+  if (coverImageResult.error) {
+    return {
+      success: false,
+      message: coverImageResult.error,
+      collection: null,
+    };
+  }
+
+  const displayOrderResult =
+    validateDisplayOrder(
+      mergedCollection.displayOrder
+    );
+
+  if (displayOrderResult.error) {
+    return {
+      success: false,
+      message: displayOrderResult.error,
+      collection: null,
+    };
+  }
+
+  const series = normalizeSeriesName(
+    seriesResult.value
+  );
+
+  const slug = createCatalogSlug(
+    mergedCollection.slug ||
+      titleResult.value
+  );
+
+  if (!slug) {
+    return {
+      success: false,
+      message:
+        "Collection slug could not be generated.",
+      collection: null,
+    };
+  }
+
+  if (slug.length > 100) {
+    return {
+      success: false,
+      message:
+        "Collection slug must not exceed 100 characters.",
+      collection: null,
+    };
+  }
+
+  return {
+    success: true,
+    message: "",
+    collection: {
+      title: titleResult.value,
+      slug,
+      series,
+      seriesKey: normalizeSeriesKey(series),
+      description:
+        descriptionResult.value,
+      coverImage: coverImageResult.value,
+      displayOrder:
+        displayOrderResult.value,
+      isActive: normalizeBooleanValue(
+        mergedCollection.isActive,
+        true
+      ),
+      isFeatured: normalizeBooleanValue(
+        mergedCollection.isFeatured,
+        false
+      ),
+    },
+  };
+}
+
+async function getCollectionProductCounts(
+  database,
+  collection
+) {
+  const seriesQuery =
+    buildSeriesMatchQuery(
+      collection.series
+    );
+
+  const productStore =
+    database.collection(
+      PRODUCTS_COLLECTION_NAME
+    );
+
+  const [
+    totalProductCount,
+    activeProductCount,
+  ] = await Promise.all([
+    productStore.countDocuments(
+      seriesQuery
+    ),
+
+    productStore.countDocuments({
+      ...seriesQuery,
+
+      isActive: {
+        $ne: false,
+      },
+    }),
+  ]);
+
+  return {
+    productCount: totalProductCount,
+    activeProductCount,
+    inactiveProductCount:
+      totalProductCount -
+      activeProductCount,
+  };
+}
+
+async function attachProductCounts(
+  database,
+  collection
+) {
+  const counts =
+    await getCollectionProductCounts(
+      database,
+      collection
+    );
+
+  return {
+    ...collection,
+
+    seriesKey: normalizeSeriesKey(
+      collection.seriesKey ||
+        collection.series
+    ),
+
+    isAutoGenerated:
+      collection.isAutoGenerated === true,
+
+    ...counts,
+  };
+}
+
+export async function GET(
+  request,
+  context
+) {
+  try {
+    const identifier =
+      await resolveCollectionId(context);
+
+    if (!identifier) {
+      return createErrorResponse(
+        "Collection not found.",
+        404
+      );
+    }
+
+    const database =
+      await getCatalogDatabase();
+
+    await ensureCatalogIndexes(database);
+
+    const collection = await database
+      .collection(
+        COLLECTIONS_COLLECTION_NAME
+      )
+      .findOne(
+        createCollectionLookup(
+          identifier
+        )
+      );
 
     if (!collection) {
-      return Response.json(
-        {
-          success: false,
-          message: "Collection not found.",
-        },
-        { status: 404 }
+      return createErrorResponse(
+        "Collection not found.",
+        404
       );
     }
 
-    const authorized = await isAdminRequest();
+    if (collection.isActive === false) {
+      const authenticated =
+        await isAdminAuthenticated();
 
-    if (!collection.isActive && !authorized) {
-      return Response.json(
-        {
-          success: false,
-          message: "Collection not found.",
-        },
-        { status: 404 }
-      );
+      if (!authenticated) {
+        return createErrorResponse(
+          "Collection not found.",
+          404
+        );
+      }
     }
+
+    const collectionWithCounts =
+      await attachProductCounts(
+        database,
+        collection
+      );
 
     return Response.json({
       success: true,
-      collection,
+
+      collection: serializeDocument(
+        collectionWithCounts
+      ),
     });
   } catch (error) {
-    console.error("GET Collection Error:", error);
+    console.error(
+      "GET collection error:",
+      error
+    );
 
-    return Response.json(
-      {
-        success: false,
-        message: "Failed to fetch collection.",
-      },
-      { status: 500 }
+    return createErrorResponse(
+      "Failed to fetch collection."
     );
   }
 }
 
-export async function PATCH(request, context) {
-  try {
-    const authorized = await isAdminRequest();
+export async function PATCH(
+  request,
+  context
+) {
+  let database = null;
+  let existingCollection = null;
 
-    if (!authorized) {
-      return Response.json(
-        {
-          success: false,
-          message: "Unauthorized.",
-        },
-        { status: 401 }
+  try {
+    const authenticated =
+      await isAdminAuthenticated();
+
+    if (!authenticated) {
+      return createErrorResponse(
+        "Unauthorized.",
+        401
       );
     }
 
-    const params = await context.params;
-    const { query } = getCollectionQuery(params.id);
-    const updates = await request.json();
+    const identifier =
+      await resolveCollectionId(context);
 
-    const client = await clientPromise;
-    const db = client.db(process.env.MONGODB_DB || "obsidian");
+    if (!identifier) {
+      return createErrorResponse(
+        "Collection not found.",
+        404
+      );
+    }
 
-    const existingCollection = await db.collection("collections").findOne(query);
+    let requestBody;
+
+    try {
+      requestBody = await request.json();
+    } catch {
+      return createErrorResponse(
+        "Invalid JSON request body.",
+        400
+      );
+    }
+
+    if (!isPlainObject(requestBody)) {
+      return createErrorResponse(
+        "Collection data must be a valid object.",
+        400
+      );
+    }
+
+    database = await getCatalogDatabase();
+
+    await ensureCatalogIndexes(database);
+
+    const collectionStore =
+      database.collection(
+        COLLECTIONS_COLLECTION_NAME
+      );
+
+    const productStore =
+      database.collection(
+        PRODUCTS_COLLECTION_NAME
+      );
+
+    existingCollection =
+      await collectionStore.findOne(
+        createCollectionLookup(
+          identifier
+        )
+      );
 
     if (!existingCollection) {
-      return Response.json(
-        {
-          success: false,
-          message: "Collection not found.",
-        },
-        { status: 404 }
+      return createErrorResponse(
+        "Collection not found.",
+        404
       );
     }
 
-    const updatedCollection = {
-      updatedAt: new Date(),
+    const normalizedResult =
+      normalizeCollectionUpdate(
+        requestBody,
+        existingCollection
+      );
+
+    if (!normalizedResult.success) {
+      return createErrorResponse(
+        normalizedResult.message,
+        400
+      );
+    }
+
+    const normalizedCollection =
+      normalizedResult.collection;
+
+    const duplicateSeriesCollection =
+      await findCollectionBySeries(
+        database,
+        normalizedCollection.series
+      );
+
+    if (
+      duplicateSeriesCollection &&
+      getObjectIdString(
+        duplicateSeriesCollection._id
+      ) !==
+        getObjectIdString(
+          existingCollection._id
+        )
+    ) {
+      return createErrorResponse(
+        "Another collection already uses this product series.",
+        409
+      );
+    }
+
+    const duplicateSlug =
+      await collectionStore.findOne(
+        {
+          _id: {
+            $ne: existingCollection._id,
+          },
+
+          slug: normalizedCollection.slug,
+        },
+        {
+          projection: {
+            _id: 1,
+          },
+        }
+      );
+
+    if (duplicateSlug) {
+      return createErrorResponse(
+        "Another collection already uses this slug.",
+        409
+      );
+    }
+
+    const previousSeries =
+      normalizeSeriesName(
+        existingCollection.series
+      );
+
+    const previousSeriesKey =
+      normalizeSeriesKey(
+        existingCollection.seriesKey ||
+          previousSeries
+      );
+
+    const nextSeriesKey =
+      normalizedCollection.seriesKey;
+
+    const seriesChanged =
+      previousSeriesKey !== nextSeriesKey;
+
+    const now = new Date();
+
+    const collectionToSave = {
+      ...normalizedCollection,
+      isAutoGenerated: false,
+      customizedAt:
+        existingCollection.customizedAt ||
+        now,
+      updatedAt: now,
     };
 
-    if ("title" in updates) {
-      const title = String(updates.title || "").trim();
+    await collectionStore.updateOne(
+      {
+        _id: existingCollection._id,
+      },
+      {
+        $set: collectionToSave,
 
-      if (!title) {
-        return Response.json(
+        $unset: {
+          sourceProductId: "",
+          autoGeneratedAt: "",
+          autoEmptyAt: "",
+        },
+      }
+    );
+
+    try {
+      if (seriesChanged) {
+        await productStore.updateMany(
+          buildSeriesMatchQuery(
+            previousSeries
+          ),
           {
-            success: false,
-            message: "Collection title is required.",
-          },
-          { status: 400 }
+            $set: {
+              series:
+                normalizedCollection.series,
+              seriesKey:
+                normalizedCollection.seriesKey,
+              updatedAt: now,
+            },
+          }
+        );
+      } else {
+        await productStore.updateMany(
+          buildSeriesMatchQuery(
+            normalizedCollection.series
+          ),
+          {
+            $set: {
+              series:
+                normalizedCollection.series,
+              seriesKey:
+                normalizedCollection.seriesKey,
+            },
+          }
         );
       }
+    } catch (productUpdateError) {
+      await collectionStore.replaceOne(
+        {
+          _id: existingCollection._id,
+        },
+        existingCollection
+      );
 
-      updatedCollection.title = title;
+      throw productUpdateError;
     }
 
-    if ("slug" in updates) {
-      const slug = createSlug(updates.slug);
-
-      if (!slug) {
-        return Response.json(
-          {
-            success: false,
-            message: "Invalid collection slug.",
-          },
-          { status: 400 }
-        );
-      }
-
-      updatedCollection.slug = slug;
-    }
-
-    if ("series" in updates) {
-      const series = String(updates.series || "").trim();
-
-      if (!series) {
-        return Response.json(
-          {
-            success: false,
-            message: "Collection series is required.",
-          },
-          { status: 400 }
-        );
-      }
-
-      updatedCollection.series = series;
-    }
-
-    if ("description" in updates) {
-      const description = String(updates.description || "").trim();
-
-      if (!description) {
-        return Response.json(
-          {
-            success: false,
-            message: "Collection description is required.",
-          },
-          { status: 400 }
-        );
-      }
-
-      updatedCollection.description = description;
-    }
-
-    if ("coverImage" in updates) {
-      const coverImage = String(updates.coverImage || "").trim();
-
-      if (!coverImage) {
-        return Response.json(
-          {
-            success: false,
-            message: "Collection cover image is required.",
-          },
-          { status: 400 }
-        );
-      }
-
-      updatedCollection.coverImage = coverImage;
-    }
-
-    if ("displayOrder" in updates) {
-      updatedCollection.displayOrder = toNumber(updates.displayOrder, 0);
-    }
-
-    if ("isActive" in updates) {
-      updatedCollection.isActive = toBoolean(updates.isActive, true);
-    }
-
-    if ("isFeatured" in updates) {
-      updatedCollection.isFeatured = toBoolean(updates.isFeatured, false);
-    }
-
-    const duplicateChecks = [];
-
-    if (
-      updatedCollection.slug &&
-      updatedCollection.slug !== existingCollection.slug
-    ) {
-      duplicateChecks.push({ slug: updatedCollection.slug });
-    }
-
-    if (
-      updatedCollection.series &&
-      updatedCollection.series !== existingCollection.series
-    ) {
-      duplicateChecks.push({ series: updatedCollection.series });
-    }
-
-    if (duplicateChecks.length > 0) {
-      const duplicateCollection = await db.collection("collections").findOne({
-        _id: { $ne: existingCollection._id },
-        $or: duplicateChecks,
+    const savedCollection =
+      await collectionStore.findOne({
+        _id: existingCollection._id,
       });
 
-      if (duplicateCollection) {
-        return Response.json(
-          {
-            success: false,
-            message: "Another collection already uses this slug or series.",
-          },
-          { status: 409 }
-        );
-      }
-    }
-
-    await db
-      .collection("collections")
-      .updateOne({ _id: existingCollection._id }, { $set: updatedCollection });
-
-    const savedCollection = await db
-      .collection("collections")
-      .findOne({ _id: existingCollection._id });
+    const collectionWithCounts =
+      await attachProductCounts(
+        database,
+        savedCollection
+      );
 
     return Response.json({
       success: true,
-      message: "Collection updated successfully.",
-      collection: savedCollection,
+
+      message: seriesChanged
+        ? "Collection and linked products updated successfully."
+        : "Collection updated successfully.",
+
+      collection: serializeDocument(
+        collectionWithCounts
+      ),
     });
   } catch (error) {
-    console.error("PATCH Collection Error:", error);
+    if (error?.code === 11000) {
+      return createErrorResponse(
+        "Another collection already uses this slug or series.",
+        409
+      );
+    }
 
-    return Response.json(
-      {
-        success: false,
-        message: "Failed to update collection.",
-      },
-      { status: 500 }
+    console.error(
+      "PATCH collection error:",
+      error
+    );
+
+    return createErrorResponse(
+      "Failed to update collection."
     );
   }
 }
 
-export async function DELETE(request, context) {
+export async function DELETE(
+  request,
+  context
+) {
   try {
-    const authorized = await isAdminRequest();
+    const authenticated =
+      await isAdminAuthenticated();
 
-    if (!authorized) {
-      return Response.json(
-        {
-          success: false,
-          message: "Unauthorized.",
-        },
-        { status: 401 }
+    if (!authenticated) {
+      return createErrorResponse(
+        "Unauthorized.",
+        401
       );
     }
 
-    const params = await context.params;
-    const { query } = getCollectionQuery(params.id);
+    const identifier =
+      await resolveCollectionId(context);
 
-    const client = await clientPromise;
-    const db = client.db(process.env.MONGODB_DB || "obsidian");
+    if (!identifier) {
+      return createErrorResponse(
+        "Collection not found.",
+        404
+      );
+    }
 
-    const existingCollection = await db.collection("collections").findOne(query);
+    const database =
+      await getCatalogDatabase();
+
+    await ensureCatalogIndexes(database);
+
+    const collectionStore =
+      database.collection(
+        COLLECTIONS_COLLECTION_NAME
+      );
+
+    const existingCollection =
+      await collectionStore.findOne(
+        createCollectionLookup(
+          identifier
+        )
+      );
 
     if (!existingCollection) {
-      return Response.json(
-        {
-          success: false,
-          message: "Collection not found.",
-        },
-        { status: 404 }
+      return createErrorResponse(
+        "Collection not found.",
+        404
       );
     }
 
-    await db.collection("collections").deleteOne({
-      _id: existingCollection._id,
-    });
+    const counts =
+      await getCollectionProductCounts(
+        database,
+        existingCollection
+      );
+
+    if (counts.productCount > 0) {
+      return createErrorResponse(
+        `This collection still contains ${counts.productCount} ${
+          counts.productCount === 1
+            ? "product"
+            : "products"
+        }. Move, draft, or delete those products before deleting the collection.`,
+        409
+      );
+    }
+
+    const deletionResult =
+      await collectionStore.deleteOne({
+        _id: existingCollection._id,
+      });
+
+    if (deletionResult.deletedCount === 0) {
+      return createErrorResponse(
+        "Collection not found.",
+        404
+      );
+    }
 
     return Response.json({
       success: true,
-      message: "Collection deleted successfully.",
+      message:
+        "Empty collection deleted successfully.",
+
+      collection: serializeDocument({
+        _id: existingCollection._id,
+        title: existingCollection.title,
+        series: existingCollection.series,
+      }),
     });
   } catch (error) {
-    console.error("DELETE Collection Error:", error);
+    console.error(
+      "DELETE collection error:",
+      error
+    );
 
-    return Response.json(
-      {
-        success: false,
-        message: "Failed to delete collection.",
-      },
-      { status: 500 }
+    return createErrorResponse(
+      "Failed to delete collection."
     );
   }
+}
+
+export async function PUT(
+  request,
+  context
+) {
+  return PATCH(request, context);
 }
