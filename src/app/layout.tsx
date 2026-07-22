@@ -1,6 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Urbanist } from "next/font/google";
+import {
+  Cormorant_Garamond,
+  Urbanist,
+} from "next/font/google";
 import AppProviders from "../providers/AppProviders";
+import {
+  DEFAULT_SETTINGS,
+  getSettings,
+} from "../lib/settings";
 import "./globals.css";
 
 const urbanist = Urbanist({
@@ -18,111 +25,197 @@ const cormorant = Cormorant_Garamond({
   preload: true,
 });
 
-const siteName = "OBSIDIAN";
-const siteDescription =
-  "Premium menswear and engineered essentials built under pressure and finished with precision.";
-
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+const FALLBACK_SITE_URL =
   "https://obsidianwearbd.store";
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+function getSiteUrl() {
+  const configuredSiteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim()
+      .replace(/\/+$/, "");
 
-  title: {
-    default: "OBSIDIAN | Premium Menswear Bangladesh",
-    template: "%s | OBSIDIAN",
-  },
+  if (!configuredSiteUrl) {
+    return FALLBACK_SITE_URL;
+  }
 
-  description: siteDescription,
+  try {
+    return new URL(configuredSiteUrl).toString()
+      .replace(/\/+$/, "");
+  } catch {
+    return FALLBACK_SITE_URL;
+  }
+}
 
-  applicationName: siteName,
+function normalizeText(
+  value: unknown,
+  fallback: string
+) {
+  const normalizedValue = String(
+    value ?? ""
+  ).trim();
 
-  keywords: [
-    "OBSIDIAN",
-    "OBSIDIAN Bangladesh",
-    "premium menswear Bangladesh",
-    "premium t-shirt Bangladesh",
-    "oversized t-shirt Bangladesh",
-    "mens fashion Bangladesh",
-    "streetwear Bangladesh",
-    "minimal fashion Bangladesh",
-    "premium clothing Dhaka",
-    "Obsidian Wear BD",
-  ],
+  return normalizedValue || fallback;
+}
 
-  authors: [
-    {
-      name: siteName,
-      url: siteUrl,
+function normalizeKeywords(
+  value: unknown
+): string[] {
+  const keywords = Array.isArray(value)
+    ? value
+    : String(value ?? "").split(",");
+
+  return keywords
+    .map((keyword) =>
+      String(keyword ?? "").trim()
+    )
+    .filter(Boolean);
+}
+
+async function getMetadataSettings() {
+  try {
+    return await getSettings();
+  } catch (error) {
+    console.error(
+      "Global metadata settings error:",
+      error
+    );
+
+    return DEFAULT_SETTINGS;
+  }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getMetadataSettings();
+
+  const siteUrl = getSiteUrl();
+
+  const siteName = normalizeText(
+    settings.store?.name,
+    DEFAULT_SETTINGS.store.name
+  );
+
+  const siteTagline = normalizeText(
+    settings.store?.tagline,
+    DEFAULT_SETTINGS.store.tagline
+  );
+
+  const seoTitle = normalizeText(
+    settings.seo?.title,
+    DEFAULT_SETTINGS.seo.title
+  );
+
+  const seoDescription = normalizeText(
+    settings.seo?.description,
+    DEFAULT_SETTINGS.seo.description
+  );
+
+  const seoImage = normalizeText(
+    settings.seo?.ogImage,
+    DEFAULT_SETTINGS.seo.ogImage
+  );
+
+  const keywords = normalizeKeywords(
+    settings.seo?.keywords
+  );
+
+  const fallbackKeywords = normalizeKeywords(
+    DEFAULT_SETTINGS.seo.keywords
+  );
+
+  const metadataKeywords =
+    keywords.length > 0
+      ? keywords
+      : fallbackKeywords;
+
+  return {
+    metadataBase: new URL(siteUrl),
+
+    title: {
+      default: seoTitle,
+      template: `%s | ${siteName}`,
     },
-  ],
 
-  creator: siteName,
-  publisher: siteName,
+    description: seoDescription,
 
-  category: "fashion",
+    applicationName: siteName,
 
-  referrer: "origin-when-cross-origin",
+    keywords: metadataKeywords,
 
-  alternates: {
-    canonical: "/",
-  },
-
-  icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-  },
-
-  openGraph: {
-    type: "website",
-    locale: "en_BD",
-    url: "/",
-    siteName,
-    title: "OBSIDIAN | Premium Menswear Bangladesh",
-    description: siteDescription,
-    images: [
+    authors: [
       {
-        url: "/images/hero1.jpeg",
-        width: 1200,
-        height: 630,
-        alt: "OBSIDIAN premium menswear collection",
+        name: siteName,
+        url: siteUrl,
       },
     ],
-  },
 
-  twitter: {
-    card: "summary_large_image",
-    title: "OBSIDIAN | Premium Menswear Bangladesh",
-    description: siteDescription,
-    images: ["/images/hero1.jpeg"],
-  },
+    creator: siteName,
+    publisher: siteName,
 
-  robots: {
-    index: true,
-    follow: true,
-    nocache: false,
-    googleBot: {
+    category: "fashion",
+
+    referrer: "origin-when-cross-origin",
+
+    alternates: {
+      canonical: "/",
+    },
+
+    icons: {
+      icon: "/favicon.ico",
+      shortcut: "/favicon.ico",
+    },
+
+    openGraph: {
+      type: "website",
+      locale: "en_BD",
+      url: "/",
+      siteName,
+      title: seoTitle,
+      description: seoDescription,
+
+      images: [
+        {
+          url: seoImage,
+          width: 1200,
+          height: 630,
+          alt: `${siteName} social sharing image`,
+        },
+      ],
+    },
+
+    twitter: {
+      card: "summary_large_image",
+      title: seoTitle,
+      description: seoDescription,
+      images: [seoImage],
+    },
+
+    robots: {
       index: true,
       follow: true,
-      noimageindex: false,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-      "max-video-preview": -1,
+      nocache: false,
+
+      googleBot: {
+        index: true,
+        follow: true,
+        noimageindex: false,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
     },
-  },
 
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
+    formatDetection: {
+      email: false,
+      address: false,
+      telephone: false,
+    },
 
-  other: {
-    "theme-color": "#f1ece4",
-    "color-scheme": "light",
-  },
-};
+    other: {
+      "theme-color": "#f1ece4",
+      "color-scheme": "light",
+      "brand-tagline": siteTagline,
+    },
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -130,6 +223,7 @@ export const viewport: Viewport = {
   maximumScale: 5,
   viewportFit: "cover",
   colorScheme: "light",
+
   themeColor: [
     {
       media: "(prefers-color-scheme: light)",
@@ -154,7 +248,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="bg-[#f1ece4] text-[#0b0b0b] antialiased">
-        <AppProviders>{children}</AppProviders>
+        <AppProviders>
+          {children}
+        </AppProviders>
       </body>
     </html>
   );

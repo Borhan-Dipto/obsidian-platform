@@ -5,8 +5,17 @@ import { redirect } from "next/navigation";
 import clientPromise from "../../../lib/mongodb";
 import { requireAdminAuth } from "../../../lib/adminAuth";
 
-const NEWSLETTER_COLLECTION = "newsletterSubscribers";
+export const dynamic = "force-dynamic";
+
+const NEWSLETTER_COLLECTION =
+  "newsletterSubscribers";
+
 const ITEMS_PER_PAGE = 15;
+
+const VALID_SUBSCRIBER_STATUSES = new Set([
+  "active",
+  "unsubscribed",
+]);
 
 function normalizeText(value, fallback = "") {
   if (typeof value !== "string") {
@@ -18,8 +27,23 @@ function normalizeText(value, fallback = "") {
   return normalizedValue || fallback;
 }
 
+function normalizeEmail(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    email
+  );
+}
+
 function normalizeStatus(value) {
-  const status = normalizeText(value, "all").toLowerCase();
+  const status = normalizeText(
+    value,
+    "all"
+  ).toLowerCase();
 
   if (
     status === "active" ||
@@ -29,6 +53,17 @@ function normalizeStatus(value) {
   }
 
   return "all";
+}
+
+function normalizeSubscriberStatus(value) {
+  const status = normalizeText(
+    value,
+    "active"
+  ).toLowerCase();
+
+  return VALID_SUBSCRIBER_STATUSES.has(status)
+    ? status
+    : "active";
 }
 
 function normalizePage(value) {
@@ -42,7 +77,10 @@ function normalizePage(value) {
 }
 
 function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return value.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&"
+  );
 }
 
 function formatDate(value) {
@@ -63,6 +101,19 @@ function formatDate(value) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function formatSource(value) {
+  const source = normalizeText(
+    value,
+    "footer"
+  );
+
+  return source
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (character) =>
+      character.toUpperCase()
+    );
 }
 
 function getStatusClass(status) {
@@ -103,20 +154,122 @@ function buildNewsletterUrl({
     : "/admin/newsletter";
 }
 
+function buildExportUrl({
+  search = "",
+  status = "all",
+}) {
+  const parameters = new URLSearchParams();
+
+  if (search) {
+    parameters.set("search", search);
+  }
+
+  if (status !== "all") {
+    parameters.set("status", status);
+  }
+
+  const queryString = parameters.toString();
+
+  return queryString
+    ? `/api/admin/newsletter/export?${queryString}`
+    : "/api/admin/newsletter/export";
+}
+
+function normalizeReturnUrl(value) {
+  const fallbackUrl = "/admin/newsletter";
+
+  const suppliedUrl = normalizeText(
+    value,
+    fallbackUrl
+  );
+
+  try {
+    const parsedUrl = new URL(
+      suppliedUrl,
+      "http://localhost"
+    );
+
+    if (
+      parsedUrl.pathname !==
+      "/admin/newsletter"
+    ) {
+      return fallbackUrl;
+    }
+
+    parsedUrl.searchParams.delete("notice");
+    parsedUrl.searchParams.delete("error");
+
+    const queryString =
+      parsedUrl.searchParams.toString();
+
+    return queryString
+      ? `${parsedUrl.pathname}?${queryString}`
+      : parsedUrl.pathname;
+  } catch {
+    return fallbackUrl;
+  }
+}
+
+function buildActionRedirectUrl(
+  returnUrl,
+  {
+    notice = "",
+    error = "",
+  } = {}
+) {
+  const safeReturnUrl =
+    normalizeReturnUrl(returnUrl);
+
+  const parsedUrl = new URL(
+    safeReturnUrl,
+    "http://localhost"
+  );
+
+  parsedUrl.searchParams.delete("notice");
+  parsedUrl.searchParams.delete("error");
+
+  if (notice) {
+    parsedUrl.searchParams.set(
+      "notice",
+      notice
+    );
+  }
+
+  if (error) {
+    parsedUrl.searchParams.set(
+      "error",
+      error
+    );
+  }
+
+  const queryString =
+    parsedUrl.searchParams.toString();
+
+  return queryString
+    ? `${parsedUrl.pathname}?${queryString}`
+    : parsedUrl.pathname;
+}
+
+async function getNewsletterCollection() {
+  const client = await clientPromise;
+
+  const database = client.db(
+    process.env.MONGODB_DB || "obsidian"
+  );
+
+  return database.collection(
+    NEWSLETTER_COLLECTION
+  );
+}
+
 async function getNewsletterData({
   search,
   status,
   page,
 }) {
   try {
-    const client = await clientPromise;
-    const database = client.db(
-      process.env.MONGODB_DB || "obsidian"
-    );
-
-    const collection = database.collection(
-      NEWSLETTER_COLLECTION
-    );
+    const collection =
+      await getNewsletterCollection();
 
     const query = {};
 
@@ -162,10 +315,13 @@ async function getNewsletterData({
     ]);
 
     return {
-      subscribers: subscribers.map((subscriber) => ({
-        ...subscriber,
-        _id: subscriber._id.toString(),
-      })),
+      subscribers: subscribers.map(
+        (subscriber) => ({
+          ...subscriber,
+          _id: subscriber._id.toString(),
+        })
+      ),
+
       filteredCount,
       totalCount,
       activeCount,
@@ -190,6 +346,225 @@ async function getNewsletterData({
   }
 }
 
+async function addSubscriber(formData) {
+  "use server";
+
+  await requireAdminAuth();
+
+  const email = normalizeEmail(
+    formData.get("email")
+  );
+
+  const returnUrl = normalizeReturnUrl(
+    formData.get("returnUrl")
+  );
+
+  if (
+    !email ||
+    email.length > 254 ||
+    !isValidEmail(email)
+  ) {
+    redirect(
+      buildActionRedirectUrl(returnUrl, {
+        error: "invalid-email",
+      })
+    );
+  }
+
+  let notice = "added";
+  let errorCode = "";
+  let changed = false;
+
+  try {
+    const collection =
+      await getNewsletterCollection();
+
+    const existingSubscriber =
+      await collection.findOne({
+        email,
+      });
+
+    const now = new Date();
+
+    if (existingSubscriber) {
+      const existingStatus =
+        normalizeSubscriberStatus(
+          existingSubscriber.status
+        );
+
+      if (
+        existingStatus === "unsubscribed"
+      ) {
+        await collection.updateOne(
+          {
+            _id: existingSubscriber._id,
+          },
+          {
+            $set: {
+              status: "active",
+              source: "admin",
+              resubscribedAt: now,
+              updatedAt: now,
+            },
+
+            $unset: {
+              unsubscribedAt: "",
+            },
+          }
+        );
+
+        notice = "reactivated";
+        changed = true;
+      } else {
+        notice = "already-exists";
+      }
+    } else {
+      await collection.insertOne({
+        email,
+        source: "admin",
+        status: "active",
+        subscribedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      notice = "added";
+      changed = true;
+    }
+  } catch (error) {
+    if (error?.code === 11000) {
+      notice = "already-exists";
+    } else {
+      console.error(
+        "Newsletter subscriber creation error:",
+        error
+      );
+
+      errorCode = "add-failed";
+    }
+  }
+
+  if (changed) {
+    revalidatePath("/admin/newsletter");
+  }
+
+  if (errorCode) {
+    redirect(
+      buildActionRedirectUrl(returnUrl, {
+        error: errorCode,
+      })
+    );
+  }
+
+  redirect(
+    buildActionRedirectUrl(returnUrl, {
+      notice,
+    })
+  );
+}
+
+async function updateSubscriberStatus(
+  formData
+) {
+  "use server";
+
+  await requireAdminAuth();
+
+  const subscriberId = normalizeText(
+    formData.get("subscriberId")
+  );
+
+  const requestedStatus = normalizeText(
+    formData.get("status")
+  ).toLowerCase();
+
+  const returnUrl = normalizeReturnUrl(
+    formData.get("returnUrl")
+  );
+
+  if (
+    !ObjectId.isValid(subscriberId) ||
+    !VALID_SUBSCRIBER_STATUSES.has(
+      requestedStatus
+    )
+  ) {
+    redirect(
+      buildActionRedirectUrl(returnUrl, {
+        error: "invalid-subscriber",
+      })
+    );
+  }
+
+  let errorCode = "";
+
+  try {
+    const collection =
+      await getNewsletterCollection();
+
+    const now = new Date();
+
+    const update =
+      requestedStatus === "active"
+        ? {
+            $set: {
+              status: "active",
+              resubscribedAt: now,
+              updatedAt: now,
+            },
+
+            $unset: {
+              unsubscribedAt: "",
+            },
+          }
+        : {
+            $set: {
+              status: "unsubscribed",
+              unsubscribedAt: now,
+              updatedAt: now,
+            },
+          };
+
+    const result = await collection.updateOne(
+      {
+        _id: new ObjectId(subscriberId),
+      },
+      update
+    );
+
+    if (result.matchedCount === 0) {
+      errorCode = "invalid-subscriber";
+    } else {
+      revalidatePath(
+        "/admin/newsletter"
+      );
+    }
+  } catch (error) {
+    console.error(
+      "Newsletter status update error:",
+      error
+    );
+
+    errorCode = "update-failed";
+  }
+
+  if (errorCode) {
+    redirect(
+      buildActionRedirectUrl(returnUrl, {
+        error: errorCode,
+      })
+    );
+  }
+
+  redirect(
+    buildActionRedirectUrl(returnUrl, {
+      notice:
+        requestedStatus === "active"
+          ? "status-active"
+          : "status-unsubscribed",
+    })
+  );
+}
+
 async function deleteSubscriber(formData) {
   "use server";
 
@@ -199,50 +574,102 @@ async function deleteSubscriber(formData) {
     formData.get("subscriberId")
   );
 
-  const returnUrl = normalizeText(
-    formData.get("returnUrl"),
-    "/admin/newsletter"
+  const returnUrl = normalizeReturnUrl(
+    formData.get("returnUrl")
   );
 
   if (!ObjectId.isValid(subscriberId)) {
     redirect(
-      `${returnUrl}${
-        returnUrl.includes("?") ? "&" : "?"
-      }error=invalid-subscriber`
+      buildActionRedirectUrl(returnUrl, {
+        error: "invalid-subscriber",
+      })
     );
   }
 
+  let errorCode = "";
+
   try {
-    const client = await clientPromise;
-    const database = client.db(
-      process.env.MONGODB_DB || "obsidian"
-    );
+    const collection =
+      await getNewsletterCollection();
 
-    await database
-      .collection(NEWSLETTER_COLLECTION)
-      .deleteOne({
-        _id: new ObjectId(subscriberId),
-      });
+    const result = await collection.deleteOne({
+      _id: new ObjectId(subscriberId),
+    });
 
-    revalidatePath("/admin/newsletter");
+    if (result.deletedCount === 0) {
+      errorCode = "invalid-subscriber";
+    } else {
+      revalidatePath(
+        "/admin/newsletter"
+      );
+    }
   } catch (error) {
     console.error(
       "Newsletter subscriber deletion error:",
       error
     );
 
+    errorCode = "delete-failed";
+  }
+
+  if (errorCode) {
     redirect(
-      `${returnUrl}${
-        returnUrl.includes("?") ? "&" : "?"
-      }error=delete-failed`
+      buildActionRedirectUrl(returnUrl, {
+        error: errorCode,
+      })
     );
   }
 
   redirect(
-    `${returnUrl}${
-      returnUrl.includes("?") ? "&" : "?"
-    }deleted=true`
+    buildActionRedirectUrl(returnUrl, {
+      notice: "deleted",
+    })
   );
+}
+
+function getNoticeMessage(code) {
+  const messages = {
+    added:
+      "Subscriber added successfully.",
+
+    reactivated:
+      "The existing subscriber was reactivated successfully.",
+
+    "already-exists":
+      "This email address is already subscribed.",
+
+    "status-active":
+      "Subscriber status changed to active.",
+
+    "status-unsubscribed":
+      "Subscriber status changed to unsubscribed.",
+
+    deleted:
+      "Subscriber deleted successfully.",
+  };
+
+  return messages[code] || "";
+}
+
+function getErrorMessage(code) {
+  const messages = {
+    "invalid-email":
+      "Enter a valid subscriber email address.",
+
+    "add-failed":
+      "The subscriber could not be added.",
+
+    "invalid-subscriber":
+      "The selected subscriber is invalid or no longer exists.",
+
+    "update-failed":
+      "The subscriber status could not be updated.",
+
+    "delete-failed":
+      "The subscriber could not be deleted.",
+  };
+
+  return messages[code] || "";
 }
 
 export default async function NewsletterAdminPage({
@@ -250,7 +677,8 @@ export default async function NewsletterAdminPage({
 }) {
   await requireAdminAuth();
 
-  const resolvedSearchParams = await searchParams;
+  const resolvedSearchParams =
+    await searchParams;
 
   const search = normalizeText(
     resolvedSearchParams?.search
@@ -313,23 +741,31 @@ export default async function NewsletterAdminPage({
     page: currentPage,
   });
 
-  const wasDeleted =
-    resolvedSearchParams?.deleted === "true";
+  const exportUrl = buildExportUrl({
+    search,
+    status,
+  });
+
+  const noticeMessage =
+    getNoticeMessage(
+      normalizeText(
+        resolvedSearchParams?.notice
+      )
+    );
 
   const actionError =
-    resolvedSearchParams?.error ===
-      "delete-failed"
-      ? "Subscriber could not be deleted."
-      : resolvedSearchParams?.error ===
-          "invalid-subscriber"
-        ? "The selected subscriber is invalid."
-        : "";
+    getErrorMessage(
+      normalizeText(
+        resolvedSearchParams?.error
+      )
+    );
 
   const statistics = [
     {
       label: "Total Subscribers",
       value: data.totalCount,
-      description: "All recorded subscribers",
+      description:
+        "All recorded subscribers",
     },
     {
       label: "Active",
@@ -339,12 +775,14 @@ export default async function NewsletterAdminPage({
     {
       label: "Unsubscribed",
       value: data.unsubscribedCount,
-      description: "Inactive subscribers",
+      description:
+        "Not receiving campaigns",
     },
     {
       label: "Filtered Results",
       value: data.filteredCount,
-      description: "Current search results",
+      description:
+        "Current search results",
     },
   ];
 
@@ -362,27 +800,37 @@ export default async function NewsletterAdminPage({
             </h1>
 
             <p className="mt-5 max-w-2xl text-sm leading-7 text-neutral-400">
-              Review and manage customers who joined
-              the OBSIDIAN mailing list.
+              Collect, add, filter, export, and
+              manage customers who joined the
+              OBSIDIAN mailing list.
             </p>
           </div>
 
-          <Link
-            href="/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex w-fit items-center justify-center border border-white/15 px-6 py-4 text-[10px] uppercase tracking-[0.3em] text-neutral-300 transition hover:bg-[#f1ece4] hover:text-[#0b0b0b]"
-          >
-            View Store ↗
-          </Link>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <a
+              href={exportUrl}
+              className="inline-flex items-center justify-center border border-white/15 px-6 py-4 text-[10px] uppercase tracking-[0.3em] text-neutral-300 transition hover:bg-[#f1ece4] hover:text-[#0b0b0b]"
+            >
+              Export CSV ↓
+            </a>
+
+            <Link
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center border border-white/15 px-6 py-4 text-[10px] uppercase tracking-[0.3em] text-neutral-300 transition hover:bg-[#f1ece4] hover:text-[#0b0b0b]"
+            >
+              View Store ↗
+            </Link>
+          </div>
         </header>
 
-        {wasDeleted ? (
+        {noticeMessage ? (
           <div
             role="status"
             className="mt-8 border border-emerald-400/20 bg-emerald-400/10 px-5 py-4 text-sm text-emerald-300"
           >
-            Subscriber deleted successfully.
+            {noticeMessage}
           </div>
         ) : null}
 
@@ -417,6 +865,60 @@ export default async function NewsletterAdminPage({
         </section>
 
         <section className="mt-10 border border-white/10 bg-[#0b0b0b]">
+          <div className="border-b border-white/10 p-6 lg:p-8">
+            <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.75fr)] xl:items-end">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.35em] text-neutral-600">
+                  Add Subscriber
+                </p>
+
+                <h2 className="mt-4 font-heading text-3xl font-light">
+                  Manual subscription
+                </h2>
+
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-neutral-500">
+                  Add a customer manually. Existing
+                  unsubscribed emails will be
+                  reactivated instead of duplicated.
+                </p>
+              </div>
+
+              <form
+                action={addSubscriber}
+                className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]"
+              >
+                <input
+                  type="hidden"
+                  name="returnUrl"
+                  value={currentUrl}
+                />
+
+                <label className="block">
+                  <span className="sr-only">
+                    Subscriber email
+                  </span>
+
+                  <input
+                    type="email"
+                    name="email"
+                    required
+                    maxLength={254}
+                    autoComplete="email"
+                    placeholder="customer@example.com"
+                    className="h-12 w-full border border-white/10 bg-[#080808] px-4 text-sm text-[#f1ece4] outline-none transition placeholder:text-neutral-700 focus:border-white/30"
+                  />
+                </label>
+
+                <button
+                  type="submit"
+                  className="h-12 border border-[#f1ece4] bg-[#f1ece4] px-6 text-[10px] uppercase tracking-[0.28em] text-[#0b0b0b] transition hover:bg-transparent hover:text-[#f1ece4]"
+                >
+                  Add Subscriber
+                </button>
+              </form>
+            </div>
+          </div>
+
           <div className="border-b border-white/10 p-5 sm:p-6">
             <form
               method="GET"
@@ -484,9 +986,19 @@ export default async function NewsletterAdminPage({
               {data.filteredCount}
             </p>
 
-            <p>
-              Page {currentPage} of {totalPages}
-            </p>
+            <div className="flex flex-wrap items-center gap-4">
+              <p>
+                Page {currentPage} of{" "}
+                {totalPages}
+              </p>
+
+              <a
+                href={exportUrl}
+                className="text-[10px] uppercase tracking-[0.24em] text-neutral-400 transition hover:text-white"
+              >
+                Export these results
+              </a>
+            </div>
           </div>
 
           {data.subscribers.length === 0 ? (
@@ -496,14 +1008,15 @@ export default async function NewsletterAdminPage({
               </p>
 
               <p className="mx-auto mt-4 max-w-md text-sm leading-7 text-neutral-500">
-                New newsletter subscriptions will
-                appear here automatically.
+                Add a subscriber manually or wait
+                for customers to join through the
+                storefront newsletter form.
               </p>
             </div>
           ) : (
             <>
               <div className="hidden overflow-x-auto lg:block">
-                <table className="w-full min-w-[950px] border-collapse">
+                <table className="w-full min-w-[1120px] border-collapse">
                   <thead>
                     <tr className="border-b border-white/10 text-left">
                       <th className="px-6 py-4 text-[9px] font-normal uppercase tracking-[0.3em] text-neutral-600">
@@ -523,7 +1036,7 @@ export default async function NewsletterAdminPage({
                       </th>
 
                       <th className="px-6 py-4 text-right text-[9px] font-normal uppercase tracking-[0.3em] text-neutral-600">
-                        Action
+                        Manage
                       </th>
                     </tr>
                   </thead>
@@ -532,10 +1045,9 @@ export default async function NewsletterAdminPage({
                     {data.subscribers.map(
                       (subscriber) => {
                         const subscriberStatus =
-                          normalizeText(
-                            subscriber.status,
-                            "active"
-                          ).toLowerCase();
+                          normalizeSubscriberStatus(
+                            subscriber.status
+                          );
 
                         return (
                           <tr
@@ -558,10 +1070,9 @@ export default async function NewsletterAdminPage({
                               </span>
                             </td>
 
-                            <td className="px-6 py-5 text-xs capitalize text-neutral-500">
-                              {normalizeText(
-                                subscriber.source,
-                                "footer"
+                            <td className="px-6 py-5 text-xs text-neutral-500">
+                              {formatSource(
+                                subscriber.source
                               )}
                             </td>
 
@@ -572,33 +1083,80 @@ export default async function NewsletterAdminPage({
                               )}
                             </td>
 
-                            <td className="px-6 py-5 text-right">
-                              <form
-                                action={
-                                  deleteSubscriber
-                                }
-                              >
-                                <input
-                                  type="hidden"
-                                  name="subscriberId"
-                                  value={
-                                    subscriber._id
+                            <td className="px-6 py-5">
+                              <div className="flex items-center justify-end gap-3">
+                                <form
+                                  action={
+                                    updateSubscriberStatus
                                   }
-                                />
-
-                                <input
-                                  type="hidden"
-                                  name="returnUrl"
-                                  value={currentUrl}
-                                />
-
-                                <button
-                                  type="submit"
-                                  className="border border-red-400/20 px-4 py-3 text-[9px] uppercase tracking-[0.25em] text-red-300 transition hover:bg-red-400/10"
+                                  className="flex items-center gap-2"
                                 >
-                                  Delete
-                                </button>
-                              </form>
+                                  <input
+                                    type="hidden"
+                                    name="subscriberId"
+                                    value={
+                                      subscriber._id
+                                    }
+                                  />
+
+                                  <input
+                                    type="hidden"
+                                    name="returnUrl"
+                                    value={currentUrl}
+                                  />
+
+                                  <select
+                                    name="status"
+                                    defaultValue={
+                                      subscriberStatus
+                                    }
+                                    aria-label={`Status for ${subscriber.email}`}
+                                    className="h-10 border border-white/10 bg-[#080808] px-3 text-xs text-neutral-300 outline-none transition focus:border-white/30"
+                                  >
+                                    <option value="active">
+                                      Active
+                                    </option>
+
+                                    <option value="unsubscribed">
+                                      Unsubscribed
+                                    </option>
+                                  </select>
+
+                                  <button
+                                    type="submit"
+                                    className="h-10 border border-white/15 px-4 text-[9px] uppercase tracking-[0.22em] text-neutral-300 transition hover:border-white/35 hover:text-white"
+                                  >
+                                    Update
+                                  </button>
+                                </form>
+
+                                <form
+                                  action={
+                                    deleteSubscriber
+                                  }
+                                >
+                                  <input
+                                    type="hidden"
+                                    name="subscriberId"
+                                    value={
+                                      subscriber._id
+                                    }
+                                  />
+
+                                  <input
+                                    type="hidden"
+                                    name="returnUrl"
+                                    value={currentUrl}
+                                  />
+
+                                  <button
+                                    type="submit"
+                                    className="h-10 border border-red-400/20 px-4 text-[9px] uppercase tracking-[0.22em] text-red-300 transition hover:bg-red-400/10"
+                                  >
+                                    Delete
+                                  </button>
+                                </form>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -612,50 +1170,89 @@ export default async function NewsletterAdminPage({
                 {data.subscribers.map(
                   (subscriber) => {
                     const subscriberStatus =
-                      normalizeText(
-                        subscriber.status,
-                        "active"
-                      ).toLowerCase();
+                      normalizeSubscriberStatus(
+                        subscriber.status
+                      );
 
                     return (
                       <article
                         key={subscriber._id}
                         className="p-5 sm:p-6"
                       >
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="min-w-0">
-                            <p className="break-all text-sm text-neutral-200">
-                              {subscriber.email}
-                            </p>
+                        <p className="break-all text-sm text-neutral-200">
+                          {subscriber.email}
+                        </p>
 
-                            <div className="mt-4 flex flex-wrap items-center gap-3">
-                              <span
-                                className={`inline-flex border px-3 py-2 text-[9px] uppercase tracking-[0.25em] ${getStatusClass(
-                                  subscriberStatus
-                                )}`}
-                              >
-                                {subscriberStatus}
-                              </span>
+                        <div className="mt-4 flex flex-wrap items-center gap-3">
+                          <span
+                            className={`inline-flex border px-3 py-2 text-[9px] uppercase tracking-[0.25em] ${getStatusClass(
+                              subscriberStatus
+                            )}`}
+                          >
+                            {subscriberStatus}
+                          </span>
 
-                              <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
-                                {normalizeText(
-                                  subscriber.source,
-                                  "footer"
-                                )}
-                              </span>
-                            </div>
+                          <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
+                            {formatSource(
+                              subscriber.source
+                            )}
+                          </span>
+                        </div>
 
-                            <p className="mt-4 text-xs text-neutral-500">
-                              {formatDate(
-                                subscriber.subscribedAt ||
-                                  subscriber.createdAt
-                              )}
-                            </p>
-                          </div>
+                        <p className="mt-4 text-xs text-neutral-500">
+                          Subscribed{" "}
+                          {formatDate(
+                            subscriber.subscribedAt ||
+                              subscriber.createdAt
+                          )}
+                        </p>
+
+                        <div className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                          <form
+                            action={
+                              updateSubscriberStatus
+                            }
+                            className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]"
+                          >
+                            <input
+                              type="hidden"
+                              name="subscriberId"
+                              value={subscriber._id}
+                            />
+
+                            <input
+                              type="hidden"
+                              name="returnUrl"
+                              value={currentUrl}
+                            />
+
+                            <select
+                              name="status"
+                              defaultValue={
+                                subscriberStatus
+                              }
+                              aria-label={`Status for ${subscriber.email}`}
+                              className="h-11 w-full border border-white/10 bg-[#080808] px-3 text-xs text-neutral-300 outline-none transition focus:border-white/30"
+                            >
+                              <option value="active">
+                                Active
+                              </option>
+
+                              <option value="unsubscribed">
+                                Unsubscribed
+                              </option>
+                            </select>
+
+                            <button
+                              type="submit"
+                              className="h-11 border border-white/15 px-4 text-[9px] uppercase tracking-[0.22em] text-neutral-300 transition hover:border-white/35 hover:text-white"
+                            >
+                              Update
+                            </button>
+                          </form>
 
                           <form
                             action={deleteSubscriber}
-                            className="shrink-0"
                           >
                             <input
                               type="hidden"
@@ -671,7 +1268,7 @@ export default async function NewsletterAdminPage({
 
                             <button
                               type="submit"
-                              className="w-full border border-red-400/20 px-4 py-3 text-[9px] uppercase tracking-[0.25em] text-red-300 transition hover:bg-red-400/10 sm:w-auto"
+                              className="h-11 w-full border border-red-400/20 px-4 text-[9px] uppercase tracking-[0.22em] text-red-300 transition hover:bg-red-400/10"
                             >
                               Delete
                             </button>
@@ -708,7 +1305,8 @@ export default async function NewsletterAdminPage({
               )}
 
               <p className="text-center text-xs text-neutral-600">
-                Page {currentPage} of {totalPages}
+                Page {currentPage} of{" "}
+                {totalPages}
               </p>
 
               {currentPage < totalPages ? (

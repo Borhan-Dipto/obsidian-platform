@@ -1,245 +1,658 @@
-import clientPromise from "../../../lib/mongodb";
+import { isAdminAuthenticated } from "../../../lib/adminAuth";
+import {
+  getSettings,
+  getSettingsCollection,
+  mergeSettings,
+  serializeSettings,
+} from "../../../lib/settings";
 
-const OLD_ARTIFACT_COLLECTION_HREF = `/collections/${"artifact"}`;
+export const dynamic = "force-dynamic";
 
-const DEFAULT_SETTINGS = {
-  type: "store",
-
-  store: {
-    name: "OBSIDIAN",
-    tagline: "Built under pressure. Finished with precision.",
-    currency: "BDT",
-  },
-
-  contact: {
-    whatsappNumber: "8801814455199",
-    email: "hello@obsidianwear.com",
-    location: "Dhaka, Bangladesh",
-    phone: "",
-  },
-
-  social: {
-    facebookUrl: "",
-    instagramUrl: "",
-    tiktokUrl: "",
-    youtubeUrl: "",
-  },
-
-  delivery: {
-    insideDhaka: 80,
-    outsideDhaka: 130,
-    freeShippingOver: 0,
-  },
-
-  seo: {
-    title: "OBSIDIAN",
-    description: "Built under pressure. Finished with precision.",
-    keywords: "obsidian, fashion, menswear, t-shirt, Bangladesh",
-    ogImage: "",
-  },
-
-  homepage: {
-    heroEyebrow: "Built Under Pressure",
-    heroTitle: "OBSIDIAN",
-    heroSubtitle:
-      "Engineered essentials shaped by pressure, precision, and quiet confidence.",
-    primaryCtaText: "View Collection",
-    primaryCtaHref: "/collections",
-    secondaryCtaText: "Shop All",
-    secondaryCtaHref: "/shop",
-  },
-
-  payment: {
-    cashOnDelivery: true,
-    bkash: false,
-    nagad: false,
-    rocket: false,
-  },
-};
-
-function mergeSettings(existingSettings = {}) {
-  return {
-    ...DEFAULT_SETTINGS,
-    ...existingSettings,
-
-    store: {
-      ...DEFAULT_SETTINGS.store,
-      ...(existingSettings.store || {}),
+function createErrorResponse(message, status = 500) {
+  return Response.json(
+    {
+      success: false,
+      message,
     },
-
-    contact: {
-      ...DEFAULT_SETTINGS.contact,
-      ...(existingSettings.contact || {}),
-    },
-
-    social: {
-      ...DEFAULT_SETTINGS.social,
-      ...(existingSettings.social || {}),
-    },
-
-    delivery: {
-      ...DEFAULT_SETTINGS.delivery,
-      ...(existingSettings.delivery || {}),
-    },
-
-    seo: {
-      ...DEFAULT_SETTINGS.seo,
-      ...(existingSettings.seo || {}),
-    },
-
-    homepage: {
-      ...DEFAULT_SETTINGS.homepage,
-      ...(existingSettings.homepage || {}),
-    },
-
-    payment: {
-      ...DEFAULT_SETTINGS.payment,
-      ...(existingSettings.payment || {}),
-    },
-  };
+    {
+      status,
+    }
+  );
 }
 
-function normalizeHomepage(homepage = {}) {
-  const normalizedHomepage = {
-    ...DEFAULT_SETTINGS.homepage,
-    ...homepage,
-  };
+function isPlainObject(value) {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+  );
+}
 
-  if (normalizedHomepage.primaryCtaHref === OLD_ARTIFACT_COLLECTION_HREF) {
-    normalizedHomepage.primaryCtaHref = "/collections";
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(
+    object,
+    key
+  );
+}
+
+function copyAllowedFields(
+  source,
+  allowedFields
+) {
+  if (!isPlainObject(source)) {
+    return null;
   }
 
-  return normalizedHomepage;
+  const result = {};
+
+  for (const field of allowedFields) {
+    if (hasOwn(source, field)) {
+      result[field] = source[field];
+    }
+  }
+
+  return result;
 }
 
-function normalizeSettings(data = {}) {
-  return mergeSettings({
-    type: "store",
+function sanitizeIncomingSettings(data) {
+  const sanitizedSettings = {};
 
-    store: {
-      name: data.store?.name || data.storeName || "OBSIDIAN",
-      tagline:
-        data.store?.tagline ||
-        data.tagline ||
-        "Built under pressure. Finished with precision.",
-      currency: data.store?.currency || data.currency || "BDT",
-    },
+  const sections = {
+    store: ["name", "tagline", "currency"],
 
-    contact: {
-      whatsappNumber: String(
-        data.contact?.whatsappNumber ||
-          data.whatsappNumber ||
-          "8801814455199"
-      ).replace(/\D/g, ""),
-      email: data.contact?.email || data.storeEmail || "",
-      location: data.contact?.location || data.storeLocation || "",
-      phone: data.contact?.phone || "",
-    },
+    contact: [
+      "whatsappNumber",
+      "email",
+      "location",
+      "phone",
+    ],
 
-    social: {
-      facebookUrl: data.social?.facebookUrl || data.facebookUrl || "",
-      instagramUrl: data.social?.instagramUrl || data.instagramUrl || "",
-      tiktokUrl: data.social?.tiktokUrl || "",
-      youtubeUrl: data.social?.youtubeUrl || "",
-    },
+    social: [
+      "facebookUrl",
+      "instagramUrl",
+      "tiktokUrl",
+      "youtubeUrl",
+    ],
 
-    delivery: {
-      insideDhaka:
-        Number(data.delivery?.insideDhaka ?? data.deliveryChargeInsideDhaka) ||
-        0,
-      outsideDhaka:
-        Number(
-          data.delivery?.outsideDhaka ?? data.deliveryChargeOutsideDhaka
-        ) || 0,
-      freeShippingOver: Number(data.delivery?.freeShippingOver) || 0,
-    },
+    delivery: [
+      "insideDhaka",
+      "outsideDhaka",
+      "freeShippingOver",
+    ],
 
-    seo: data.seo || DEFAULT_SETTINGS.seo,
-    homepage: normalizeHomepage(data.homepage),
-    payment: data.payment || DEFAULT_SETTINGS.payment,
+    seo: [
+      "title",
+      "description",
+      "keywords",
+      "ogImage",
+    ],
 
-    updatedAt: new Date(),
-  });
+    payment: [
+      "cashOnDelivery",
+      "bkash",
+      "nagad",
+      "rocket",
+    ],
+  };
+
+  for (const [section, fields] of Object.entries(
+    sections
+  )) {
+    if (!hasOwn(data, section)) {
+      continue;
+    }
+
+    const sanitizedSection = copyAllowedFields(
+      data[section],
+      fields
+    );
+
+    if (sanitizedSection) {
+      sanitizedSettings[section] =
+        sanitizedSection;
+    }
+  }
+
+  return sanitizedSettings;
+}
+
+function validateText(
+  value,
+  fieldName,
+  maximumLength,
+  {
+    allowEmpty = true,
+  } = {}
+) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    return `${fieldName} must be text.`;
+  }
+
+  const normalizedValue = value.trim();
+
+  if (!allowEmpty && !normalizedValue) {
+    return `${fieldName} is required.`;
+  }
+
+  if (
+    normalizedValue.length > maximumLength
+  ) {
+    return `${fieldName} must not exceed ${maximumLength} characters.`;
+  }
+
+  return null;
+}
+
+function validateOptionalEmail(
+  value,
+  fieldName
+) {
+  const textError = validateText(
+    value,
+    fieldName,
+    254
+  );
+
+  if (textError) {
+    return textError;
+  }
+
+  const normalizedValue = String(
+    value || ""
+  ).trim();
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const emailPattern =
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!emailPattern.test(normalizedValue)) {
+    return `${fieldName} must be a valid email address.`;
+  }
+
+  return null;
+}
+
+function validateOptionalUrl(
+  value,
+  fieldName,
+  {
+    allowRelative = false,
+  } = {}
+) {
+  const textError = validateText(
+    value,
+    fieldName,
+    1000
+  );
+
+  if (textError) {
+    return textError;
+  }
+
+  const normalizedValue = String(
+    value || ""
+  ).trim();
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  if (
+    allowRelative &&
+    normalizedValue.startsWith("/")
+  ) {
+    return null;
+  }
+
+  try {
+    const url = new URL(normalizedValue);
+
+    if (
+      url.protocol !== "http:" &&
+      url.protocol !== "https:"
+    ) {
+      return `${fieldName} must use http or https.`;
+    }
+  } catch {
+    return `${fieldName} must be a valid URL.`;
+  }
+
+  return null;
+}
+
+function validateDeliveryAmount(
+  value,
+  fieldName
+) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return `${fieldName} must be a valid number.`;
+  }
+
+  if (numericValue < 0) {
+    return `${fieldName} cannot be negative.`;
+  }
+
+  if (numericValue > 10000000) {
+    return `${fieldName} is too large.`;
+  }
+
+  return null;
+}
+
+function validateBooleanLike(
+  value,
+  fieldName
+) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return null;
+  }
+
+  if (
+    typeof value === "boolean" ||
+    typeof value === "number" ||
+    typeof value === "string"
+  ) {
+    return null;
+  }
+
+  return `${fieldName} must be enabled or disabled.`;
+}
+
+function validateSettingsPayload(settings) {
+  const errors = [];
+
+  if (settings.store) {
+    errors.push(
+      validateText(
+        settings.store.name,
+        "Store name",
+        80,
+        {
+          allowEmpty: false,
+        }
+      ),
+
+      validateText(
+        settings.store.tagline,
+        "Store tagline",
+        240
+      ),
+
+      validateText(
+        settings.store.currency,
+        "Currency",
+        10,
+        {
+          allowEmpty: false,
+        }
+      )
+    );
+
+    if (
+      settings.store.currency !== undefined
+    ) {
+      const currency = String(
+        settings.store.currency || ""
+      )
+        .trim()
+        .toUpperCase();
+
+      if (
+        currency &&
+        !/^[A-Z]{3}$/.test(currency)
+      ) {
+        errors.push(
+          "Currency must be a three-letter code such as BDT."
+        );
+      }
+    }
+  }
+
+  if (settings.contact) {
+    errors.push(
+      validateText(
+        settings.contact.whatsappNumber,
+        "WhatsApp number",
+        30
+      ),
+
+      validateOptionalEmail(
+        settings.contact.email,
+        "Store email"
+      ),
+
+      validateText(
+        settings.contact.location,
+        "Store location",
+        240
+      ),
+
+      validateText(
+        settings.contact.phone,
+        "Phone number",
+        50
+      )
+    );
+
+    if (
+      settings.contact.whatsappNumber !==
+      undefined
+    ) {
+      const whatsappDigits = String(
+        settings.contact.whatsappNumber || ""
+      ).replace(/\D/g, "");
+
+      if (
+        whatsappDigits &&
+        (
+          whatsappDigits.length < 8 ||
+          whatsappDigits.length > 15
+        )
+      ) {
+        errors.push(
+          "WhatsApp number must contain between 8 and 15 digits."
+        );
+      }
+    }
+  }
+
+  if (settings.social) {
+    errors.push(
+      validateOptionalUrl(
+        settings.social.facebookUrl,
+        "Facebook URL"
+      ),
+
+      validateOptionalUrl(
+        settings.social.instagramUrl,
+        "Instagram URL"
+      ),
+
+      validateOptionalUrl(
+        settings.social.tiktokUrl,
+        "TikTok URL"
+      ),
+
+      validateOptionalUrl(
+        settings.social.youtubeUrl,
+        "YouTube URL"
+      )
+    );
+  }
+
+  if (settings.delivery) {
+    errors.push(
+      validateDeliveryAmount(
+        settings.delivery.insideDhaka,
+        "Inside Dhaka delivery charge"
+      ),
+
+      validateDeliveryAmount(
+        settings.delivery.outsideDhaka,
+        "Outside Dhaka delivery charge"
+      ),
+
+      validateDeliveryAmount(
+        settings.delivery.freeShippingOver,
+        "Free-shipping threshold"
+      )
+    );
+  }
+
+  if (settings.seo) {
+    errors.push(
+      validateText(
+        settings.seo.title,
+        "SEO title",
+        120
+      ),
+
+      validateText(
+        settings.seo.description,
+        "SEO description",
+        320
+      ),
+
+      validateText(
+        settings.seo.keywords,
+        "SEO keywords",
+        1000
+      ),
+
+      validateOptionalUrl(
+        settings.seo.ogImage,
+        "Open Graph image",
+        {
+          allowRelative: true,
+        }
+      )
+    );
+  }
+
+  if (settings.payment) {
+    errors.push(
+      validateBooleanLike(
+        settings.payment.cashOnDelivery,
+        "Cash on delivery"
+      ),
+
+      validateBooleanLike(
+        settings.payment.bkash,
+        "bKash"
+      ),
+
+      validateBooleanLike(
+        settings.payment.nagad,
+        "Nagad"
+      ),
+
+      validateBooleanLike(
+        settings.payment.rocket,
+        "Rocket"
+      )
+    );
+  }
+
+  return errors.filter(Boolean);
+}
+
+function hasSupportedChanges(settings) {
+  return Object.keys(settings).some(
+    (section) =>
+      isPlainObject(settings[section]) &&
+      Object.keys(settings[section]).length > 0
+  );
 }
 
 export async function GET() {
   try {
-    const client = await clientPromise;
-    const db = client.db(process.env.MONGODB_DB || "obsidian");
-
-    let settings = await db.collection("settings").findOne({ type: "store" });
-
-    if (!settings) {
-      settings = {
-        ...DEFAULT_SETTINGS,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      await db.collection("settings").insertOne(settings);
-    }
-
-    const normalizedSettings = normalizeSettings(settings);
+    const settings = await getSettings();
 
     return Response.json({
       success: true,
-      settings: normalizedSettings,
+      settings: serializeSettings(settings),
     });
   } catch (error) {
-    console.error("GET Settings Error:", error);
+    console.error(
+      "GET settings error:",
+      error
+    );
 
-    return Response.json(
-      {
-        success: false,
-        message: "Failed to load settings.",
-      },
-      { status: 500 }
+    return createErrorResponse(
+      "Failed to load settings."
     );
   }
 }
 
 export async function PATCH(request) {
   try {
-    const data = await request.json();
+    const authenticated =
+      await isAdminAuthenticated();
 
-    const client = await clientPromise;
-    const db = client.db(process.env.MONGODB_DB || "obsidian");
+    if (!authenticated) {
+      return createErrorResponse(
+        "Unauthorized.",
+        401
+      );
+    }
 
-    const updatedSettings = normalizeSettings(data);
+    let requestBody;
 
-    const { type, _id, createdAt, ...settingsToSave } = updatedSettings;
+    try {
+      requestBody = await request.json();
+    } catch {
+      return createErrorResponse(
+        "Invalid JSON request body.",
+        400
+      );
+    }
 
-    await db.collection("settings").updateOne(
-      { type: "store" },
-      {
-        $set: {
-          ...settingsToSave,
-          updatedAt: new Date(),
-        },
-        $setOnInsert: {
-          type: "store",
-          createdAt: new Date(),
-        },
-      },
-      { upsert: true }
+    if (!isPlainObject(requestBody)) {
+      return createErrorResponse(
+        "Settings must be a valid object.",
+        400
+      );
+    }
+
+    const incomingSettings =
+      sanitizeIncomingSettings(requestBody);
+
+    if (
+      !hasSupportedChanges(incomingSettings)
+    ) {
+      return createErrorResponse(
+        "No supported settings were provided.",
+        400
+      );
+    }
+
+    const validationErrors =
+      validateSettingsPayload(
+        incomingSettings
+      );
+
+    if (validationErrors.length > 0) {
+      return createErrorResponse(
+        validationErrors[0],
+        400
+      );
+    }
+
+    const existingSettings =
+      await getSettings();
+
+    const mergedSettings = mergeSettings(
+      existingSettings,
+      incomingSettings
     );
 
-    const settings = await db.collection("settings").findOne({ type: "store" });
+    const collection =
+      await getSettingsCollection();
+
+    const now = new Date();
+
+    const settingsToSave = {
+      store: mergedSettings.store,
+      contact: mergedSettings.contact,
+      social: mergedSettings.social,
+      delivery: mergedSettings.delivery,
+      seo: mergedSettings.seo,
+      payment: mergedSettings.payment,
+
+      createdAt:
+        existingSettings.createdAt || now,
+
+      updatedAt: now,
+    };
+
+    await collection.updateOne(
+      {
+        type: "store",
+      },
+      {
+        $set: settingsToSave,
+
+        $setOnInsert: {
+          type: "store",
+        },
+
+        $unset: {
+          homepage: "",
+
+          storeName: "",
+          tagline: "",
+          currency: "",
+
+          whatsappNumber: "",
+          storeEmail: "",
+          storeLocation: "",
+
+          facebookUrl: "",
+          instagramUrl: "",
+
+          deliveryChargeInsideDhaka: "",
+          deliveryChargeOutsideDhaka: "",
+
+          seoTitle: "",
+          seoDescription: "",
+          seoKeywords: "",
+          ogImage: "",
+        },
+      },
+      {
+        upsert: true,
+      }
+    );
+
+    const updatedSettings =
+      await getSettings();
 
     return Response.json({
       success: true,
-      message: "Settings updated successfully.",
-      settings: normalizeSettings(settings),
+      message:
+        "Settings updated successfully.",
+      settings: serializeSettings(
+        updatedSettings
+      ),
     });
   } catch (error) {
-    console.error("PATCH Settings Error:", error);
+    console.error(
+      "PATCH settings error:",
+      error
+    );
 
-    return Response.json(
-      {
-        success: false,
-        message: "Failed to update settings.",
-      },
-      { status: 500 }
+    return createErrorResponse(
+      "Failed to update settings."
     );
   }
+}
+
+export async function PUT(
+  request,
+  context
+) {
+  return PATCH(request, context);
 }

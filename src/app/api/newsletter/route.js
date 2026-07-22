@@ -1,33 +1,42 @@
 import clientPromise from "../../../lib/mongodb";
 
-const NEWSLETTER_COLLECTION = "newsletterSubscribers";
+export const dynamic = "force-dynamic";
+
+const NEWSLETTER_COLLECTION =
+  "newsletterSubscribers";
+
+const PUBLIC_NEWSLETTER_SOURCES = new Set([
+  "footer",
+  "popup",
+  "checkout",
+]);
 
 function normalizeEmail(value) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .trim()
+    .toLowerCase();
 }
 
 function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    email
+  );
 }
 
-function normalizeSource(value) {
+function normalizePublicSource(value) {
   const source = String(value || "footer")
     .trim()
     .toLowerCase();
 
-  const allowedSources = [
-    "footer",
-    "popup",
-    "checkout",
-    "admin",
-  ];
-
-  return allowedSources.includes(source)
+  return PUBLIC_NEWSLETTER_SOURCES.has(source)
     ? source
     : "footer";
 }
 
-function createErrorResponse(message, status = 500) {
+function createErrorResponse(
+  message,
+  status = 500
+) {
   return Response.json(
     {
       success: false,
@@ -39,14 +48,30 @@ function createErrorResponse(message, status = 500) {
   );
 }
 
+function getRequestIpAddress(request) {
+  const forwardedFor =
+    request.headers.get("x-forwarded-for");
+
+  if (forwardedFor) {
+    return forwardedFor
+      .split(",")[0]
+      .trim()
+      .slice(0, 100);
+  }
+
+  return String(
+    request.headers.get("x-real-ip") || ""
+  ).slice(0, 100);
+}
+
 async function getNewsletterCollection() {
   const client = await clientPromise;
 
-  const db = client.db(
+  const database = client.db(
     process.env.MONGODB_DB || "obsidian"
   );
 
-  const collection = db.collection(
+  const collection = database.collection(
     NEWSLETTER_COLLECTION
   );
 
@@ -64,10 +89,10 @@ async function getNewsletterCollection() {
 
 export async function POST(request) {
   try {
-    let body;
+    let requestBody;
 
     try {
-      body = await request.json();
+      requestBody = await request.json();
     } catch {
       return createErrorResponse(
         "Invalid request body.",
@@ -75,12 +100,24 @@ export async function POST(request) {
       );
     }
 
-    const email = normalizeEmail(body?.email);
-    const source = normalizeSource(body?.source);
+    const email = normalizeEmail(
+      requestBody?.email
+    );
+
+    const source = normalizePublicSource(
+      requestBody?.source
+    );
 
     if (!email) {
       return createErrorResponse(
         "Email address is required.",
+        400
+      );
+    }
+
+    if (email.length > 254) {
+      return createErrorResponse(
+        "Email address is too long.",
         400
       );
     }
@@ -100,16 +137,19 @@ export async function POST(request) {
         email,
       });
 
-    if (existingSubscriber) {
-      if (
-        existingSubscriber.status ===
-        "unsubscribed"
-      ) {
-        const now = new Date();
+    const now = new Date();
 
+    if (existingSubscriber) {
+      const existingStatus = String(
+        existingSubscriber.status || "active"
+      )
+        .trim()
+        .toLowerCase();
+
+      if (existingStatus === "unsubscribed") {
         await collection.updateOne(
           {
-            email,
+            _id: existingSubscriber._id,
           },
           {
             $set: {
@@ -117,6 +157,10 @@ export async function POST(request) {
               source,
               resubscribedAt: now,
               updatedAt: now,
+            },
+
+            $unset: {
+              unsubscribedAt: "",
             },
           }
         );
@@ -135,17 +179,12 @@ export async function POST(request) {
       });
     }
 
-    const now = new Date();
+    const ipAddress =
+      getRequestIpAddress(request);
 
-    const forwardedFor =
-      request.headers.get("x-forwarded-for");
-
-    const ipAddress = forwardedFor
-      ? forwardedFor.split(",")[0].trim()
-      : request.headers.get("x-real-ip") || "";
-
-    const userAgent =
-      request.headers.get("user-agent") || "";
+    const userAgent = String(
+      request.headers.get("user-agent") || ""
+    ).slice(0, 1000);
 
     await collection.insertOne({
       email,
