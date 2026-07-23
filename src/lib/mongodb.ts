@@ -1,30 +1,67 @@
-import { MongoClient } from "mongodb";
+import {
+  Db,
+  MongoClient,
+  type MongoClientOptions,
+} from "mongodb";
 
-const uri = process.env.MONGODB_URI;
+const configuredMongoUri =
+  process.env.MONGODB_URI;
 
-if (!uri) {
-  throw new Error("Please add MONGODB_URI to .env.local");
+if (!configuredMongoUri) {
+  throw new Error(
+    "Please add MONGODB_URI to .env.local"
+  );
 }
 
-const options = {};
+const mongoUri: string =
+  configuredMongoUri;
 
-let client: MongoClient;
-let clientPromise: Promise<MongoClient>;
+const databaseName =
+  process.env.MONGODB_DB ||
+  "obsidian";
+
+const options: MongoClientOptions = {};
 
 declare global {
-  var _mongoClientPromise: Promise<MongoClient> | undefined;
+  var _mongoClientPromise:
+    | Promise<MongoClient>
+    | undefined;
 }
 
-if (process.env.NODE_ENV === "development") {
-  if (!global._mongoClientPromise) {
-    client = new MongoClient(uri, options);
-    global._mongoClientPromise = client.connect();
-  }
+function createMongoClientPromise(): Promise<MongoClient> {
+  const client = new MongoClient(
+    mongoUri,
+    options
+  );
 
-  clientPromise = global._mongoClientPromise;
-} else {
-  client = new MongoClient(uri, options);
-  clientPromise = client.connect();
+  return client.connect();
 }
+
+const clientPromise: Promise<MongoClient> =
+  process.env.NODE_ENV ===
+  "development"
+    ? global._mongoClientPromise ||
+      (global._mongoClientPromise =
+        createMongoClientPromise())
+    : createMongoClientPromise();
+
+async function getMongoClient(): Promise<MongoClient> {
+  return clientPromise;
+}
+
+async function getMongoDatabase(): Promise<Db> {
+  const client =
+    await getMongoClient();
+
+  return client.db(
+    databaseName
+  );
+}
+
+export {
+  databaseName as MONGODB_DATABASE_NAME,
+  getMongoClient,
+  getMongoDatabase,
+};
 
 export default clientPromise;

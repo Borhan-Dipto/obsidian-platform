@@ -1,6 +1,9 @@
 import crypto from "crypto";
 import clientPromise from "../../../../lib/mongodb";
 import { isAdminAuthenticated } from "../../../../lib/adminAuth";
+import {
+  dispatchOrderStatusNotifications,
+} from "../../../../lib/orderNotifications";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -40,7 +43,9 @@ const EDITABLE_DATE_FIELDS = [
   "estimatedDelivery",
 ];
 
-const TRACKING_WINDOW_MS = 15 * 60 * 1000;
+const TRACKING_WINDOW_MS =
+  15 * 60 * 1000;
+
 const TRACKING_MAX_ATTEMPTS = 20;
 
 const trackingAttempts =
@@ -50,9 +55,13 @@ const trackingAttempts =
 globalThis.__obsidianTrackingAttempts =
   trackingAttempts;
 
-function jsonResponse(body, status = 200) {
+function jsonResponse(
+  body,
+  status = 200
+) {
   return Response.json(body, {
     status,
+
     headers: {
       "Cache-Control": "no-store",
     },
@@ -81,16 +90,27 @@ function normalizeOrderId(value) {
 }
 
 function normalizePhone(value) {
-  return String(value ?? "").replace(/\D/g, "");
+  return String(value ?? "").replace(
+    /\D/g,
+    ""
+  );
 }
 
-function normalizeText(value, maxLength) {
-  if (value === null || value === undefined) {
+function normalizeText(
+  value,
+  maxLength
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
     return "";
   }
 
   if (typeof value !== "string") {
-    throw new Error("INVALID_TEXT_VALUE");
+    throw new Error(
+      "INVALID_TEXT_VALUE"
+    );
   }
 
   return value
@@ -112,13 +132,22 @@ function normalizeOptionalDate(value) {
     typeof value !== "string" &&
     !(value instanceof Date)
   ) {
-    throw new Error("INVALID_DATE_VALUE");
+    throw new Error(
+      "INVALID_DATE_VALUE"
+    );
   }
 
-  const parsedDate = new Date(value);
+  const parsedDate =
+    new Date(value);
 
-  if (Number.isNaN(parsedDate.getTime())) {
-    throw new Error("INVALID_DATE_VALUE");
+  if (
+    Number.isNaN(
+      parsedDate.getTime()
+    )
+  ) {
+    throw new Error(
+      "INVALID_DATE_VALUE"
+    );
   }
 
   return parsedDate;
@@ -134,7 +163,9 @@ function normalizeUrl(value) {
   }
 
   if (typeof value !== "string") {
-    throw new Error("INVALID_TRACKING_URL");
+    throw new Error(
+      "INVALID_TRACKING_URL"
+    );
   }
 
   const normalizedValue = value
@@ -144,22 +175,31 @@ function normalizeUrl(value) {
   let parsedUrl;
 
   try {
-    parsedUrl = new URL(normalizedValue);
+    parsedUrl = new URL(
+      normalizedValue
+    );
   } catch {
-    throw new Error("INVALID_TRACKING_URL");
+    throw new Error(
+      "INVALID_TRACKING_URL"
+    );
   }
 
   if (
     parsedUrl.protocol !== "http:" &&
     parsedUrl.protocol !== "https:"
   ) {
-    throw new Error("INVALID_TRACKING_URL");
+    throw new Error(
+      "INVALID_TRACKING_URL"
+    );
   }
 
   return normalizedValue;
 }
 
-function safeCompare(firstValue, secondValue) {
+function safeCompare(
+  firstValue,
+  secondValue
+) {
   const firstBuffer = Buffer.from(
     String(firstValue || ""),
     "utf8"
@@ -171,7 +211,8 @@ function safeCompare(firstValue, secondValue) {
   );
 
   if (
-    firstBuffer.length !== secondBuffer.length
+    firstBuffer.length !==
+    secondBuffer.length
   ) {
     return false;
   }
@@ -186,32 +227,48 @@ function maskPhone(phone) {
   const normalizedPhone =
     normalizePhone(phone);
 
-  if (normalizedPhone.length <= 4) {
+  if (
+    normalizedPhone.length <= 4
+  ) {
     return normalizedPhone;
   }
 
   return `${"*".repeat(
-    Math.max(4, normalizedPhone.length - 4)
+    Math.max(
+      4,
+      normalizedPhone.length - 4
+    )
   )}${normalizedPhone.slice(-4)}`;
 }
 
 function getClientKey(request) {
   const forwardedFor =
-    request.headers.get("x-forwarded-for");
+    request.headers.get(
+      "x-forwarded-for"
+    );
 
   const ipAddress =
-    forwardedFor?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
+    forwardedFor
+      ?.split(",")[0]
+      ?.trim() ||
+    request.headers.get(
+      "x-real-ip"
+    ) ||
     "unknown";
 
   return `track:${ipAddress}`;
 }
 
-function consumeTrackingAttempt(request) {
+function consumeTrackingAttempt(
+  request
+) {
   const now = Date.now();
-  const key = getClientKey(request);
+  const key =
+    getClientKey(request);
 
-  if (trackingAttempts.size > 5000) {
+  if (
+    trackingAttempts.size > 5000
+  ) {
     for (const [
       attemptKey,
       attempt,
@@ -220,7 +277,9 @@ function consumeTrackingAttempt(request) {
         now - attempt.startedAt >
         TRACKING_WINDOW_MS
       ) {
-        trackingAttempts.delete(attemptKey);
+        trackingAttempts.delete(
+          attemptKey
+        );
       }
     }
   }
@@ -230,7 +289,8 @@ function consumeTrackingAttempt(request) {
 
   if (
     !existingAttempt ||
-    now - existingAttempt.startedAt >
+    now -
+      existingAttempt.startedAt >
       TRACKING_WINDOW_MS
   ) {
     trackingAttempts.set(key, {
@@ -249,64 +309,82 @@ function consumeTrackingAttempt(request) {
   }
 
   existingAttempt.count += 1;
-  trackingAttempts.set(key, existingAttempt);
+
+  trackingAttempts.set(
+    key,
+    existingAttempt
+  );
 
   return true;
 }
 
 function serializePublicOrder(order) {
-  const pricing = order?.pricing || {};
+  const pricing =
+    order?.pricing || {};
 
-  const statusHistory = Array.isArray(
-    order?.statusHistory
-  )
-    ? order.statusHistory.map((entry) => ({
-        status:
-          normalizeStatus(
-            entry?.status || entry?.to
-          ) || "pending",
+  const statusHistory =
+    Array.isArray(
+      order?.statusHistory
+    )
+      ? order.statusHistory.map(
+          (entry) => ({
+            status:
+              normalizeStatus(
+                entry?.status ||
+                  entry?.to
+              ) || "pending",
 
-        changedAt:
-          entry?.changedAt || null,
-      }))
-    : [];
+            changedAt:
+              entry?.changedAt ||
+              null,
+          })
+        )
+      : [];
 
   return {
     orderId: order.orderId,
     id: order.orderId,
 
     status:
-      normalizeStatus(order.status) ||
-      "pending",
+      normalizeStatus(
+        order.status
+      ) || "pending",
 
     paymentStatus:
-      normalizeStatus(order.paymentStatus) ||
-      "unpaid",
+      normalizeStatus(
+        order.paymentStatus
+      ) || "unpaid",
 
     paymentMethod:
       order.paymentMethod || "",
 
     paymentMethodLabel:
-      order.paymentMethodLabel || "",
+      order.paymentMethodLabel ||
+      "",
 
     customer: {
       fullName:
-        order.customer?.fullName || "",
+        order.customer
+          ?.fullName || "",
 
       phone: maskPhone(
         order.customer?.phone
       ),
 
       address:
-        order.customer?.address || "",
+        order.customer?.address ||
+        "",
 
       deliveryArea:
-        order.customer?.deliveryArea ||
+        order.customer
+          ?.deliveryArea ||
         order.deliveryArea ||
         "",
     },
 
-    items: Array.isArray(order.items)
+    items: Array.isArray(
+      order.items
+    )
       ? order.items
       : [],
 
@@ -331,12 +409,14 @@ function serializePublicOrder(order) {
 
       productDiscount:
         Number(
-          pricing.productDiscount ?? 0
+          pricing.productDiscount ??
+            0
         ) || 0,
 
       deliveryDiscount:
         Number(
-          pricing.deliveryDiscount ?? 0
+          pricing.deliveryDiscount ??
+            0
         ) || 0,
 
       totalDiscount:
@@ -363,38 +443,58 @@ function serializePublicOrder(order) {
 
     coupon: order.coupon
       ? {
-          code: order.coupon.code || "",
+          code:
+            order.coupon.code ||
+            "",
         }
       : null,
 
     courier: {
-      name: order.courierName || "",
+      name:
+        order.courierName || "",
+
       trackingNumber:
         order.trackingNumber || "",
+
       trackingUrl:
         order.trackingUrl || "",
     },
 
     estimatedDelivery:
-      order.estimatedDelivery || null,
+      order.estimatedDelivery ||
+      null,
 
     statusHistory,
 
-    createdAt: order.createdAt || null,
-    updatedAt: order.updatedAt || null,
-    confirmedAt: order.confirmedAt || null,
+    createdAt:
+      order.createdAt || null,
+
+    updatedAt:
+      order.updatedAt || null,
+
+    confirmedAt:
+      order.confirmedAt || null,
+
     processingAt:
       order.processingAt || null,
-    packedAt: order.packedAt || null,
-    shippedAt: order.shippedAt || null,
+
+    packedAt:
+      order.packedAt || null,
+
+    shippedAt:
+      order.shippedAt || null,
+
     deliveredAt:
       order.deliveredAt || null,
+
     cancelledAt:
       order.cancelledAt || null,
   };
 }
 
-function normalizeComparableValue(value) {
+function normalizeComparableValue(
+  value
+) {
   if (value instanceof Date) {
     return value.getTime();
   }
@@ -411,8 +511,12 @@ function valuesAreEqual(
   secondValue
 ) {
   return (
-    normalizeComparableValue(firstValue) ===
-    normalizeComparableValue(secondValue)
+    normalizeComparableValue(
+      firstValue
+    ) ===
+    normalizeComparableValue(
+      secondValue
+    )
   );
 }
 
@@ -420,6 +524,7 @@ function createUnauthorizedResponse() {
   return jsonResponse(
     {
       success: false,
+
       message:
         "Admin authentication is required.",
     },
@@ -427,7 +532,9 @@ function createUnauthorizedResponse() {
   );
 }
 
-function createValidationResponse(message) {
+function createValidationResponse(
+  message
+) {
   return jsonResponse(
     {
       success: false,
@@ -443,7 +550,12 @@ function getEffectiveValue({
   normalizedUpdates,
   field,
 }) {
-  if (hasOwn(normalizedUpdates, field)) {
+  if (
+    hasOwn(
+      normalizedUpdates,
+      field
+    )
+  ) {
     return normalizedUpdates[field];
   }
 
@@ -466,21 +578,102 @@ function getAutomaticStatusTimestamp(
     cancelled: "cancelledAt",
   };
 
-  return timestampFields[status] || null;
-}
-
-async function getDatabase() {
-  const client = await clientPromise;
-
-  return client.db(
-    process.env.MONGODB_DB || "obsidian"
+  return (
+    timestampFields[status] ||
+    null
   );
 }
 
-export async function GET(request, context) {
+function getRequestOrigin(request) {
   try {
-    const { id } = await context.params;
-    const orderId = normalizeOrderId(id);
+    return new URL(
+      request.url
+    ).origin;
+  } catch {
+    return "";
+  }
+}
+
+async function sendStatusNotifications({
+  request,
+  order,
+  previousStatus,
+  nextStatus,
+}) {
+  try {
+    const summary =
+      await dispatchOrderStatusNotifications({
+        order,
+        previousStatus,
+        nextStatus,
+
+        baseUrl:
+          getRequestOrigin(
+            request
+          ),
+      });
+
+    if (summary.failed > 0) {
+      console.warn(
+        "Order status notification delivery completed with failures:",
+        {
+          orderId:
+            order?.orderId || "",
+
+          previousStatus,
+          nextStatus,
+
+          attempted:
+            summary.attempted,
+
+          sent: summary.sent,
+          failed: summary.failed,
+          skipped: summary.skipped,
+        }
+      );
+    }
+
+    return summary;
+  } catch (error) {
+    console.error(
+      "Order status notification dispatch error:",
+      {
+        orderId:
+          order?.orderId || "",
+
+        previousStatus,
+        nextStatus,
+
+        message:
+          error?.message ||
+          error,
+      }
+    );
+
+    return null;
+  }
+}
+
+async function getDatabase() {
+  const client =
+    await clientPromise;
+
+  return client.db(
+    process.env.MONGODB_DB ||
+      "obsidian"
+  );
+}
+
+export async function GET(
+  request,
+  context
+) {
+  try {
+    const { id } =
+      await context.params;
+
+    const orderId =
+      normalizeOrderId(id);
 
     if (!orderId) {
       return createValidationResponse(
@@ -488,7 +681,8 @@ export async function GET(request, context) {
       );
     }
 
-    const database = await getDatabase();
+    const database =
+      await getDatabase();
 
     const order = await database
       .collection("orders")
@@ -500,6 +694,7 @@ export async function GET(request, context) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Order not found. Check your tracking ID and phone number.",
         },
@@ -517,10 +712,15 @@ export async function GET(request, context) {
       });
     }
 
-    if (!consumeTrackingAttempt(request)) {
+    if (
+      !consumeTrackingAttempt(
+        request
+      )
+    ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Too many tracking attempts. Please try again later.",
         },
@@ -528,10 +728,14 @@ export async function GET(request, context) {
       );
     }
 
-    const requestUrl = new URL(request.url);
+    const requestUrl = new URL(
+      request.url
+    );
 
     const phone = normalizePhone(
-      requestUrl.searchParams.get("phone")
+      requestUrl.searchParams.get(
+        "phone"
+      )
     );
 
     if (
@@ -543,14 +747,21 @@ export async function GET(request, context) {
       );
     }
 
-    const orderPhone = normalizePhone(
-      order.customer?.phone
-    );
+    const orderPhone =
+      normalizePhone(
+        order.customer?.phone
+      );
 
-    if (!safeCompare(phone, orderPhone)) {
+    if (
+      !safeCompare(
+        phone,
+        orderPhone
+      )
+    ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Order not found. Check your tracking ID and phone number.",
         },
@@ -560,7 +771,11 @@ export async function GET(request, context) {
 
     return jsonResponse({
       success: true,
-      order: serializePublicOrder(order),
+
+      order:
+        serializePublicOrder(
+          order
+        ),
     });
   } catch (error) {
     console.error(
@@ -571,6 +786,7 @@ export async function GET(request, context) {
     return jsonResponse(
       {
         success: false,
+
         message:
           "Failed to fetch order details.",
       },
@@ -579,14 +795,22 @@ export async function GET(request, context) {
   }
 }
 
-export async function PATCH(request, context) {
+export async function PATCH(
+  request,
+  context
+) {
   try {
-    if (!(await isAdminAuthenticated())) {
+    if (
+      !(await isAdminAuthenticated())
+    ) {
       return createUnauthorizedResponse();
     }
 
-    const { id } = await context.params;
-    const orderId = normalizeOrderId(id);
+    const { id } =
+      await context.params;
+
+    const orderId =
+      normalizeOrderId(id);
 
     if (!orderId) {
       return createValidationResponse(
@@ -597,7 +821,8 @@ export async function PATCH(request, context) {
     let body;
 
     try {
-      body = await request.json();
+      body =
+        await request.json();
     } catch {
       return createValidationResponse(
         "A valid JSON request body is required."
@@ -614,10 +839,13 @@ export async function PATCH(request, context) {
       );
     }
 
-    const database = await getDatabase();
+    const database =
+      await getDatabase();
 
     const ordersCollection =
-      database.collection("orders");
+      database.collection(
+        "orders"
+      );
 
     const existingOrder =
       await ordersCollection.findOne({
@@ -628,7 +856,8 @@ export async function PATCH(request, context) {
       return jsonResponse(
         {
           success: false,
-          message: "Order not found.",
+          message:
+            "Order not found.",
         },
         404
       );
@@ -643,14 +872,17 @@ export async function PATCH(request, context) {
         existingOrder.status
       ) || "pending";
 
-    let nextStatus = previousStatus;
+    let nextStatus =
+      previousStatus;
+
     let statusChanged = false;
     let statusNote = "";
 
     if (hasOwn(body, "status")) {
-      nextStatus = normalizeStatus(
-        body.status
-      );
+      nextStatus =
+        normalizeStatus(
+          body.status
+        );
 
       if (
         !ALLOWED_ORDER_STATUSES.includes(
@@ -663,18 +895,25 @@ export async function PATCH(request, context) {
       }
 
       statusChanged =
-        previousStatus !== nextStatus;
+        previousStatus !==
+        nextStatus;
 
       normalizedUpdates.status =
         nextStatus;
     }
 
-    if (hasOwn(body, "statusNote")) {
+    if (
+      hasOwn(
+        body,
+        "statusNote"
+      )
+    ) {
       try {
-        statusNote = normalizeText(
-          body.statusNote,
-          2000
-        );
+        statusNote =
+          normalizeText(
+            body.statusNote,
+            2000
+          );
       } catch {
         return createValidationResponse(
           "Status note must be valid text."
@@ -682,7 +921,12 @@ export async function PATCH(request, context) {
       }
     }
 
-    if (hasOwn(body, "paymentStatus")) {
+    if (
+      hasOwn(
+        body,
+        "paymentStatus"
+      )
+    ) {
       const nextPaymentStatus =
         normalizeStatus(
           body.paymentStatus
@@ -725,7 +969,12 @@ export async function PATCH(request, context) {
       }
     }
 
-    if (hasOwn(body, "trackingUrl")) {
+    if (
+      hasOwn(
+        body,
+        "trackingUrl"
+      )
+    ) {
       try {
         normalizedUpdates.trackingUrl =
           normalizeUrl(
@@ -768,6 +1017,7 @@ export async function PATCH(request, context) {
         body,
         existingOrder,
         normalizedUpdates,
+
         field:
           "paymentReceivedAt",
       });
@@ -777,6 +1027,7 @@ export async function PATCH(request, context) {
         body,
         existingOrder,
         normalizedUpdates,
+
         field:
           "cancellationReason",
       });
@@ -786,6 +1037,7 @@ export async function PATCH(request, context) {
         body,
         existingOrder,
         normalizedUpdates,
+
         field:
           "courierBookingDate",
       });
@@ -795,12 +1047,14 @@ export async function PATCH(request, context) {
         body,
         existingOrder,
         normalizedUpdates,
+
         field:
           "estimatedDelivery",
       });
 
     if (
-      effectivePaymentStatus === "paid" &&
+      effectivePaymentStatus ===
+        "paid" &&
       !effectivePaymentReceivedAt
     ) {
       return createValidationResponse(
@@ -818,7 +1072,8 @@ export async function PATCH(request, context) {
     if (
       requiresCancellationReason &&
       !String(
-        effectiveCancellationReason || ""
+        effectiveCancellationReason ||
+          ""
       ).trim()
     ) {
       return createValidationResponse(
@@ -870,8 +1125,12 @@ export async function PATCH(request, context) {
           value
         )
       ) {
-        fieldsToSet[field] = value;
-        changedFields.push(field);
+        fieldsToSet[field] =
+          value;
+
+        changedFields.push(
+          field
+        );
       }
     }
 
@@ -909,10 +1168,13 @@ export async function PATCH(request, context) {
       fieldsToSet.paidAt =
         normalizedUpdates
           .paymentReceivedAt ||
-        existingOrder.paymentReceivedAt ||
+        existingOrder
+          .paymentReceivedAt ||
         changedAt;
 
-      changedFields.push("paidAt");
+      changedFields.push(
+        "paidAt"
+      );
     }
 
     if (
@@ -924,7 +1186,8 @@ export async function PATCH(request, context) {
         "refunded",
         "partially-refunded",
       ].includes(
-        normalizedUpdates.paymentStatus
+        normalizedUpdates
+          .paymentStatus
       )
     ) {
       fieldsToSet.refundUpdatedAt =
@@ -935,18 +1198,24 @@ export async function PATCH(request, context) {
       );
     }
 
-    if (changedFields.length === 0) {
+    if (
+      changedFields.length === 0
+    ) {
       return jsonResponse({
         success: true,
+
         message:
           "No order changes were required.",
+
         changed: false,
         status: previousStatus,
         order: existingOrder,
       });
     }
 
-    fieldsToSet.updatedAt = changedAt;
+    fieldsToSet.updatedAt =
+      changedAt;
+
     fieldsToSet.lastUpdatedBy =
       "admin";
 
@@ -966,14 +1235,15 @@ export async function PATCH(request, context) {
     };
 
     if (statusChanged) {
-      updateOperation.$push.statusHistory = {
-        from: previousStatus,
-        to: nextStatus,
-        status: nextStatus,
-        note: statusNote,
-        changedAt,
-        actor: "admin",
-      };
+      updateOperation.$push.statusHistory =
+        {
+          from: previousStatus,
+          to: nextStatus,
+          status: nextStatus,
+          note: statusNote,
+          changedAt,
+          actor: "admin",
+        };
     }
 
     const updateFilter = {
@@ -981,7 +1251,9 @@ export async function PATCH(request, context) {
       orderId,
     };
 
-    if (existingOrder.updatedAt) {
+    if (
+      existingOrder.updatedAt
+    ) {
       updateFilter.updatedAt =
         existingOrder.updatedAt;
     }
@@ -992,10 +1264,13 @@ export async function PATCH(request, context) {
         updateOperation
       );
 
-    if (result.matchedCount === 0) {
+    if (
+      result.matchedCount === 0
+    ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "This order was updated by another request. Refresh the page and try again.",
         },
@@ -1008,16 +1283,32 @@ export async function PATCH(request, context) {
         _id: existingOrder._id,
       });
 
+    if (
+      statusChanged &&
+      updatedOrder
+    ) {
+      await sendStatusNotifications({
+        request,
+        order: updatedOrder,
+        previousStatus,
+        nextStatus,
+      });
+    }
+
     return jsonResponse({
       success: true,
+
       message:
         "Order details updated successfully.",
+
       changed: true,
       changedFields,
       previousStatus,
+
       status:
         updatedOrder?.status ||
         nextStatus,
+
       changedAt,
       order: updatedOrder,
     });
@@ -1030,6 +1321,7 @@ export async function PATCH(request, context) {
     return jsonResponse(
       {
         success: false,
+
         message:
           "Failed to update order details.",
       },

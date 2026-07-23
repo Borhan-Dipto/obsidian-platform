@@ -4,6 +4,9 @@ import { isAdminAuthenticated } from "../../../lib/adminAuth";
 import { getCurrentCustomer } from "../../../lib/customerAuth";
 import { PRODUCTS_COLLECTION_NAME } from "../../../lib/catalog";
 import {
+  dispatchOrderPlacedNotifications,
+} from "../../../lib/orderNotifications";
+import {
   COUPONS_COLLECTION_NAME,
   ORDERS_COLLECTION_NAME,
   OrderPricingError,
@@ -22,6 +25,7 @@ const MAX_ORDER_LIMIT = 500;
 function jsonResponse(body, status = 200) {
   return Response.json(body, {
     status,
+
     headers: {
       "Cache-Control": "no-store",
     },
@@ -271,6 +275,56 @@ function serializeOrder(order) {
   };
 }
 
+function getRequestOrigin(request) {
+  try {
+    return new URL(request.url).origin;
+  } catch {
+    return "";
+  }
+}
+
+async function sendNewOrderNotifications({
+  order,
+  request,
+}) {
+  try {
+    const summary =
+      await dispatchOrderPlacedNotifications({
+        order,
+        baseUrl:
+          getRequestOrigin(request),
+      });
+
+    if (summary.failed > 0) {
+      console.warn(
+        "Order notification delivery completed with failures:",
+        {
+          orderId: order.orderId,
+          attempted:
+            summary.attempted,
+          sent: summary.sent,
+          failed: summary.failed,
+          skipped: summary.skipped,
+        }
+      );
+    }
+
+    return summary;
+  } catch (error) {
+    console.error(
+      "Order notification dispatch error:",
+      {
+        orderId:
+          order?.orderId || "",
+        message:
+          error?.message || error,
+      }
+    );
+
+    return null;
+  }
+}
+
 async function ensureOrderIndexes(
   database
 ) {
@@ -297,6 +351,7 @@ async function ensureOrderIndexes(
         },
         {
           unique: true,
+
           name:
             "checkout_token_unique",
 
@@ -1037,6 +1092,11 @@ export async function POST(request) {
         "Order transaction completed without creating an order."
       );
     }
+
+    await sendNewOrderNotifications({
+      order: savedOrder,
+      request,
+    });
 
     return jsonResponse(
       {

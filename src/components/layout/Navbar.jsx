@@ -8,8 +8,14 @@ import {
   useState,
 } from "react";
 import { useCart } from "../../context/CartContext";
+import {
+  isSafePublicNavigationHref,
+  sanitizeNavbarContent,
+} from "../../lib/navbarCms";
 
 const DEFAULT_NAVBAR = {
+  key: "navbar",
+  schemaVersion: 1,
   isEnabled: true,
 
   branding: {
@@ -24,7 +30,6 @@ const DEFAULT_NAVBAR = {
     showWishlist: true,
     showCart: true,
     showSearch: false,
-    showAdminLink: false,
   },
 
   mobile: {
@@ -36,18 +41,7 @@ const DEFAULT_NAVBAR = {
   account: {
     showDesktop: true,
     showMobile: true,
-
-    loginLabel: "Login",
-    registerLabel: "Register",
-    accountLabel: "Account",
-
-    loginHref: "/account/login",
-    registerHref: "/account/register",
-    accountHref: "/account",
-
-    showAdminLogin: true,
-    adminLoginLabel: "Admin Login",
-    adminLoginHref: "/admin/login",
+    label: "Account",
   },
 
   items: [
@@ -93,7 +87,10 @@ const DEFAULT_NAVBAR = {
   },
 };
 
-function normalizeText(value, fallback = "") {
+function normalizeText(
+  value,
+  fallback = ""
+) {
   if (typeof value !== "string") {
     return fallback;
   }
@@ -101,7 +98,10 @@ function normalizeText(value, fallback = "") {
   return value.trim() || fallback;
 }
 
-function normalizeNumber(value, fallback = 0) {
+function normalizeNumber(
+  value,
+  fallback = 0
+) {
   const number = Number(value);
 
   return Number.isFinite(number)
@@ -113,53 +113,63 @@ function normalizeNavbarContent(
   content = {},
   settings = {}
 ) {
-  const navbar = content || {};
+  const source =
+    content &&
+    typeof content === "object" &&
+    !Array.isArray(content)
+      ? content
+      : {};
 
-  return {
-    isEnabled: navbar.isEnabled !== false,
+  const configuredStoreName =
+    normalizeText(
+      source.branding?.storeName,
+      normalizeText(
+        settings.store?.name,
+        DEFAULT_NAVBAR.branding.storeName
+      )
+    );
 
-    branding: {
-      ...DEFAULT_NAVBAR.branding,
-      ...(navbar.branding || {}),
+  return sanitizeNavbarContent(
+    {
+      ...DEFAULT_NAVBAR,
+      ...source,
 
-      storeName: normalizeText(
-        navbar.branding?.storeName,
-        normalizeText(
-          settings.store?.name,
-          DEFAULT_NAVBAR.branding.storeName
-        )
+      branding: {
+        ...DEFAULT_NAVBAR.branding,
+        ...(source.branding || {}),
+        storeName: configuredStoreName,
+      },
+
+      desktop: {
+        ...DEFAULT_NAVBAR.desktop,
+        ...(source.desktop || {}),
+      },
+
+      mobile: {
+        ...DEFAULT_NAVBAR.mobile,
+        ...(source.mobile || {}),
+      },
+
+      account: {
+        ...DEFAULT_NAVBAR.account,
+        ...(source.account || {}),
+      },
+
+      items: Array.isArray(source.items)
+        ? source.items
+        : DEFAULT_NAVBAR.items,
+
+      announcement: {
+        ...DEFAULT_NAVBAR.announcement,
+        ...(source.announcement || {}),
+      },
+    },
+    {
+      schemaVersion: Number(
+        source.schemaVersion || 1
       ),
-
-      logoWidth: normalizeNumber(
-        navbar.branding?.logoWidth,
-        DEFAULT_NAVBAR.branding.logoWidth
-      ),
-    },
-
-    desktop: {
-      ...DEFAULT_NAVBAR.desktop,
-      ...(navbar.desktop || {}),
-    },
-
-    mobile: {
-      ...DEFAULT_NAVBAR.mobile,
-      ...(navbar.mobile || {}),
-    },
-
-    account: {
-      ...DEFAULT_NAVBAR.account,
-      ...(navbar.account || {}),
-    },
-
-    items: Array.isArray(navbar.items)
-      ? navbar.items
-      : DEFAULT_NAVBAR.items,
-
-    announcement: {
-      ...DEFAULT_NAVBAR.announcement,
-      ...(navbar.announcement || {}),
-    },
-  };
+    }
+  );
 }
 
 function isExternalLink(href) {
@@ -176,26 +186,32 @@ function NavbarLink({
   isActive = false,
   onClick,
   mobile = false,
+  announcement = false,
 }) {
-  const external = isExternalLink(href);
+  const external =
+    isExternalLink(href);
 
-  const className = mobile
-    ? `text-sm uppercase tracking-[0.28em] transition ${
-        isActive
-          ? "text-black"
-          : "text-black/70 hover:text-black"
-      }`
-    : `relative text-xs uppercase tracking-[0.26em] transition ${
-        isActive
-          ? "text-black"
-          : "text-black/70 hover:text-black"
-      }`;
+  const className = announcement
+    ? "text-[9px] uppercase tracking-[0.32em] text-[#f1ece4]/90 transition hover:text-[#f1ece4]"
+    : mobile
+      ? `text-sm uppercase tracking-[0.28em] transition ${
+          isActive
+            ? "text-black"
+            : "text-black/70 hover:text-black"
+        }`
+      : `relative text-xs uppercase tracking-[0.26em] transition ${
+          isActive
+            ? "text-black"
+            : "text-black/70 hover:text-black"
+        }`;
 
   const content = (
     <>
       {label}
 
-      {!mobile && isActive ? (
+      {!mobile &&
+      !announcement &&
+      isActive ? (
         <span className="absolute -bottom-3 left-0 h-px w-full bg-black" />
       ) : null}
     </>
@@ -244,6 +260,50 @@ function NavbarLink({
   );
 }
 
+function AccountButton({
+  href,
+  label,
+  isActive,
+  onClick,
+  mobile = false,
+}) {
+  if (mobile) {
+    return (
+      <Link
+        href={href}
+        onClick={onClick}
+        className={`flex items-center justify-between border px-5 py-4 text-sm uppercase tracking-[0.28em] transition ${
+          isActive
+            ? "border-black bg-black text-[#f1ece4]"
+            : "border-black/20 text-black hover:border-black hover:bg-black hover:text-[#f1ece4]"
+        }`}
+      >
+        <span>{label}</span>
+
+        <span
+          aria-hidden="true"
+          className="text-base font-light"
+        >
+          ↗
+        </span>
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      className={`border px-4 py-2.5 text-[10px] uppercase tracking-[0.24em] transition ${
+        isActive
+          ? "border-black bg-black text-[#f1ece4]"
+          : "border-black/30 text-black hover:border-black hover:bg-black hover:text-[#f1ece4]"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+}
+
 export default function Navbar() {
   const pathname = usePathname();
 
@@ -256,15 +316,18 @@ export default function Navbar() {
   const [isOpen, setIsOpen] =
     useState(false);
 
-  const [navbar, setNavbar] = useState(
-    () => normalizeNavbarContent()
-  );
+  const [navbar, setNavbar] =
+    useState(() =>
+      normalizeNavbarContent()
+    );
 
   const [customer, setCustomer] =
     useState(null);
 
-  const [accountLoaded, setAccountLoaded] =
-    useState(false);
+  const [
+    accountLoaded,
+    setAccountLoaded,
+  ] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -284,11 +347,13 @@ export default function Navbar() {
           }),
         ]);
 
-        const [navbarData, settingsData] =
-          await Promise.all([
-            navbarResponse.json(),
-            settingsResponse.json(),
-          ]);
+        const [
+          navbarData,
+          settingsData,
+        ] = await Promise.all([
+          navbarResponse.json(),
+          settingsResponse.json(),
+        ]);
 
         if (!active) {
           return;
@@ -339,10 +404,18 @@ export default function Navbar() {
           "/api/account/profile",
           {
             cache: "no-store",
+            credentials: "same-origin",
           }
         );
 
-        const data = await response.json();
+        let data = null;
+
+        try {
+          data =
+            await response.json();
+        } catch {
+          data = null;
+        }
 
         if (!active) {
           return;
@@ -350,10 +423,12 @@ export default function Navbar() {
 
         if (
           response.ok &&
-          data.success &&
+          data?.success &&
           data.customer
         ) {
-          setCustomer(data.customer);
+          setCustomer(
+            data.customer
+          );
         } else {
           setCustomer(null);
         }
@@ -381,7 +456,9 @@ export default function Navbar() {
 
   useEffect(() => {
     if (!isOpen) {
-      document.body.style.overflow = "";
+      document.body.style.overflow =
+        "";
+
       return undefined;
     }
 
@@ -400,7 +477,8 @@ export default function Navbar() {
     );
 
     return () => {
-      document.body.style.overflow = "";
+      document.body.style.overflow =
+        "";
 
       window.removeEventListener(
         "keydown",
@@ -409,27 +487,39 @@ export default function Navbar() {
     };
   }, [isOpen]);
 
-  const navigationItems = useMemo(
-    () =>
-      [...navbar.items]
-        .filter(
-          (item) =>
-            item &&
-            item.isActive !== false &&
-            normalizeText(item.label) &&
-            normalizeText(item.href)
-        )
-        .sort(
-          (firstItem, secondItem) =>
-            normalizeNumber(
-              firstItem.order
-            ) -
-            normalizeNumber(
-              secondItem.order
-            )
-        ),
-    [navbar.items]
-  );
+  const navigationItems =
+    useMemo(
+      () =>
+        [...navbar.items]
+          .filter(
+            (item) =>
+              item &&
+              item.isActive !==
+                false &&
+              normalizeText(
+                item.label
+              ) &&
+              normalizeText(
+                item.href
+              ) &&
+              isSafePublicNavigationHref(
+                item.href
+              )
+          )
+          .sort(
+            (
+              firstItem,
+              secondItem
+            ) =>
+              normalizeNumber(
+                firstItem.order
+              ) -
+              normalizeNumber(
+                secondItem.order
+              )
+          ),
+      [navbar.items]
+    );
 
   function isCurrentPath(href) {
     if (
@@ -496,9 +586,9 @@ export default function Navbar() {
         branding.logoWidth,
         180
       ),
-      80
+      40
     ),
-    320
+    500
   );
 
   const announcementText =
@@ -515,19 +605,42 @@ export default function Navbar() {
     announcement.isEnabled &&
     announcementText;
 
+  const accountLabel =
+    normalizeText(
+      account.label,
+      "Account"
+    );
+
+  const accountHref = customer
+    ? "/account"
+    : "/account/login";
+
+  const accountPathActive =
+    pathname === "/account" ||
+    pathname.startsWith(
+      "/account/"
+    );
+
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-50 border-b border-black/10 bg-[#f1ece4]/90 backdrop-blur-xl">
         {showAnnouncement ? (
           <div className="border-b border-black/10 bg-black px-5 py-3 text-center text-[#f1ece4]">
-            {announcementHref ? (
+            {announcementHref &&
+            isSafePublicNavigationHref(
+              announcementHref
+            ) ? (
               <NavbarLink
-                href={announcementHref}
-                label={announcementText}
+                href={
+                  announcementHref
+                }
+                label={
+                  announcementText
+                }
                 openInNewTab={
                   announcement.openInNewTab
                 }
-                mobile
+                announcement
               />
             ) : (
               <p className="text-[9px] uppercase tracking-[0.32em]">
@@ -555,8 +668,12 @@ export default function Navbar() {
                 }}
                 className="h-auto max-h-12 max-w-[220px] object-contain object-left"
               />
-            ) : (
+            ) : branding.showTextLogo ? (
               <span className="truncate text-xl font-light uppercase tracking-[0.3em] text-black sm:text-2xl">
+                {storeName}
+              </span>
+            ) : (
+              <span className="sr-only">
                 {storeName}
               </span>
             )}
@@ -584,79 +701,29 @@ export default function Navbar() {
           </div>
 
           <div className="hidden shrink-0 items-center gap-5 lg:flex">
-            {account.showDesktop &&
-            accountLoaded ? (
-              customer ? (
-                <Link
-                  href={account.accountHref}
-                  className={`relative text-xs uppercase tracking-[0.24em] transition ${
-                    isCurrentPath(
-                      account.accountHref
-                    )
-                      ? "text-black"
-                      : "text-black/70 hover:text-black"
-                  }`}
-                >
-                  {account.accountLabel}
-
-                  {isCurrentPath(
-                    account.accountHref
-                  ) ? (
-                    <span className="absolute -bottom-3 left-0 h-px w-full bg-black" />
-                  ) : null}
-                </Link>
+            {account.showDesktop ? (
+              accountLoaded ? (
+                <AccountButton
+                  href={accountHref}
+                  label={accountLabel}
+                  isActive={
+                    accountPathActive
+                  }
+                />
               ) : (
-                <>
-                  <Link
-                    href={account.loginHref}
-                    className="text-xs uppercase tracking-[0.24em] text-black/70 transition hover:text-black"
-                  >
-                    {account.loginLabel}
-                  </Link>
-
-                  <Link
-                    href={
-                      account.registerHref
-                    }
-                    className="border border-black px-4 py-2.5 text-[10px] uppercase tracking-[0.22em] transition hover:bg-black hover:text-[#f1ece4]"
-                  >
-                    {account.registerLabel}
-                  </Link>
-                </>
+                <span
+                  aria-hidden="true"
+                  className="h-[38px] w-[102px] animate-pulse border border-black/10 bg-black/[0.03]"
+                />
               )
             ) : null}
 
-            {account.showAdminLogin !==
-            false ? (
+            {desktop.showSearch ? (
               <Link
-                href={normalizeText(
-                  account.adminLoginHref,
-                  "/admin/login"
-                )}
-                className={`relative text-[10px] uppercase tracking-[0.22em] transition ${
-                  isCurrentPath(
-                    normalizeText(
-                      account.adminLoginHref,
-                      "/admin/login"
-                    )
-                  )
-                    ? "text-black"
-                    : "text-black/50 hover:text-black"
-                }`}
+                href="/shop"
+                className="text-xs uppercase tracking-[0.24em] text-black/70 transition hover:text-black"
               >
-                {normalizeText(
-                  account.adminLoginLabel,
-                  "Admin Login"
-                )}
-
-                {isCurrentPath(
-                  normalizeText(
-                    account.adminLoginHref,
-                    "/admin/login"
-                  )
-                ) ? (
-                  <span className="absolute -bottom-3 left-0 h-px w-full bg-black" />
-                ) : null}
+                Search
               </Link>
             ) : null}
 
@@ -665,7 +732,8 @@ export default function Navbar() {
                 href="/wishlist"
                 className="text-xs uppercase tracking-[0.24em] text-black transition hover:opacity-60"
               >
-                Wishlist ({wishlistCount})
+                Wishlist (
+                {wishlistCount})
               </Link>
             ) : null}
 
@@ -677,15 +745,6 @@ export default function Navbar() {
               >
                 Cart ({cartCount})
               </button>
-            ) : null}
-
-            {desktop.showAdminLink ? (
-              <Link
-                href="/admin"
-                className="text-xs uppercase tracking-[0.24em] text-black transition hover:opacity-60"
-              >
-                Admin
-              </Link>
             ) : null}
           </div>
 
@@ -705,14 +764,17 @@ export default function Navbar() {
               type="button"
               onClick={() =>
                 setIsOpen(
-                  (current) => !current
+                  (current) =>
+                    !current
                 )
               }
               aria-expanded={isOpen}
               aria-controls="mobile-navigation"
               className="text-xs uppercase tracking-[0.26em]"
             >
-              {isOpen ? "Close" : "Menu"}
+              {isOpen
+                ? "Close"
+                : "Menu"}
             </button>
           </div>
         </nav>
@@ -747,84 +809,41 @@ export default function Navbar() {
               )}
 
               <div className="mt-2 border-t border-black/10 pt-6">
-                <div className="flex flex-col gap-6">
-                  {account.showMobile &&
-                  accountLoaded ? (
-                    customer ? (
-                      <>
-                        <Link
-                          href={
-                            account.accountHref
-                          }
-                          onClick={
-                            closeMobileMenu
-                          }
-                          className="text-sm uppercase tracking-[0.28em]"
-                        >
-                          {
-                            account.accountLabel
-                          }
-                        </Link>
-
-                        <Link
-                          href="/account/orders"
-                          onClick={
-                            closeMobileMenu
-                          }
-                          className="text-sm uppercase tracking-[0.28em]"
-                        >
-                          My Orders
-                        </Link>
-                      </>
+                <div className="flex flex-col gap-5">
+                  {account.showMobile ? (
+                    accountLoaded ? (
+                      <AccountButton
+                        href={
+                          accountHref
+                        }
+                        label={
+                          accountLabel
+                        }
+                        isActive={
+                          accountPathActive
+                        }
+                        onClick={
+                          closeMobileMenu
+                        }
+                        mobile
+                      />
                     ) : (
-                      <>
-                        <Link
-                          href={
-                            account.loginHref
-                          }
-                          onClick={
-                            closeMobileMenu
-                          }
-                          className="text-sm uppercase tracking-[0.28em]"
-                        >
-                          {
-                            account.loginLabel
-                          }
-                        </Link>
-
-                        <Link
-                          href={
-                            account.registerHref
-                          }
-                          onClick={
-                            closeMobileMenu
-                          }
-                          className="text-sm uppercase tracking-[0.28em]"
-                        >
-                          {
-                            account.registerLabel
-                          }
-                        </Link>
-                      </>
+                      <div
+                        aria-hidden="true"
+                        className="h-[58px] animate-pulse border border-black/10 bg-black/[0.03]"
+                      />
                     )
                   ) : null}
 
-                  {account.showAdminLogin !==
-                  false ? (
+                  {customer ? (
                     <Link
-                      href={normalizeText(
-                        account.adminLoginHref,
-                        "/admin/login"
-                      )}
+                      href="/account/orders"
                       onClick={
                         closeMobileMenu
                       }
-                      className="text-sm uppercase tracking-[0.28em] text-black/60 transition hover:text-black"
+                      className="text-sm uppercase tracking-[0.28em] text-black/70 transition hover:text-black"
                     >
-                      {normalizeText(
-                        account.adminLoginLabel,
-                        "Admin Login"
-                      )}
+                      My Orders
                     </Link>
                   ) : null}
 
@@ -848,7 +867,8 @@ export default function Navbar() {
                       }
                       className="text-sm uppercase tracking-[0.28em]"
                     >
-                      Wishlist ({wishlistCount})
+                      Wishlist (
+                      {wishlistCount})
                     </Link>
                   ) : null}
 

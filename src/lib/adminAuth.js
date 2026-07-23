@@ -1,70 +1,185 @@
-import crypto from "crypto";
-import { cookies } from "next/headers";
+import "server-only";
+
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { adminAuth } from "./adminAuthCore";
 
-const ADMIN_COOKIE_NAME = "obsidian-admin";
-const ADMIN_TOKEN_PAYLOAD = "obsidian-admin-session";
+const ADMIN_ROLE = "admin";
 
-function getAdminSecret() {
-  const secret = process.env.ADMIN_SECRET;
+const AUTH_STATES = {
+  AUTHENTICATED: "authenticated",
+  UNAUTHENTICATED: "unauthenticated",
+  FORBIDDEN: "forbidden",
+  TWO_FACTOR_REQUIRED: "two_factor_required",
+};
 
-  if (!secret) {
-    throw new Error("ADMIN_SECRET is missing.");
+function normalizeRoles(roleValue) {
+  if (Array.isArray(roleValue)) {
+    return roleValue
+      .map((role) =>
+        String(role || "")
+          .trim()
+          .toLowerCase()
+      )
+      .filter(Boolean);
   }
 
-  return secret;
+  return String(roleValue || "")
+    .split(",")
+    .map((role) =>
+      role.trim().toLowerCase()
+    )
+    .filter(Boolean);
 }
 
-function createAdminToken() {
-  return crypto
-    .createHmac("sha256", getAdminSecret())
-    .update(ADMIN_TOKEN_PAYLOAD)
-    .digest("hex");
+function hasAdminRole(user) {
+  return normalizeRoles(
+    user?.role
+  ).includes(ADMIN_ROLE);
 }
 
-function safeCompareTokens(receivedToken, expectedToken) {
+function hasActiveBan(user) {
+  if (user?.banned !== true) {
+    return false;
+  }
+
+  if (!user?.banExpires) {
+    return true;
+  }
+
+  const expirationTime =
+    new Date(
+      user.banExpires
+    ).getTime();
+
   if (
-    typeof receivedToken !== "string" ||
-    typeof expectedToken !== "string"
+    !Number.isFinite(
+      expirationTime
+    )
   ) {
-    return false;
+    return true;
   }
 
-  const receivedBuffer = Buffer.from(receivedToken, "utf8");
-  const expectedBuffer = Buffer.from(expectedToken, "utf8");
+  return (
+    expirationTime >
+    Date.now()
+  );
+}
 
-  if (receivedBuffer.length !== expectedBuffer.length) {
-    return false;
+async function resolveAdminAuthState() {
+  /*
+   * Keep headers() outside try/catch.
+   *
+   * During Next.js static analysis,
+   * headers() may throw an internal
+   * dynamic-rendering signal that Next.js
+   * must receive and handle itself.
+   */
+  const requestHeaders =
+    await headers();
+
+  let session = null;
+
+  try {
+    session =
+      await adminAuth.api.getSession({
+        headers:
+          requestHeaders,
+      });
+  } catch (error) {
+    console.error(
+      "Admin session verification failed:",
+      error instanceof Error
+        ? error.message
+        : "Unknown authentication error."
+    );
+
+    return {
+      status:
+        AUTH_STATES.UNAUTHENTICATED,
+      session: null,
+    };
   }
 
-  return crypto.timingSafeEqual(receivedBuffer, expectedBuffer);
+  const user = session?.user;
+
+  if (!user) {
+    return {
+      status:
+        AUTH_STATES.UNAUTHENTICATED,
+      session: null,
+    };
+  }
+
+  if (
+    !hasAdminRole(user) ||
+    user.emailVerified !== true ||
+    hasActiveBan(user)
+  ) {
+    return {
+      status:
+        AUTH_STATES.FORBIDDEN,
+      session: null,
+    };
+  }
+
+  if (
+    user.twoFactorEnabled !== true
+  ) {
+    return {
+      status:
+        AUTH_STATES.TWO_FACTOR_REQUIRED,
+      session,
+    };
+  }
+
+  return {
+    status:
+      AUTH_STATES.AUTHENTICATED,
+    session,
+  };
+}
+
+export async function getAdminSession() {
+  const authState =
+    await resolveAdminAuthState();
+
+  if (
+    authState.status !==
+    AUTH_STATES.AUTHENTICATED
+  ) {
+    return null;
+  }
+
+  return authState.session;
 }
 
 export async function isAdminAuthenticated() {
-  const cookieStore = await cookies();
-  const adminCookie = cookieStore.get(ADMIN_COOKIE_NAME);
+  const session =
+    await getAdminSession();
 
-  if (!adminCookie?.value) {
-    return false;
-  }
-
-  return safeCompareTokens(adminCookie.value, createAdminToken());
+  return Boolean(session);
 }
 
 export async function requireAdminAuth() {
-  const authenticated = await isAdminAuthenticated();
+  const authState =
+    await resolveAdminAuthState();
 
-  if (!authenticated) {
+  if (
+    authState.status ===
+    AUTH_STATES.TWO_FACTOR_REQUIRED
+  ) {
+    redirect(
+      "/admin/security/setup"
+    );
+  }
+
+  if (
+    authState.status !==
+    AUTH_STATES.AUTHENTICATED
+  ) {
     redirect("/admin/login");
   }
 
   return true;
-}
-
-export function getAdminCookieName() {
-  return ADMIN_COOKIE_NAME;
-}
-
-export function generateAdminSessionToken() {
-  return createAdminToken();
 }

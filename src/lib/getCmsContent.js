@@ -4,92 +4,171 @@ import {
   isSupportedCmsKey,
   mergeCmsContent,
 } from "./cmsDefaults";
+import {
+  sanitizeNavbarContent,
+} from "./navbarCms";
 
 const CMS_COLLECTION_NAME = "cms";
 
 function normalizeKey(value) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .trim()
+    .toLowerCase();
 }
 
 function serializeValue(value) {
-  return JSON.parse(JSON.stringify(value));
+  return JSON.parse(
+    JSON.stringify(value)
+  );
+}
+
+function normalizeResolvedCmsContent(
+  key,
+  storedContent = {}
+) {
+  const mergedContent =
+    mergeCmsContent(
+      key,
+      storedContent
+    );
+
+  if (!mergedContent) {
+    return null;
+  }
+
+  if (key === "navbar") {
+    return sanitizeNavbarContent(
+      mergedContent,
+      {
+        schemaVersion:
+          mergedContent.schemaVersion,
+      }
+    );
+  }
+
+  return mergedContent;
 }
 
 async function getCmsCollection() {
-  const client = await clientPromise;
-  const db = client.db(process.env.MONGODB_DB || "obsidian");
+  const client =
+    await clientPromise;
 
-  return db.collection(CMS_COLLECTION_NAME);
+  const db = client.db(
+    process.env.MONGODB_DB ||
+      "obsidian"
+  );
+
+  return db.collection(
+    CMS_COLLECTION_NAME
+  );
 }
 
-async function createMissingCmsDocument(collection, key) {
-  const defaultDocument = createCmsDocument(key);
+async function createMissingCmsDocument(
+  collection,
+  key
+) {
+  const defaultDocument =
+    createCmsDocument(key);
 
   if (!defaultDocument) {
     return null;
   }
 
   await collection.updateOne(
-    { key },
     {
-      $setOnInsert: defaultDocument,
+      key,
     },
-    { upsert: true }
+    {
+      $setOnInsert:
+        defaultDocument,
+    },
+    {
+      upsert: true,
+    }
   );
 
-  const storedDocument = await collection.findOne({ key });
+  const storedDocument =
+    await collection.findOne({
+      key,
+    });
 
-  return storedDocument || defaultDocument;
+  return (
+    storedDocument ||
+    defaultDocument
+  );
 }
 
-export async function getCmsContent(key) {
-  const normalizedKey = normalizeKey(key);
+export async function getCmsContent(
+  key
+) {
+  const normalizedKey =
+    normalizeKey(key);
 
-  if (!isSupportedCmsKey(normalizedKey)) {
-    console.error(`Unsupported CMS content key: ${normalizedKey}`);
+  if (
+    !isSupportedCmsKey(
+      normalizedKey
+    )
+  ) {
+    console.error(
+      `Unsupported CMS content key: ${normalizedKey}`
+    );
 
     return null;
   }
 
   try {
-    const collection = await getCmsCollection();
+    const collection =
+      await getCmsCollection();
 
-    let storedDocument = await collection.findOne({
-      key: normalizedKey,
-    });
+    let storedDocument =
+      await collection.findOne({
+        key: normalizedKey,
+      });
 
     if (!storedDocument) {
-      storedDocument = await createMissingCmsDocument(
-        collection,
-        normalizedKey
-      );
+      storedDocument =
+        await createMissingCmsDocument(
+          collection,
+          normalizedKey
+        );
     }
 
-    const mergedContent = mergeCmsContent(
-      normalizedKey,
-      storedDocument || {}
-    );
+    const normalizedContent =
+      normalizeResolvedCmsContent(
+        normalizedKey,
+        storedDocument || {}
+      );
 
-    if (!mergedContent) {
+    if (!normalizedContent) {
       return null;
     }
 
-    return serializeValue(mergedContent);
+    return serializeValue(
+      normalizedContent
+    );
   } catch (error) {
     console.error(
       `Failed to load CMS content for "${normalizedKey}":`,
       error
     );
 
-    const fallbackContent = mergeCmsContent(normalizedKey, {});
+    const fallbackContent =
+      normalizeResolvedCmsContent(
+        normalizedKey,
+        {}
+      );
 
     return fallbackContent
-      ? serializeValue(fallbackContent)
+      ? serializeValue(
+          fallbackContent
+        )
       : null;
   }
 }
 
-export async function getMultipleCmsContent(keys = []) {
+export async function getMultipleCmsContent(
+  keys = []
+) {
   if (!Array.isArray(keys)) {
     return {};
   }
@@ -98,123 +177,191 @@ export async function getMultipleCmsContent(keys = []) {
     ...new Set(
       keys
         .map(normalizeKey)
-        .filter((key) => isSupportedCmsKey(key))
+        .filter((key) =>
+          isSupportedCmsKey(key)
+        )
     ),
   ];
 
-  if (normalizedKeys.length === 0) {
+  if (
+    normalizedKeys.length === 0
+  ) {
     return {};
   }
 
   try {
-    const collection = await getCmsCollection();
+    const collection =
+      await getCmsCollection();
 
-    const storedDocuments = await collection
-      .find({
-        key: {
-          $in: normalizedKeys,
-        },
-      })
-      .toArray();
-
-    const storedDocumentMap = new Map(
-      storedDocuments.map((document) => [
-        document.key,
-        document,
-      ])
-    );
-
-    const missingKeys = normalizedKeys.filter(
-      (key) => !storedDocumentMap.has(key)
-    );
-
-    if (missingKeys.length > 0) {
-      await Promise.all(
-        missingKeys.map(async (key) => {
-          const createdDocument =
-            await createMissingCmsDocument(collection, key);
-
-          if (createdDocument) {
-            storedDocumentMap.set(key, createdDocument);
-          }
+    const storedDocuments =
+      await collection
+        .find({
+          key: {
+            $in: normalizedKeys,
+          },
         })
+        .toArray();
+
+    const storedDocumentMap =
+      new Map(
+        storedDocuments.map(
+          (document) => [
+            document.key,
+            document,
+          ]
+        )
+      );
+
+    const missingKeys =
+      normalizedKeys.filter(
+        (key) =>
+          !storedDocumentMap.has(
+            key
+          )
+      );
+
+    if (
+      missingKeys.length > 0
+    ) {
+      await Promise.all(
+        missingKeys.map(
+          async (key) => {
+            const createdDocument =
+              await createMissingCmsDocument(
+                collection,
+                key
+              );
+
+            if (
+              createdDocument
+            ) {
+              storedDocumentMap.set(
+                key,
+                createdDocument
+              );
+            }
+          }
+        )
       );
     }
 
-    return normalizedKeys.reduce((result, key) => {
-      const mergedContent = mergeCmsContent(
-        key,
-        storedDocumentMap.get(key) || {}
-      );
+    return normalizedKeys.reduce(
+      (result, key) => {
+        const normalizedContent =
+          normalizeResolvedCmsContent(
+            key,
+            storedDocumentMap.get(
+              key
+            ) || {}
+          );
 
-      result[key] = mergedContent
-        ? serializeValue(mergedContent)
-        : null;
+        result[key] =
+          normalizedContent
+            ? serializeValue(
+                normalizedContent
+              )
+            : null;
 
-      return result;
-    }, {});
+        return result;
+      },
+      {}
+    );
   } catch (error) {
     console.error(
       "Failed to load multiple CMS documents:",
       error
     );
 
-    return normalizedKeys.reduce((result, key) => {
-      const fallbackContent = mergeCmsContent(key, {});
+    return normalizedKeys.reduce(
+      (result, key) => {
+        const fallbackContent =
+          normalizeResolvedCmsContent(
+            key,
+            {}
+          );
 
-      result[key] = fallbackContent
-        ? serializeValue(fallbackContent)
-        : null;
+        result[key] =
+          fallbackContent
+            ? serializeValue(
+                fallbackContent
+              )
+            : null;
 
-      return result;
-    }, {});
+        return result;
+      },
+      {}
+    );
   }
 }
 
 export async function getHomepageContent() {
-  return getCmsContent("homepage");
+  return getCmsContent(
+    "homepage"
+  );
 }
 
 export async function getNavbarContent() {
-  return getCmsContent("navbar");
+  return getCmsContent(
+    "navbar"
+  );
 }
 
 export async function getFooterContent() {
-  return getCmsContent("footer");
+  return getCmsContent(
+    "footer"
+  );
 }
 
 export async function getAboutContent() {
-  return getCmsContent("about");
+  return getCmsContent(
+    "about"
+  );
 }
 
 export async function getContactContent() {
-  return getCmsContent("contact");
+  return getCmsContent(
+    "contact"
+  );
 }
 
 export async function getJournalContent() {
-  return getCmsContent("journal");
+  return getCmsContent(
+    "journal"
+  );
 }
 
 export async function getCollectionsContent() {
-  return getCmsContent("collections");
+  return getCmsContent(
+    "collections"
+  );
 }
 
 export async function getShopContent() {
-  return getCmsContent("shop");
+  return getCmsContent(
+    "shop"
+  );
 }
 
 export async function getProductContent() {
-  return getCmsContent("product");
+  return getCmsContent(
+    "product"
+  );
 }
 
 export async function getSizeGuideContent() {
-  return getCmsContent("size-guide");
+  return getCmsContent(
+    "size-guide"
+  );
 }
 
 export async function getTrackOrderContent() {
-  return getCmsContent("track-order");
+  return getCmsContent(
+    "track-order"
+  );
 }
 
 export async function getSuccessContent() {
-  return getCmsContent("success");
+  return getCmsContent(
+    "success"
+  );
 }

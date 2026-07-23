@@ -1,57 +1,44 @@
-import { cookies } from "next/headers";
-import crypto from "crypto";
+import { NextResponse } from "next/server";
 
-function createAdminToken() {
-  const secret = process.env.ADMIN_SECRET;
+const RESPONSE_HEADERS = {
+  "Cache-Control":
+    "no-store, max-age=0",
+  Pragma: "no-cache",
+};
 
-  if (!secret) {
-    throw new Error("ADMIN_SECRET is missing.");
-  }
-
-  return crypto
-    .createHmac("sha256", secret)
-    .update("obsidian-admin-session")
-    .digest("hex");
+function legacyLoginDisabledResponse() {
+  return NextResponse.json(
+    {
+      success: false,
+      message:
+        "This authentication endpoint is no longer available.",
+      code:
+        "LEGACY_ADMIN_LOGIN_DISABLED",
+    },
+    {
+      status: 410,
+      headers:
+        RESPONSE_HEADERS,
+    }
+  );
 }
 
-export async function POST(request) {
-  try {
-    const { password } = await request.json();
+export async function POST() {
+  return legacyLoginDisabledResponse();
+}
 
-    if (!password) {
-      return Response.json(
-        { success: false, message: "Password is required." },
-        { status: 400 }
-      );
-    }
+export async function GET() {
+  return legacyLoginDisabledResponse();
+}
 
-    if (password !== process.env.ADMIN_PASSWORD) {
-      return Response.json(
-        { success: false, message: "Invalid password." },
-        { status: 401 }
-      );
-    }
+export async function PUT() {
+  return legacyLoginDisabledResponse();
+}
 
-    const cookieStore = await cookies();
+export async function PATCH() {
+  return legacyLoginDisabledResponse();
+}
 
-    cookieStore.set("obsidian-admin", createAdminToken(), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
-
-    return Response.json({
-      success: true,
-      message: "Login successful.",
-    });
-  } catch (error) {
-    console.error("Admin Login Error:", error);
-
-    return Response.json(
-      { success: false, message: "Something went wrong." },
-      { status: 500 }
-    );
-  }
+export async function DELETE() {
+  return legacyLoginDisabledResponse();
 }
