@@ -1,11 +1,13 @@
-import { requireAdminAuth } from "../../../../lib/adminAuth";
+import { requireAdminPermission } from "../../../../lib/adminAuth";
 import { getFooterContent } from "../../../../lib/getCmsContent";
 import FooterContentEditor from "../../../../components/admin/FooterContentEditor";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminFooterContentPage() {
-  await requireAdminAuth();
+  await requireAdminPermission({
+    content: ["update"],
+  });
 
   const footerContent = await getFooterContent();
 

@@ -1,25 +1,50 @@
 import Link from "next/link";
 import clientPromise from "../../../lib/mongodb";
-import { requireAdminAuth } from "../../../lib/adminAuth";
+import {
+  hasAdminPermission,
+  requireAdminPermission,
+} from "../../../lib/adminAuth";
 import ProductSearchTable from "../../../components/admin/ProductSearchTable";
 
 async function getProducts() {
   const client = await clientPromise;
-  const db = client.db(process.env.MONGODB_DB || "obsidian");
+  const db = client.db(
+    process.env.MONGODB_DB ||
+      "obsidian"
+  );
 
   const products = await db
     .collection("products")
     .find({})
-    .sort({ createdAt: -1 })
+    .sort({
+      createdAt: -1,
+    })
     .toArray();
 
-  return JSON.parse(JSON.stringify(products));
+  return JSON.parse(
+    JSON.stringify(products)
+  );
 }
 
 export default async function AdminProductsPage() {
-  await requireAdminAuth();
+  await requireAdminPermission({
+    products: [
+      "read_private",
+    ],
+  });
 
-  const products = await getProducts();
+  const [
+    products,
+    canCreateProducts,
+  ] = await Promise.all([
+    getProducts(),
+
+    hasAdminPermission({
+      products: [
+        "create",
+      ],
+    }),
+  ]);
 
   return (
     <main className="min-h-screen bg-[#0b0b0b] px-6 py-10 text-[#f1ece4]">
@@ -36,12 +61,14 @@ export default async function AdminProductsPage() {
           </div>
 
           <div className="flex gap-4">
-            <Link
-              href="/admin/products/new"
-              className="bg-[#f1ece4] px-6 py-3 text-xs uppercase tracking-[0.3em] text-[#0b0b0b] transition hover:opacity-80"
-            >
-              Add Product
-            </Link>
+            {canCreateProducts ? (
+              <Link
+                href="/admin/products/new"
+                className="bg-[#f1ece4] px-6 py-3 text-xs uppercase tracking-[0.3em] text-[#0b0b0b] transition hover:opacity-80"
+              >
+                Add Product
+              </Link>
+            ) : null}
 
             <Link
               href="/admin"
@@ -57,7 +84,9 @@ export default async function AdminProductsPage() {
             No products found.
           </div>
         ) : (
-          <ProductSearchTable products={products} />
+          <ProductSearchTable
+            products={products}
+          />
         )}
       </div>
     </main>

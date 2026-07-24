@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import clientPromise from "../../../../../../lib/mongodb";
-import { requireAdminAuth } from "../../../../../../lib/adminAuth";
+import { requireAdminPermission } from "../../../../../../lib/adminAuth";
 import OrderDocumentToolbar from "../../../../../../components/admin/OrderDocumentToolbar";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +51,7 @@ const documentConfiguration = {
 
 async function getOrder(orderId) {
   const client = await clientPromise;
+
   const db = client.db(
     process.env.MONGODB_DB || "obsidian"
   );
@@ -1013,8 +1014,8 @@ function ProductsTable({
       </div>
 
       <p className="mt-[5px] text-[5px] leading-[1.5] text-neutral-500">
-        Product images are included for visual identification. Printed colour
-        may vary slightly from the original product.
+        Product images are included for visual identification.
+        Printed colour may vary slightly from the original product.
       </p>
     </section>
   );
@@ -1383,7 +1384,9 @@ function DocumentIdentityStrip({
 export default async function OrderDocumentPage({
   params,
 }) {
-  await requireAdminAuth();
+  await requireAdminPermission({
+    orders: ["export"],
+  });
 
   const { id, type } = await params;
 

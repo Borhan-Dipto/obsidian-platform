@@ -1,4 +1,7 @@
-import { isAdminAuthenticated } from "../../../lib/adminAuth";
+import {
+  requireAdminApiPermission,
+} from "../../../lib/adminApiAuthorization";
+
 import {
   COLLECTIONS_COLLECTION_NAME,
   PRODUCTS_COLLECTION_NAME,
@@ -12,12 +15,15 @@ import {
   normalizeCatalogText,
   normalizeSeriesKey,
   normalizeSeriesName,
-  syncCollectionsFromProducts,
 } from "../../../lib/catalog";
 
-export const dynamic = "force-dynamic";
+export const dynamic =
+  "force-dynamic";
 
-function createErrorResponse(message, status = 500) {
+function createErrorResponse(
+  message,
+  status = 500
+) {
   return Response.json(
     {
       success: false,
@@ -32,24 +38,32 @@ function createErrorResponse(message, status = 500) {
 function isPlainObject(value) {
   return Boolean(
     value &&
-      typeof value === "object" &&
+      typeof value ===
+        "object" &&
       !Array.isArray(value)
   );
 }
 
-function serializeDocument(document) {
+function serializeDocument(
+  document
+) {
   if (!document) {
     return null;
   }
 
-  return JSON.parse(JSON.stringify(document));
+  return JSON.parse(
+    JSON.stringify(document)
+  );
 }
 
-function normalizeBooleanQuery(value) {
+function normalizeBooleanQuery(
+  value
+) {
   return (
     String(value || "")
       .trim()
-      .toLowerCase() === "true"
+      .toLowerCase() ===
+    "true"
   );
 }
 
@@ -63,78 +77,108 @@ function validateRequiredText(
 
   if (!normalizedValue) {
     return {
-      error: `${fieldName} is required.`,
+      error:
+        `${fieldName} is required.`,
+
       value: "",
     };
   }
 
-  if (normalizedValue.length > maximumLength) {
+  if (
+    normalizedValue.length >
+    maximumLength
+  ) {
     return {
-      error: `${fieldName} must not exceed ${maximumLength} characters.`,
-      value: normalizedValue,
+      error:
+        `${fieldName} must not exceed ${maximumLength} characters.`,
+
+      value:
+        normalizedValue,
     };
   }
 
   return {
     error: "",
-    value: normalizedValue,
+    value:
+      normalizedValue,
   };
 }
 
-function validateCoverImage(value) {
+function validateCoverImage(
+  value
+) {
   const coverImage =
     normalizeCatalogText(value);
 
   if (!coverImage) {
     return {
-      error: "Collection cover image is required.",
+      error:
+        "Collection cover image is required.",
+
       value: "",
     };
   }
 
-  if (coverImage.length > 1000) {
+  if (
+    coverImage.length > 1000
+  ) {
     return {
       error:
         "Collection cover image URL must not exceed 1000 characters.",
-      value: coverImage,
+
+      value:
+        coverImage,
     };
   }
 
-  if (coverImage.startsWith("/")) {
+  if (
+    coverImage.startsWith("/")
+  ) {
     return {
       error: "",
-      value: coverImage,
+      value:
+        coverImage,
     };
   }
 
   try {
-    const imageUrl = new URL(coverImage);
+    const imageUrl =
+      new URL(coverImage);
 
     if (
-      imageUrl.protocol !== "http:" &&
-      imageUrl.protocol !== "https:"
+      imageUrl.protocol !==
+        "http:" &&
+      imageUrl.protocol !==
+        "https:"
     ) {
       return {
         error:
           "Collection cover image must use http or https.",
-        value: coverImage,
+
+        value:
+          coverImage,
       };
     }
 
     return {
       error: "",
-      value: coverImage,
+      value:
+        coverImage,
     };
   } catch {
     return {
       error:
         "Collection cover image must be a valid uploaded image URL.",
-      value: coverImage,
+
+      value:
+        coverImage,
     };
   }
 }
 
-function validateDisplayOrder(value) {
+function validateDisplayOrder(
+  value
+) {
   if (
     value === undefined ||
     value === null ||
@@ -146,65 +190,91 @@ function validateDisplayOrder(value) {
     };
   }
 
-  const displayOrder = Number(value);
+  const displayOrder =
+    Number(value);
 
   if (
-    !Number.isFinite(displayOrder) ||
-    !Number.isInteger(displayOrder)
+    !Number.isFinite(
+      displayOrder
+    ) ||
+    !Number.isInteger(
+      displayOrder
+    )
   ) {
     return {
       error:
         "Display order must be a whole number.",
+
       value: 0,
     };
   }
 
-  if (displayOrder < 0) {
+  if (
+    displayOrder < 0
+  ) {
     return {
       error:
         "Display order cannot be negative.",
-      value: displayOrder,
+
+      value:
+        displayOrder,
     };
   }
 
-  if (displayOrder > 1000000) {
+  if (
+    displayOrder > 1000000
+  ) {
     return {
-      error: "Display order is too large.",
-      value: displayOrder,
+      error:
+        "Display order is too large.",
+
+      value:
+        displayOrder,
     };
   }
 
   return {
     error: "",
-    value: displayOrder,
+    value:
+      displayOrder,
   };
 }
 
-function normalizeCollectionPayload(data) {
-  const titleResult = validateRequiredText(
-    data.title,
-    "Collection title",
-    140
-  );
+function normalizeCollectionPayload(
+  data
+) {
+  const titleResult =
+    validateRequiredText(
+      data.title,
+      "Collection title",
+      140
+    );
 
   if (titleResult.error) {
     return {
       success: false,
-      message: titleResult.error,
+
+      message:
+        titleResult.error,
+
       collection: null,
     };
   }
 
-  const seriesResult = validateRequiredText(
-    data.series,
-    "Collection series",
-    120
-  );
+  const seriesResult =
+    validateRequiredText(
+      data.series,
+      "Collection series",
+      120
+    );
 
   if (seriesResult.error) {
     return {
       success: false,
-      message: seriesResult.error,
+
+      message:
+        seriesResult.error,
+
       collection: null,
     };
   }
@@ -216,58 +286,86 @@ function normalizeCollectionPayload(data) {
       5000
     );
 
-  if (descriptionResult.error) {
+  if (
+    descriptionResult.error
+  ) {
     return {
       success: false,
-      message: descriptionResult.error,
+
+      message:
+        descriptionResult.error,
+
       collection: null,
     };
   }
 
   const coverImageResult =
-    validateCoverImage(data.coverImage);
+    validateCoverImage(
+      data.coverImage
+    );
 
-  if (coverImageResult.error) {
+  if (
+    coverImageResult.error
+  ) {
     return {
       success: false,
-      message: coverImageResult.error,
+
+      message:
+        coverImageResult.error,
+
       collection: null,
     };
   }
 
   const displayOrderResult =
-    validateDisplayOrder(data.displayOrder);
+    validateDisplayOrder(
+      data.displayOrder
+    );
 
-  if (displayOrderResult.error) {
+  if (
+    displayOrderResult.error
+  ) {
     return {
       success: false,
-      message: displayOrderResult.error,
+
+      message:
+        displayOrderResult.error,
+
       collection: null,
     };
   }
 
-  const series = normalizeSeriesName(
-    seriesResult.value
-  );
+  const series =
+    normalizeSeriesName(
+      seriesResult.value
+    );
 
-  const slug = createCatalogSlug(
-    data.slug || titleResult.value
-  );
+  const slug =
+    createCatalogSlug(
+      data.slug ||
+        titleResult.value
+    );
 
   if (!slug) {
     return {
       success: false,
+
       message:
         "Collection slug could not be generated.",
+
       collection: null,
     };
   }
 
-  if (slug.length > 100) {
+  if (
+    slug.length > 100
+  ) {
     return {
       success: false,
+
       message:
         "Collection slug must not exceed 100 characters.",
+
       collection: null,
     };
   }
@@ -275,22 +373,39 @@ function normalizeCollectionPayload(data) {
   return {
     success: true,
     message: "",
+
     collection: {
-      title: titleResult.value,
+      title:
+        titleResult.value,
+
       slug,
       series,
-      seriesKey: normalizeSeriesKey(series),
-      description: descriptionResult.value,
-      coverImage: coverImageResult.value,
-      displayOrder: displayOrderResult.value,
-      isActive: normalizeBooleanValue(
-        data.isActive,
-        true
-      ),
-      isFeatured: normalizeBooleanValue(
-        data.isFeatured,
-        false
-      ),
+
+      seriesKey:
+        normalizeSeriesKey(
+          series
+        ),
+
+      description:
+        descriptionResult.value,
+
+      coverImage:
+        coverImageResult.value,
+
+      displayOrder:
+        displayOrderResult.value,
+
+      isActive:
+        normalizeBooleanValue(
+          data.isActive,
+          true
+        ),
+
+      isFeatured:
+        normalizeBooleanValue(
+          data.isFeatured,
+          false
+        ),
     },
   };
 }
@@ -300,37 +415,54 @@ async function attachProductCounts(
   collections
 ) {
   const counts =
-    await getSeriesProductCounts(database);
-
-  return collections.map((collection) => {
-    const seriesKey = normalizeSeriesKey(
-      collection.seriesKey ||
-        collection.series
+    await getSeriesProductCounts(
+      database
     );
 
-    const seriesCount = counts[seriesKey] || {
-      total: 0,
-      active: 0,
-      inactive: 0,
-    };
+  return collections.map(
+    (collection) => {
+      const seriesKey =
+        normalizeSeriesKey(
+          collection.seriesKey ||
+            collection.series
+        );
 
-    return {
-      ...collection,
-      seriesKey,
-      productCount: seriesCount.total,
-      activeProductCount:
-        seriesCount.active,
-      inactiveProductCount:
-        seriesCount.inactive,
-      isAutoGenerated:
-        collection.isAutoGenerated === true,
-    };
-  });
+      const seriesCount =
+        counts[seriesKey] || {
+          total: 0,
+          active: 0,
+          inactive: 0,
+        };
+
+      return {
+        ...collection,
+
+        seriesKey,
+
+        productCount:
+          seriesCount.total,
+
+        activeProductCount:
+          seriesCount.active,
+
+        inactiveProductCount:
+          seriesCount.inactive,
+
+        isAutoGenerated:
+          collection
+            .isAutoGenerated ===
+          true,
+      };
+    }
+  );
 }
 
-export async function GET(request) {
+export async function GET(
+  request
+) {
   try {
-    const requestUrl = new URL(request.url);
+    const requestUrl =
+      new URL(request.url);
 
     const includeInactive =
       normalizeBooleanQuery(
@@ -340,47 +472,51 @@ export async function GET(request) {
       );
 
     if (includeInactive) {
-      const authenticated =
-        await isAdminAuthenticated();
+      const authorization =
+        await requireAdminApiPermission(
+          request,
+          {
+            collections: [
+              "read_private",
+            ],
+          },
+          {
+            path:
+              "/api/collections",
 
-      if (!authenticated) {
-        return createErrorResponse(
-          "Unauthorized.",
-          401
+            forbiddenMessage:
+              "You do not have permission to view private collections.",
+          }
         );
+
+      if (
+        !authorization.authorized
+      ) {
+        return authorization.response;
       }
     }
 
     const database =
       await getCatalogDatabase();
 
-    await ensureCatalogIndexes(database);
+    const query =
+      includeInactive
+        ? {}
+        : {
+            isActive: true,
+          };
 
-    /*
-     * This safely backfills collections for
-     * existing active product series and keeps
-     * automatic collections synchronized.
-     */
-    await syncCollectionsFromProducts(
-      database
-    );
-
-    const query = includeInactive
-      ? {}
-      : {
-          isActive: true,
-        };
-
-    const collections = await database
-      .collection(
-        COLLECTIONS_COLLECTION_NAME
-      )
-      .find(query)
-      .sort({
-        displayOrder: 1,
-        createdAt: -1,
-      })
-      .toArray();
+    const collections =
+      await database
+        .collection(
+          COLLECTIONS_COLLECTION_NAME
+        )
+        .find(query)
+        .sort({
+          displayOrder: 1,
+          createdAt: -1,
+        })
+        .toArray();
 
     const collectionsWithCounts =
       await attachProductCounts(
@@ -390,9 +526,11 @@ export async function GET(request) {
 
     return Response.json({
       success: true,
-      collections: serializeDocument(
-        collectionsWithCounts
-      ),
+
+      collections:
+        serializeDocument(
+          collectionsWithCounts
+        ),
     });
   } catch (error) {
     console.error(
@@ -406,22 +544,38 @@ export async function GET(request) {
   }
 }
 
-export async function POST(request) {
+export async function POST(
+  request
+) {
   try {
-    const authenticated =
-      await isAdminAuthenticated();
+    const authorization =
+      await requireAdminApiPermission(
+        request,
+        {
+          collections: [
+            "create",
+          ],
+        },
+        {
+          path:
+            "/api/collections",
 
-    if (!authenticated) {
-      return createErrorResponse(
-        "Unauthorized.",
-        401
+          forbiddenMessage:
+            "You do not have permission to create collections.",
+        }
       );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
     }
 
     let requestBody;
 
     try {
-      requestBody = await request.json();
+      requestBody =
+        await request.json();
     } catch {
       return createErrorResponse(
         "Invalid JSON request body.",
@@ -429,7 +583,11 @@ export async function POST(request) {
       );
     }
 
-    if (!isPlainObject(requestBody)) {
+    if (
+      !isPlainObject(
+        requestBody
+      )
+    ) {
       return createErrorResponse(
         "Collection data must be a valid object.",
         400
@@ -441,7 +599,9 @@ export async function POST(request) {
         requestBody
       );
 
-    if (!normalizedResult.success) {
+    if (
+      !normalizedResult.success
+    ) {
       return createErrorResponse(
         normalizedResult.message,
         400
@@ -451,7 +611,9 @@ export async function POST(request) {
     const database =
       await getCatalogDatabase();
 
-    await ensureCatalogIndexes(database);
+    await ensureCatalogIndexes(
+      database
+    );
 
     const collectionStore =
       database.collection(
@@ -475,7 +637,8 @@ export async function POST(request) {
     const slugConflict =
       await collectionStore.findOne(
         {
-          slug: normalizedCollection.slug,
+          slug:
+            normalizedCollection.slug,
 
           ...(existingSeriesCollection?._id
             ? {
@@ -500,18 +663,16 @@ export async function POST(request) {
       );
     }
 
-    const now = new Date();
+    const now =
+      new Date();
 
-    /*
-     * If a product previously generated this
-     * collection automatically, creating it from
-     * the admin panel converts it into a manually
-     * managed collection instead of duplicating it.
-     */
-    if (existingSeriesCollection) {
+    if (
+      existingSeriesCollection
+    ) {
       if (
         existingSeriesCollection
-          .isAutoGenerated !== true
+          .isAutoGenerated !==
+        true
       ) {
         return createErrorResponse(
           "A collection for this product series already exists.",
@@ -527,9 +688,15 @@ export async function POST(request) {
         {
           $set: {
             ...normalizedCollection,
-            isAutoGenerated: false,
-            customizedAt: now,
-            updatedAt: now,
+
+            isAutoGenerated:
+              false,
+
+            customizedAt:
+              now,
+
+            updatedAt:
+              now,
           },
 
           $unset: {
@@ -548,20 +715,28 @@ export async function POST(request) {
           $set: {
             series:
               normalizedCollection.series,
+
             seriesKey:
-              normalizedCollection.seriesKey,
-            updatedAt: now,
+              normalizedCollection
+                .seriesKey,
+
+            updatedAt:
+              now,
           },
         }
       );
 
       const savedCollection =
-        await collectionStore.findOne({
-          _id:
-            existingSeriesCollection._id,
-        });
+        await collectionStore.findOne(
+          {
+            _id:
+              existingSeriesCollection._id,
+          }
+        );
 
-      const [collectionWithCounts] =
+      const [
+        collectionWithCounts,
+      ] =
         await attachProductCounts(
           database,
           [savedCollection]
@@ -569,19 +744,28 @@ export async function POST(request) {
 
       return Response.json({
         success: true,
+
         message:
           "Automatic collection converted to a managed collection successfully.",
-        collection: serializeDocument(
-          collectionWithCounts
-        ),
+
+        collection:
+          serializeDocument(
+            collectionWithCounts
+          ),
       });
     }
 
     const newCollection = {
       ...normalizedCollection,
-      isAutoGenerated: false,
-      createdAt: now,
-      updatedAt: now,
+
+      isAutoGenerated:
+        false,
+
+      createdAt:
+        now,
+
+      updatedAt:
+        now,
     };
 
     const insertionResult =
@@ -589,10 +773,6 @@ export async function POST(request) {
         newCollection
       );
 
-    /*
-     * Normalize any legacy products already using
-     * an equivalent series name.
-     */
     await productStore.updateMany(
       buildSeriesMatchQuery(
         normalizedCollection.series
@@ -601,19 +781,27 @@ export async function POST(request) {
         $set: {
           series:
             normalizedCollection.series,
+
           seriesKey:
-            normalizedCollection.seriesKey,
-          updatedAt: now,
+            normalizedCollection
+              .seriesKey,
+
+          updatedAt:
+            now,
         },
       }
     );
 
     const savedCollection = {
       ...newCollection,
-      _id: insertionResult.insertedId,
+
+      _id:
+        insertionResult.insertedId,
     };
 
-    const [collectionWithCounts] =
+    const [
+      collectionWithCounts,
+    ] =
       await attachProductCounts(
         database,
         [savedCollection]
@@ -622,18 +810,23 @@ export async function POST(request) {
     return Response.json(
       {
         success: true,
+
         message:
           "Collection created successfully.",
-        collection: serializeDocument(
-          collectionWithCounts
-        ),
+
+        collection:
+          serializeDocument(
+            collectionWithCounts
+          ),
       },
       {
         status: 201,
       }
     );
   } catch (error) {
-    if (error?.code === 11000) {
+    if (
+      error?.code === 11000
+    ) {
       return createErrorResponse(
         "A collection with this slug already exists.",
         409

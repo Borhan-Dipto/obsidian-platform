@@ -1,5 +1,9 @@
 import { ObjectId } from "mongodb";
-import { isAdminAuthenticated } from "../../../../lib/adminAuth";
+
+import {
+  requireAdminApiPermission,
+} from "../../../../lib/adminApiAuthorization";
+
 import {
   COLLECTIONS_COLLECTION_NAME,
   PRODUCTS_COLLECTION_NAME,
@@ -14,9 +18,13 @@ import {
   normalizeSeriesName,
 } from "../../../../lib/catalog";
 
-export const dynamic = "force-dynamic";
+export const dynamic =
+  "force-dynamic";
 
-function createErrorResponse(message, status = 500) {
+function createErrorResponse(
+  message,
+  status = 500
+) {
   return Response.json(
     {
       success: false,
@@ -31,7 +39,8 @@ function createErrorResponse(message, status = 500) {
 function isPlainObject(value) {
   return Boolean(
     value &&
-      typeof value === "object" &&
+      typeof value ===
+        "object" &&
       !Array.isArray(value)
   );
 }
@@ -43,45 +52,66 @@ function hasOwn(object, key) {
   );
 }
 
-function serializeDocument(document) {
+function serializeDocument(
+  document
+) {
   if (!document) {
     return null;
   }
 
-  return JSON.parse(JSON.stringify(document));
+  return JSON.parse(
+    JSON.stringify(document)
+  );
 }
 
-function getObjectIdString(value) {
+function getObjectIdString(
+  value
+) {
   if (!value) {
     return "";
   }
 
-  if (typeof value === "string") {
+  if (
+    typeof value ===
+    "string"
+  ) {
     return value;
   }
 
   return String(value);
 }
 
-async function resolveCollectionId(context) {
-  const params = await context.params;
+async function resolveCollectionId(
+  context
+) {
+  const params =
+    await context.params;
 
   try {
     return decodeURIComponent(
-      String(params?.id || "")
+      String(
+        params?.id || ""
+      )
     ).trim();
   } catch {
-    return String(params?.id || "").trim();
+    return String(
+      params?.id || ""
+    ).trim();
   }
 }
 
-function createCollectionLookup(identifier) {
+function createCollectionLookup(
+  identifier
+) {
   const normalizedIdentifier =
-    normalizeCatalogText(identifier);
+    normalizeCatalogText(
+      identifier
+    );
 
-  const slug = createCatalogSlug(
-    normalizedIdentifier
-  );
+  const slug =
+    createCatalogSlug(
+      normalizedIdentifier
+    );
 
   const seriesQuery =
     buildSeriesMatchQuery(
@@ -90,35 +120,55 @@ function createCollectionLookup(identifier) {
 
   const queryParts = [];
 
-  if (ObjectId.isValid(normalizedIdentifier)) {
+  if (
+    ObjectId.isValid(
+      normalizedIdentifier
+    )
+  ) {
     queryParts.push({
-      _id: new ObjectId(normalizedIdentifier),
+      _id:
+        new ObjectId(
+          normalizedIdentifier
+        ),
     });
   }
 
-  if (normalizedIdentifier) {
+  if (
+    normalizedIdentifier
+  ) {
     queryParts.push({
-      slug: normalizedIdentifier,
+      slug:
+        normalizedIdentifier,
     });
   }
 
   if (
     slug &&
-    slug !== normalizedIdentifier
+    slug !==
+      normalizedIdentifier
   ) {
     queryParts.push({
       slug,
     });
   }
 
-  if (Array.isArray(seriesQuery.$or)) {
-    queryParts.push(...seriesQuery.$or);
+  if (
+    Array.isArray(
+      seriesQuery.$or
+    )
+  ) {
+    queryParts.push(
+      ...seriesQuery.$or
+    );
   } else {
-    queryParts.push(seriesQuery);
+    queryParts.push(
+      seriesQuery
+    );
   }
 
   return {
-    $or: queryParts,
+    $or:
+      queryParts,
   };
 }
 
@@ -132,78 +182,109 @@ function validateRequiredText(
 
   if (!normalizedValue) {
     return {
-      error: `${fieldName} is required.`,
+      error:
+        `${fieldName} is required.`,
+
       value: "",
     };
   }
 
-  if (normalizedValue.length > maximumLength) {
+  if (
+    normalizedValue.length >
+    maximumLength
+  ) {
     return {
-      error: `${fieldName} must not exceed ${maximumLength} characters.`,
-      value: normalizedValue,
+      error:
+        `${fieldName} must not exceed ${maximumLength} characters.`,
+
+      value:
+        normalizedValue,
     };
   }
 
   return {
     error: "",
-    value: normalizedValue,
+    value:
+      normalizedValue,
   };
 }
 
-function validateCoverImage(value) {
+function validateCoverImage(
+  value
+) {
   const coverImage =
     normalizeCatalogText(value);
 
   if (!coverImage) {
     return {
-      error: "Collection cover image is required.",
+      error:
+        "Collection cover image is required.",
+
       value: "",
     };
   }
 
-  if (coverImage.length > 1000) {
+  if (
+    coverImage.length >
+    1000
+  ) {
     return {
       error:
         "Collection cover image URL must not exceed 1000 characters.",
-      value: coverImage,
+
+      value:
+        coverImage,
     };
   }
 
-  if (coverImage.startsWith("/")) {
+  if (
+    coverImage.startsWith("/")
+  ) {
     return {
       error: "",
-      value: coverImage,
+      value:
+        coverImage,
     };
   }
 
   try {
-    const imageUrl = new URL(coverImage);
+    const imageUrl =
+      new URL(coverImage);
 
     if (
-      imageUrl.protocol !== "http:" &&
-      imageUrl.protocol !== "https:"
+      imageUrl.protocol !==
+        "http:" &&
+      imageUrl.protocol !==
+        "https:"
     ) {
       return {
         error:
           "Collection cover image must use http or https.",
-        value: coverImage,
+
+        value:
+          coverImage,
       };
     }
 
     return {
       error: "",
-      value: coverImage,
+      value:
+        coverImage,
     };
   } catch {
     return {
       error:
         "Collection cover image must be a valid uploaded image URL.",
-      value: coverImage,
+
+      value:
+        coverImage,
     };
   }
 }
 
-function validateDisplayOrder(value) {
+function validateDisplayOrder(
+  value
+) {
   if (
     value === undefined ||
     value === null ||
@@ -215,37 +296,54 @@ function validateDisplayOrder(value) {
     };
   }
 
-  const displayOrder = Number(value);
+  const displayOrder =
+    Number(value);
 
   if (
-    !Number.isFinite(displayOrder) ||
-    !Number.isInteger(displayOrder)
+    !Number.isFinite(
+      displayOrder
+    ) ||
+    !Number.isInteger(
+      displayOrder
+    )
   ) {
     return {
       error:
         "Display order must be a whole number.",
+
       value: 0,
     };
   }
 
-  if (displayOrder < 0) {
+  if (
+    displayOrder < 0
+  ) {
     return {
       error:
         "Display order cannot be negative.",
-      value: displayOrder,
+
+      value:
+        displayOrder,
     };
   }
 
-  if (displayOrder > 1000000) {
+  if (
+    displayOrder >
+    1000000
+  ) {
     return {
-      error: "Display order is too large.",
-      value: displayOrder,
+      error:
+        "Display order is too large.",
+
+      value:
+        displayOrder,
     };
   }
 
   return {
     error: "",
-    value: displayOrder,
+    value:
+      displayOrder,
   };
 }
 
@@ -254,75 +352,103 @@ function normalizeCollectionUpdate(
   existingCollection
 ) {
   const mergedCollection = {
-    title: hasOwn(updates, "title")
-      ? updates.title
-      : existingCollection.title,
+    title:
+      hasOwn(
+        updates,
+        "title"
+      )
+        ? updates.title
+        : existingCollection.title,
 
-    slug: hasOwn(updates, "slug")
-      ? updates.slug
-      : existingCollection.slug,
+    slug:
+      hasOwn(
+        updates,
+        "slug"
+      )
+        ? updates.slug
+        : existingCollection.slug,
 
-    series: hasOwn(updates, "series")
-      ? updates.series
-      : existingCollection.series,
+    series:
+      hasOwn(
+        updates,
+        "series"
+      )
+        ? updates.series
+        : existingCollection.series,
 
-    description: hasOwn(
-      updates,
-      "description"
-    )
-      ? updates.description
-      : existingCollection.description,
+    description:
+      hasOwn(
+        updates,
+        "description"
+      )
+        ? updates.description
+        : existingCollection.description,
 
-    coverImage: hasOwn(
-      updates,
-      "coverImage"
-    )
-      ? updates.coverImage
-      : existingCollection.coverImage,
+    coverImage:
+      hasOwn(
+        updates,
+        "coverImage"
+      )
+        ? updates.coverImage
+        : existingCollection.coverImage,
 
-    displayOrder: hasOwn(
-      updates,
-      "displayOrder"
-    )
-      ? updates.displayOrder
-      : existingCollection.displayOrder,
+    displayOrder:
+      hasOwn(
+        updates,
+        "displayOrder"
+      )
+        ? updates.displayOrder
+        : existingCollection.displayOrder,
 
-    isActive: hasOwn(updates, "isActive")
-      ? updates.isActive
-      : existingCollection.isActive,
+    isActive:
+      hasOwn(
+        updates,
+        "isActive"
+      )
+        ? updates.isActive
+        : existingCollection.isActive,
 
-    isFeatured: hasOwn(
-      updates,
-      "isFeatured"
-    )
-      ? updates.isFeatured
-      : existingCollection.isFeatured,
+    isFeatured:
+      hasOwn(
+        updates,
+        "isFeatured"
+      )
+        ? updates.isFeatured
+        : existingCollection.isFeatured,
   };
 
-  const titleResult = validateRequiredText(
-    mergedCollection.title,
-    "Collection title",
-    140
-  );
+  const titleResult =
+    validateRequiredText(
+      mergedCollection.title,
+      "Collection title",
+      140
+    );
 
   if (titleResult.error) {
     return {
       success: false,
-      message: titleResult.error,
+
+      message:
+        titleResult.error,
+
       collection: null,
     };
   }
 
-  const seriesResult = validateRequiredText(
-    mergedCollection.series,
-    "Collection series",
-    120
-  );
+  const seriesResult =
+    validateRequiredText(
+      mergedCollection.series,
+      "Collection series",
+      120
+    );
 
   if (seriesResult.error) {
     return {
       success: false,
-      message: seriesResult.error,
+
+      message:
+        seriesResult.error,
+
       collection: null,
     };
   }
@@ -334,10 +460,15 @@ function normalizeCollectionUpdate(
       5000
     );
 
-  if (descriptionResult.error) {
+  if (
+    descriptionResult.error
+  ) {
     return {
       success: false,
-      message: descriptionResult.error,
+
+      message:
+        descriptionResult.error,
+
       collection: null,
     };
   }
@@ -347,10 +478,15 @@ function normalizeCollectionUpdate(
       mergedCollection.coverImage
     );
 
-  if (coverImageResult.error) {
+  if (
+    coverImageResult.error
+  ) {
     return {
       success: false,
-      message: coverImageResult.error,
+
+      message:
+        coverImageResult.error,
+
       collection: null,
     };
   }
@@ -360,37 +496,50 @@ function normalizeCollectionUpdate(
       mergedCollection.displayOrder
     );
 
-  if (displayOrderResult.error) {
+  if (
+    displayOrderResult.error
+  ) {
     return {
       success: false,
-      message: displayOrderResult.error,
+
+      message:
+        displayOrderResult.error,
+
       collection: null,
     };
   }
 
-  const series = normalizeSeriesName(
-    seriesResult.value
-  );
+  const series =
+    normalizeSeriesName(
+      seriesResult.value
+    );
 
-  const slug = createCatalogSlug(
-    mergedCollection.slug ||
-      titleResult.value
-  );
+  const slug =
+    createCatalogSlug(
+      mergedCollection.slug ||
+        titleResult.value
+    );
 
   if (!slug) {
     return {
       success: false,
+
       message:
         "Collection slug could not be generated.",
+
       collection: null,
     };
   }
 
-  if (slug.length > 100) {
+  if (
+    slug.length > 100
+  ) {
     return {
       success: false,
+
       message:
         "Collection slug must not exceed 100 characters.",
+
       collection: null,
     };
   }
@@ -398,24 +547,39 @@ function normalizeCollectionUpdate(
   return {
     success: true,
     message: "",
+
     collection: {
-      title: titleResult.value,
+      title:
+        titleResult.value,
+
       slug,
       series,
-      seriesKey: normalizeSeriesKey(series),
+
+      seriesKey:
+        normalizeSeriesKey(
+          series
+        ),
+
       description:
         descriptionResult.value,
-      coverImage: coverImageResult.value,
+
+      coverImage:
+        coverImageResult.value,
+
       displayOrder:
         displayOrderResult.value,
-      isActive: normalizeBooleanValue(
-        mergedCollection.isActive,
-        true
-      ),
-      isFeatured: normalizeBooleanValue(
-        mergedCollection.isFeatured,
-        false
-      ),
+
+      isActive:
+        normalizeBooleanValue(
+          mergedCollection.isActive,
+          true
+        ),
+
+      isFeatured:
+        normalizeBooleanValue(
+          mergedCollection.isFeatured,
+          false
+        ),
     },
   };
 }
@@ -452,8 +616,11 @@ async function getCollectionProductCounts(
   ]);
 
   return {
-    productCount: totalProductCount,
+    productCount:
+      totalProductCount,
+
     activeProductCount,
+
     inactiveProductCount:
       totalProductCount -
       activeProductCount,
@@ -473,13 +640,16 @@ async function attachProductCounts(
   return {
     ...collection,
 
-    seriesKey: normalizeSeriesKey(
-      collection.seriesKey ||
-        collection.series
-    ),
+    seriesKey:
+      normalizeSeriesKey(
+        collection.seriesKey ||
+          collection.series
+      ),
 
     isAutoGenerated:
-      collection.isAutoGenerated === true,
+      collection
+        .isAutoGenerated ===
+      true,
 
     ...counts,
   };
@@ -491,7 +661,9 @@ export async function GET(
 ) {
   try {
     const identifier =
-      await resolveCollectionId(context);
+      await resolveCollectionId(
+        context
+      );
 
     if (!identifier) {
       return createErrorResponse(
@@ -503,17 +675,20 @@ export async function GET(
     const database =
       await getCatalogDatabase();
 
-    await ensureCatalogIndexes(database);
+    await ensureCatalogIndexes(
+      database
+    );
 
-    const collection = await database
-      .collection(
-        COLLECTIONS_COLLECTION_NAME
-      )
-      .findOne(
-        createCollectionLookup(
-          identifier
+    const collection =
+      await database
+        .collection(
+          COLLECTIONS_COLLECTION_NAME
         )
-      );
+        .findOne(
+          createCollectionLookup(
+            identifier
+          )
+        );
 
     if (!collection) {
       return createErrorResponse(
@@ -522,15 +697,46 @@ export async function GET(
       );
     }
 
-    if (collection.isActive === false) {
-      const authenticated =
-        await isAdminAuthenticated();
+    if (
+      collection.isActive ===
+      false
+    ) {
+      const authorization =
+        await requireAdminApiPermission(
+          request,
+          {
+            collections: [
+              "read_private",
+            ],
+          },
+          {
+            path:
+              "/api/collections/[id]",
 
-      if (!authenticated) {
-        return createErrorResponse(
-          "Collection not found.",
-          404
+            forbiddenMessage:
+              "You do not have permission to view private collections.",
+          }
         );
+
+      /*
+       * Do not reveal the existence of
+       * inactive collections to public,
+       * unauthenticated visitors.
+       */
+      if (
+        !authorization.authorized
+      ) {
+        if (
+          authorization.response
+            ?.status === 401
+        ) {
+          return createErrorResponse(
+            "Collection not found.",
+            404
+          );
+        }
+
+        return authorization.response;
       }
     }
 
@@ -543,9 +749,10 @@ export async function GET(
     return Response.json({
       success: true,
 
-      collection: serializeDocument(
-        collectionWithCounts
-      ),
+      collection:
+        serializeDocument(
+          collectionWithCounts
+        ),
     });
   } catch (error) {
     console.error(
@@ -564,21 +771,37 @@ export async function PATCH(
   context
 ) {
   let database = null;
-  let existingCollection = null;
+  let existingCollection =
+    null;
 
   try {
-    const authenticated =
-      await isAdminAuthenticated();
+    const authorization =
+      await requireAdminApiPermission(
+        request,
+        {
+          collections: [
+            "update",
+          ],
+        },
+        {
+          path:
+            "/api/collections/[id]",
 
-    if (!authenticated) {
-      return createErrorResponse(
-        "Unauthorized.",
-        401
+          forbiddenMessage:
+            "You do not have permission to update collections.",
+        }
       );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
     }
 
     const identifier =
-      await resolveCollectionId(context);
+      await resolveCollectionId(
+        context
+      );
 
     if (!identifier) {
       return createErrorResponse(
@@ -590,7 +813,8 @@ export async function PATCH(
     let requestBody;
 
     try {
-      requestBody = await request.json();
+      requestBody =
+        await request.json();
     } catch {
       return createErrorResponse(
         "Invalid JSON request body.",
@@ -598,16 +822,23 @@ export async function PATCH(
       );
     }
 
-    if (!isPlainObject(requestBody)) {
+    if (
+      !isPlainObject(
+        requestBody
+      )
+    ) {
       return createErrorResponse(
         "Collection data must be a valid object.",
         400
       );
     }
 
-    database = await getCatalogDatabase();
+    database =
+      await getCatalogDatabase();
 
-    await ensureCatalogIndexes(database);
+    await ensureCatalogIndexes(
+      database
+    );
 
     const collectionStore =
       database.collection(
@@ -639,7 +870,9 @@ export async function PATCH(
         existingCollection
       );
 
-    if (!normalizedResult.success) {
+    if (
+      !normalizedResult.success
+    ) {
       return createErrorResponse(
         normalizedResult.message,
         400
@@ -674,10 +907,12 @@ export async function PATCH(
       await collectionStore.findOne(
         {
           _id: {
-            $ne: existingCollection._id,
+            $ne:
+              existingCollection._id,
           },
 
-          slug: normalizedCollection.slug,
+          slug:
+            normalizedCollection.slug,
         },
         {
           projection: {
@@ -708,25 +943,35 @@ export async function PATCH(
       normalizedCollection.seriesKey;
 
     const seriesChanged =
-      previousSeriesKey !== nextSeriesKey;
+      previousSeriesKey !==
+      nextSeriesKey;
 
-    const now = new Date();
+    const now =
+      new Date();
 
     const collectionToSave = {
       ...normalizedCollection,
-      isAutoGenerated: false,
+
+      isAutoGenerated:
+        false,
+
       customizedAt:
-        existingCollection.customizedAt ||
+        existingCollection
+          .customizedAt ||
         now,
-      updatedAt: now,
+
+      updatedAt:
+        now,
     };
 
     await collectionStore.updateOne(
       {
-        _id: existingCollection._id,
+        _id:
+          existingCollection._id,
       },
       {
-        $set: collectionToSave,
+        $set:
+          collectionToSave,
 
         $unset: {
           sourceProductId: "",
@@ -745,10 +990,15 @@ export async function PATCH(
           {
             $set: {
               series:
-                normalizedCollection.series,
+                normalizedCollection
+                  .series,
+
               seriesKey:
-                normalizedCollection.seriesKey,
-              updatedAt: now,
+                normalizedCollection
+                  .seriesKey,
+
+              updatedAt:
+                now,
             },
           }
         );
@@ -760,17 +1010,23 @@ export async function PATCH(
           {
             $set: {
               series:
-                normalizedCollection.series,
+                normalizedCollection
+                  .series,
+
               seriesKey:
-                normalizedCollection.seriesKey,
+                normalizedCollection
+                  .seriesKey,
             },
           }
         );
       }
-    } catch (productUpdateError) {
+    } catch (
+      productUpdateError
+    ) {
       await collectionStore.replaceOne(
         {
-          _id: existingCollection._id,
+          _id:
+            existingCollection._id,
         },
         existingCollection
       );
@@ -779,9 +1035,12 @@ export async function PATCH(
     }
 
     const savedCollection =
-      await collectionStore.findOne({
-        _id: existingCollection._id,
-      });
+      await collectionStore.findOne(
+        {
+          _id:
+            existingCollection._id,
+        }
+      );
 
     const collectionWithCounts =
       await attachProductCounts(
@@ -792,16 +1051,20 @@ export async function PATCH(
     return Response.json({
       success: true,
 
-      message: seriesChanged
-        ? "Collection and linked products updated successfully."
-        : "Collection updated successfully.",
+      message:
+        seriesChanged
+          ? "Collection and linked products updated successfully."
+          : "Collection updated successfully.",
 
-      collection: serializeDocument(
-        collectionWithCounts
-      ),
+      collection:
+        serializeDocument(
+          collectionWithCounts
+        ),
     });
   } catch (error) {
-    if (error?.code === 11000) {
+    if (
+      error?.code === 11000
+    ) {
       return createErrorResponse(
         "Another collection already uses this slug or series.",
         409
@@ -824,18 +1087,33 @@ export async function DELETE(
   context
 ) {
   try {
-    const authenticated =
-      await isAdminAuthenticated();
+    const authorization =
+      await requireAdminApiPermission(
+        request,
+        {
+          collections: [
+            "delete",
+          ],
+        },
+        {
+          path:
+            "/api/collections/[id]",
 
-    if (!authenticated) {
-      return createErrorResponse(
-        "Unauthorized.",
-        401
+          forbiddenMessage:
+            "You do not have permission to delete collections.",
+        }
       );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
     }
 
     const identifier =
-      await resolveCollectionId(context);
+      await resolveCollectionId(
+        context
+      );
 
     if (!identifier) {
       return createErrorResponse(
@@ -847,7 +1125,9 @@ export async function DELETE(
     const database =
       await getCatalogDatabase();
 
-    await ensureCatalogIndexes(database);
+    await ensureCatalogIndexes(
+      database
+    );
 
     const collectionStore =
       database.collection(
@@ -874,7 +1154,9 @@ export async function DELETE(
         existingCollection
       );
 
-    if (counts.productCount > 0) {
+    if (
+      counts.productCount > 0
+    ) {
       return createErrorResponse(
         `This collection still contains ${counts.productCount} ${
           counts.productCount === 1
@@ -886,11 +1168,17 @@ export async function DELETE(
     }
 
     const deletionResult =
-      await collectionStore.deleteOne({
-        _id: existingCollection._id,
-      });
+      await collectionStore.deleteOne(
+        {
+          _id:
+            existingCollection._id,
+        }
+      );
 
-    if (deletionResult.deletedCount === 0) {
+    if (
+      deletionResult.deletedCount ===
+      0
+    ) {
       return createErrorResponse(
         "Collection not found.",
         404
@@ -899,14 +1187,21 @@ export async function DELETE(
 
     return Response.json({
       success: true,
+
       message:
         "Empty collection deleted successfully.",
 
-      collection: serializeDocument({
-        _id: existingCollection._id,
-        title: existingCollection.title,
-        series: existingCollection.series,
-      }),
+      collection:
+        serializeDocument({
+          _id:
+            existingCollection._id,
+
+          title:
+            existingCollection.title,
+
+          series:
+            existingCollection.series,
+        }),
     });
   } catch (error) {
     console.error(
@@ -924,5 +1219,8 @@ export async function PUT(
   request,
   context
 ) {
-  return PATCH(request, context);
+  return PATCH(
+    request,
+    context
+  );
 }

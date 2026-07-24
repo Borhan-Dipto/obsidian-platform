@@ -1,11 +1,13 @@
-import { requireAdminAuth } from "../../../../lib/adminAuth";
+import { requireAdminPermission } from "../../../../lib/adminAuth";
 import { getJournalContent } from "../../../../lib/getCmsContent";
 import JournalContentEditor from "../../../../components/admin/JournalContentEditor";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminJournalContentPage() {
-  await requireAdminAuth();
+  await requireAdminPermission({
+    content: ["update"],
+  });
 
   const journalContent = await getJournalContent();
 

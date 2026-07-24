@@ -1,11 +1,13 @@
-import { requireAdminAuth } from "../../../../lib/adminAuth";
+import { requireAdminPermission } from "../../../../lib/adminAuth";
 import { getNavbarContent } from "../../../../lib/getCmsContent";
 import NavbarContentEditor from "../../../../components/admin/NavbarContentEditor";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminNavbarContentPage() {
-  await requireAdminAuth();
+  await requireAdminPermission({
+    content: ["update"],
+  });
 
   const navbarContent = await getNavbarContent();
 

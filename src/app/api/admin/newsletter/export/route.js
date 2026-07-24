@@ -1,11 +1,19 @@
 import clientPromise from "../../../../../lib/mongodb";
-import { isAdminAuthenticated } from "../../../../../lib/adminAuth";
 
-export const dynamic = "force-dynamic";
+import {
+  requireAdminApiPermission,
+} from "../../../../../lib/adminApiAuthorization";
 
-const NEWSLETTER_COLLECTION = "newsletterSubscribers";
+export const dynamic =
+  "force-dynamic";
 
-function createErrorResponse(message, status = 500) {
+const NEWSLETTER_COLLECTION =
+  "newsletterSubscribers";
+
+function createErrorResponse(
+  message,
+  status = 500
+) {
   return Response.json(
     {
       success: false,
@@ -13,26 +21,54 @@ function createErrorResponse(message, status = 500) {
     },
     {
       status,
+
+      headers: {
+        "Cache-Control":
+          "private, no-store, max-age=0",
+
+        Pragma:
+          "no-cache",
+
+        "X-Content-Type-Options":
+          "nosniff",
+      },
     }
   );
 }
 
-function normalizeText(value, fallback = "") {
-  if (typeof value !== "string") {
+function normalizeText(
+  value,
+  fallback = ""
+) {
+  if (
+    typeof value !==
+    "string"
+  ) {
     return fallback;
   }
 
-  const normalizedValue = value.trim();
+  const normalizedValue =
+    value.trim();
 
-  return normalizedValue || fallback;
+  return (
+    normalizedValue ||
+    fallback
+  );
 }
 
-function normalizeStatus(value) {
-  const status = normalizeText(value, "all").toLowerCase();
+function normalizeStatus(
+  value
+) {
+  const status =
+    normalizeText(
+      value,
+      "all"
+    ).toLowerCase();
 
   if (
     status === "active" ||
-    status === "unsubscribed"
+    status ===
+      "unsubscribed"
   ) {
     return status;
   }
@@ -40,37 +76,54 @@ function normalizeStatus(value) {
   return "all";
 }
 
-function escapeRegExp(value) {
+function escapeRegExp(
+  value
+) {
   return value.replace(
     /[.*+?^${}()|[\]\\]/g,
     "\\$&"
   );
 }
 
-function escapeCsvValue(value) {
+function escapeCsvValue(
+  value
+) {
   const normalizedValue =
-    value === null || value === undefined
+    value === null ||
+    value === undefined
       ? ""
       : String(value);
 
-  return `"${normalizedValue.replace(/"/g, '""')}"`;
+  return `"${normalizedValue.replace(
+    /"/g,
+    '""'
+  )}"`;
 }
 
-function formatCsvDate(value) {
+function formatCsvDate(
+  value
+) {
   if (!value) {
     return "";
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return "";
   }
 
   return date.toISOString();
 }
 
-function createCsv(subscribers) {
+function createCsv(
+  subscribers
+) {
   const rows = [
     [
       "Email",
@@ -84,105 +137,169 @@ function createCsv(subscribers) {
     ],
   ];
 
-  for (const subscriber of subscribers) {
+  for (
+    const subscriber
+    of subscribers
+  ) {
     rows.push([
-      normalizeText(subscriber.email),
+      normalizeText(
+        subscriber.email
+      ),
+
       normalizeText(
         subscriber.status,
         "active"
       ),
+
       normalizeText(
         subscriber.source,
         "footer"
       ),
+
       formatCsvDate(
         subscriber.subscribedAt
       ),
+
       formatCsvDate(
         subscriber.unsubscribedAt
       ),
+
       formatCsvDate(
         subscriber.resubscribedAt
       ),
-      formatCsvDate(subscriber.createdAt),
-      formatCsvDate(subscriber.updatedAt),
+
+      formatCsvDate(
+        subscriber.createdAt
+      ),
+
+      formatCsvDate(
+        subscriber.updatedAt
+      ),
     ]);
   }
 
   return rows
     .map((row) =>
-      row.map(escapeCsvValue).join(",")
+      row
+        .map(
+          escapeCsvValue
+        )
+        .join(",")
     )
     .join("\r\n");
 }
 
-function createExportFilename(status) {
-  const date = new Date()
-    .toISOString()
-    .slice(0, 10);
+function createExportFilename(
+  status
+) {
+  const date =
+    new Date()
+      .toISOString()
+      .slice(0, 10);
 
   const statusSuffix =
-    status === "all" ? "all" : status;
+    status === "all"
+      ? "all"
+      : status;
 
   return `obsidian-newsletter-${statusSuffix}-${date}.csv`;
 }
 
-export async function GET(request) {
+export async function GET(
+  request
+) {
   try {
-    const authenticated =
-      await isAdminAuthenticated();
+    const authorization =
+      await requireAdminApiPermission(
+        request,
+        {
+          newsletter: [
+            "export",
+          ],
+        },
+        {
+          path:
+            "/api/admin/newsletter/export",
 
-    if (!authenticated) {
-      return createErrorResponse(
-        "Unauthorized.",
-        401
+          forbiddenMessage:
+            "You do not have permission to export newsletter subscribers.",
+        }
       );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
     }
 
-    const requestUrl = new URL(request.url);
+    const requestUrl =
+      new URL(request.url);
 
-    const search = normalizeText(
-      requestUrl.searchParams.get("search")
-    );
+    const search =
+      normalizeText(
+        requestUrl.searchParams.get(
+          "search"
+        )
+      );
 
-    const status = normalizeStatus(
-      requestUrl.searchParams.get("status")
-    );
+    const status =
+      normalizeStatus(
+        requestUrl.searchParams.get(
+          "status"
+        )
+      );
 
     const query = {};
 
     if (search) {
       query.email = {
-        $regex: escapeRegExp(search),
-        $options: "i",
+        $regex:
+          escapeRegExp(
+            search
+          ),
+
+        $options:
+          "i",
       };
     }
 
-    if (status !== "all") {
-      query.status = status;
+    if (
+      status !== "all"
+    ) {
+      query.status =
+        status;
     }
 
-    const client = await clientPromise;
+    const client =
+      await clientPromise;
 
-    const database = client.db(
-      process.env.MONGODB_DB || "obsidian"
-    );
+    const database =
+      client.db(
+        process.env.MONGODB_DB ||
+          "obsidian"
+      );
 
-    const subscribers = await database
-      .collection(NEWSLETTER_COLLECTION)
-      .find(query)
-      .sort({
-        subscribedAt: -1,
-        createdAt: -1,
-      })
-      .toArray();
+    const subscribers =
+      await database
+        .collection(
+          NEWSLETTER_COLLECTION
+        )
+        .find(query)
+        .sort({
+          subscribedAt: -1,
+          createdAt: -1,
+        })
+        .toArray();
 
-    const csvContent = createCsv(
-      subscribers
-    );
+    const csvContent =
+      createCsv(
+        subscribers
+      );
 
     const filename =
-      createExportFilename(status);
+      createExportFilename(
+        status
+      );
 
     return new Response(
       `\uFEFF${csvContent}`,
@@ -198,6 +315,9 @@ export async function GET(request) {
 
           "Cache-Control":
             "private, no-store, max-age=0",
+
+          Pragma:
+            "no-cache",
 
           "X-Content-Type-Options":
             "nosniff",

@@ -1,11 +1,13 @@
-import { requireAdminAuth } from "../../../../lib/adminAuth";
+import { requireAdminPermission } from "../../../../lib/adminAuth";
 import { getContactContent } from "../../../../lib/getCmsContent";
 import ContactContentEditor from "../../../../components/admin/ContactContentEditor";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminContactContentPage() {
-  await requireAdminAuth();
+  await requireAdminPermission({
+    content: ["update"],
+  });
 
   const contactContent = await getContactContent();
 

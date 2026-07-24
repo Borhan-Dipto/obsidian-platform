@@ -1,11 +1,13 @@
-import { requireAdminAuth } from "../../../../lib/adminAuth";
+import { requireAdminPermission } from "../../../../lib/adminAuth";
 import { getShopContent } from "../../../../lib/getCmsContent";
 import ShopContentEditor from "../../../../components/admin/ShopContentEditor";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminShopContentPage() {
-  await requireAdminAuth();
+  await requireAdminPermission({
+    content: ["update"],
+  });
 
   const shopContent = await getShopContent();
 

@@ -71,11 +71,15 @@ function formatLabel(value) {
 
   return String(value)
     .replace(/[-_]/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    .replace(/\b\w/g, (letter) =>
+      letter.toUpperCase()
+    );
 }
 
 function getStatusClass(status) {
-  const normalizedStatus = String(status || "").toLowerCase();
+  const normalizedStatus = String(
+    status || ""
+  ).toLowerCase();
 
   if (normalizedStatus === "pending") {
     return "border-yellow-400/30 bg-yellow-400/10 text-yellow-300";
@@ -109,7 +113,9 @@ function getStatusClass(status) {
 }
 
 function getPaymentStatusClass(status) {
-  const normalizedStatus = String(status || "").toLowerCase();
+  const normalizedStatus = String(
+    status || ""
+  ).toLowerCase();
 
   if (
     normalizedStatus === "paid" ||
@@ -131,16 +137,25 @@ function getPaymentStatusClass(status) {
 }
 
 function getOrderTotal(order) {
-  const total = Number(order.total ?? order.grandTotal);
+  const total = Number(
+    order.total ?? order.grandTotal
+  );
 
-  return Number.isFinite(total) ? total : 0;
+  return Number.isFinite(total)
+    ? total
+    : 0;
 }
 
 function getOrderTimestamp(order) {
-  const date = new Date(order.createdAt || 0);
+  const date = new Date(
+    order.createdAt || 0
+  );
+
   const timestamp = date.getTime();
 
-  return Number.isNaN(timestamp) ? 0 : timestamp;
+  return Number.isNaN(timestamp)
+    ? 0
+    : timestamp;
 }
 
 function getPaymentMethod(order) {
@@ -162,7 +177,9 @@ function getPaymentStatus(order) {
     return existingStatus;
   }
 
-  const method = String(getPaymentMethod(order)).toLowerCase();
+  const method = String(
+    getPaymentMethod(order)
+  ).toLowerCase();
 
   if (
     method.includes("cash") ||
@@ -190,19 +207,33 @@ function getItemQuantity(order) {
     return 0;
   }
 
-  return order.items.reduce((total, item) => {
-    const quantity = Number(item.quantity);
+  return order.items.reduce(
+    (total, item) => {
+      const quantity = Number(
+        item.quantity
+      );
 
-    return total + (Number.isFinite(quantity) ? quantity : 1);
-  }, 0);
+      return (
+        total +
+        (Number.isFinite(quantity)
+          ? quantity
+          : 1)
+      );
+    },
+    0
+  );
 }
 
-function matchesSearch(order, searchTerm) {
+function matchesSearch(
+  order,
+  searchTerm
+) {
   if (!searchTerm) {
     return true;
   }
 
-  const customer = order.customer || {};
+  const customer =
+    order.customer || {};
 
   const searchableText = [
     order.orderId,
@@ -221,19 +252,38 @@ function matchesSearch(order, searchTerm) {
     .join(" ")
     .toLowerCase();
 
-  return searchableText.includes(searchTerm);
+  return searchableText.includes(
+    searchTerm
+  );
 }
 
-function getPageNumbers(currentPage, totalPages) {
+function getPageNumbers(
+  currentPage,
+  totalPages
+) {
   if (totalPages <= 5) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
+    return Array.from(
+      {
+        length: totalPages,
+      },
+      (_, index) => index + 1
+    );
   }
 
   if (currentPage <= 3) {
-    return [1, 2, 3, 4, totalPages];
+    return [
+      1,
+      2,
+      3,
+      4,
+      totalPages,
+    ];
   }
 
-  if (currentPage >= totalPages - 2) {
+  if (
+    currentPage >=
+    totalPages - 2
+  ) {
     return [
       1,
       totalPages - 3,
@@ -253,9 +303,14 @@ function getPageNumbers(currentPage, totalPages) {
 }
 
 function escapeCsvValue(value) {
-  const normalizedValue = String(value ?? "");
+  const normalizedValue = String(
+    value ?? ""
+  );
 
-  return `"${normalizedValue.replace(/"/g, '""')}"`;
+  return `"${normalizedValue.replace(
+    /"/g,
+    '""'
+  )}"`;
 }
 
 function createCsvContent(orders) {
@@ -273,40 +328,86 @@ function createCsvContent(orders) {
     "Created At",
   ];
 
-  const rows = orders.map((order) => [
-    order.orderId || "",
-    order.customer?.fullName || "",
-    order.customer?.phone || "",
-    order.customer?.email || "",
-    getItemQuantity(order),
-    getOrderTotal(order),
-    formatLabel(order.status || "pending"),
-    formatLabel(getPaymentMethod(order)),
-    formatLabel(getPaymentStatus(order)),
-    getCouponCode(order) || "",
-    formatDateTime(order.createdAt),
-  ]);
+  const rows = orders.map(
+    (order) => [
+      order.orderId || "",
+      order.customer?.fullName ||
+        "",
+      order.customer?.phone || "",
+      order.customer?.email || "",
+      getItemQuantity(order),
+      getOrderTotal(order),
+      formatLabel(
+        order.status || "pending"
+      ),
+      formatLabel(
+        getPaymentMethod(order)
+      ),
+      formatLabel(
+        getPaymentStatus(order)
+      ),
+      getCouponCode(order) || "",
+      formatDateTime(
+        order.createdAt
+      ),
+    ]
+  );
 
   return [
-    headers.map(escapeCsvValue).join(","),
-    ...rows.map((row) => row.map(escapeCsvValue).join(",")),
+    headers
+      .map(escapeCsvValue)
+      .join(","),
+
+    ...rows.map((row) =>
+      row
+        .map(escapeCsvValue)
+        .join(",")
+    ),
   ].join("\n");
 }
 
-export default function OrdersManagementTable({ orders = [] }) {
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [sortOrder, setSortOrder] = useState("newest");
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
+export default function OrdersManagementTable({
+  orders = [],
+  canExportOrders = false,
+}) {
+  const [
+    search,
+    setSearch,
+  ] = useState("");
+
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] = useState("all");
+
+  const [
+    sortOrder,
+    setSortOrder,
+  ] = useState("newest");
+
+  const [
+    pageSize,
+    setPageSize,
+  ] = useState(10);
+
+  const [
+    currentPage,
+    setCurrentPage,
+  ] = useState(1);
 
   const statusCounts = useMemo(() => {
     return orders.reduce(
       (counts, order) => {
-        const status = String(order.status || "pending").toLowerCase();
+        const status = String(
+          order.status ||
+            "pending"
+        ).toLowerCase();
 
         counts.all += 1;
-        counts[status] = (counts[status] || 0) + 1;
+
+        counts[status] =
+          (counts[status] || 0) +
+          1;
 
         return counts;
       },
@@ -323,87 +424,186 @@ export default function OrdersManagementTable({ orders = [] }) {
     );
   }, [orders]);
 
-  const filteredOrders = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
+  const filteredOrders =
+    useMemo(() => {
+      const normalizedSearch =
+        search
+          .trim()
+          .toLowerCase();
 
-    return [...orders]
-      .filter((order) => {
-        const orderStatus = String(
-          order.status || "pending"
-        ).toLowerCase();
+      return [...orders]
+        .filter((order) => {
+          const orderStatus =
+            String(
+              order.status ||
+                "pending"
+            ).toLowerCase();
 
-        const statusMatches =
-          statusFilter === "all" || orderStatus === statusFilter;
+          const statusMatches =
+            statusFilter ===
+              "all" ||
+            orderStatus ===
+              statusFilter;
 
-        return statusMatches && matchesSearch(order, normalizedSearch);
-      })
-      .sort((firstOrder, secondOrder) => {
-        const firstTimestamp = getOrderTimestamp(firstOrder);
-        const secondTimestamp = getOrderTimestamp(secondOrder);
+          return (
+            statusMatches &&
+            matchesSearch(
+              order,
+              normalizedSearch
+            )
+          );
+        })
+        .sort(
+          (
+            firstOrder,
+            secondOrder
+          ) => {
+            const firstTimestamp =
+              getOrderTimestamp(
+                firstOrder
+              );
 
-        if (sortOrder === "oldest") {
-          return firstTimestamp - secondTimestamp;
-        }
+            const secondTimestamp =
+              getOrderTimestamp(
+                secondOrder
+              );
 
-        if (sortOrder === "highest") {
-          return getOrderTotal(secondOrder) - getOrderTotal(firstOrder);
-        }
+            if (
+              sortOrder ===
+              "oldest"
+            ) {
+              return (
+                firstTimestamp -
+                secondTimestamp
+              );
+            }
 
-        if (sortOrder === "lowest") {
-          return getOrderTotal(firstOrder) - getOrderTotal(secondOrder);
-        }
+            if (
+              sortOrder ===
+              "highest"
+            ) {
+              return (
+                getOrderTotal(
+                  secondOrder
+                ) -
+                getOrderTotal(
+                  firstOrder
+                )
+              );
+            }
 
-        return secondTimestamp - firstTimestamp;
-      });
-  }, [orders, search, statusFilter, sortOrder]);
+            if (
+              sortOrder ===
+              "lowest"
+            ) {
+              return (
+                getOrderTotal(
+                  firstOrder
+                ) -
+                getOrderTotal(
+                  secondOrder
+                )
+              );
+            }
+
+            return (
+              secondTimestamp -
+              firstTimestamp
+            );
+          }
+        );
+    }, [
+      orders,
+      search,
+      statusFilter,
+      sortOrder,
+    ]);
 
   const totalPages = Math.max(
     1,
-    Math.ceil(filteredOrders.length / pageSize)
+    Math.ceil(
+      filteredOrders.length /
+        pageSize
+    )
   );
 
-  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const safeCurrentPage =
+    Math.min(
+      currentPage,
+      totalPages
+    );
 
-  const paginatedOrders = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * pageSize;
+  const paginatedOrders =
+    useMemo(() => {
+      const startIndex =
+        (safeCurrentPage - 1) *
+        pageSize;
 
-    return filteredOrders.slice(startIndex, startIndex + pageSize);
-  }, [filteredOrders, pageSize, safeCurrentPage]);
+      return filteredOrders.slice(
+        startIndex,
+        startIndex + pageSize
+      );
+    }, [
+      filteredOrders,
+      pageSize,
+      safeCurrentPage,
+    ]);
 
-  const pageNumbers = getPageNumbers(safeCurrentPage, totalPages);
+  const pageNumbers =
+    getPageNumbers(
+      safeCurrentPage,
+      totalPages
+    );
 
   const firstVisibleOrder =
     filteredOrders.length === 0
       ? 0
-      : (safeCurrentPage - 1) * pageSize + 1;
+      : (safeCurrentPage - 1) *
+          pageSize +
+        1;
 
-  const lastVisibleOrder = Math.min(
-    safeCurrentPage * pageSize,
-    filteredOrders.length
-  );
+  const lastVisibleOrder =
+    Math.min(
+      safeCurrentPage * pageSize,
+      filteredOrders.length
+    );
 
   const filtersAreActive =
     search.trim() !== "" ||
     statusFilter !== "all" ||
     sortOrder !== "newest";
 
-  function handleSearchChange(event) {
+  function handleSearchChange(
+    event
+  ) {
     setSearch(event.target.value);
     setCurrentPage(1);
   }
 
-  function handleStatusChange(status) {
+  function handleStatusChange(
+    status
+  ) {
     setStatusFilter(status);
     setCurrentPage(1);
   }
 
-  function handleSortChange(event) {
-    setSortOrder(event.target.value);
+  function handleSortChange(
+    event
+  ) {
+    setSortOrder(
+      event.target.value
+    );
+
     setCurrentPage(1);
   }
 
-  function handlePageSizeChange(event) {
-    setPageSize(Number(event.target.value));
+  function handlePageSizeChange(
+    event
+  ) {
+    setPageSize(
+      Number(event.target.value)
+    );
+
     setCurrentPage(1);
   }
 
@@ -415,26 +615,57 @@ export default function OrdersManagementTable({ orders = [] }) {
   }
 
   function exportOrders() {
-    if (filteredOrders.length === 0) {
+    if (
+      !canExportOrders ||
+      filteredOrders.length === 0
+    ) {
       return;
     }
 
-    const csvContent = createCsvContent(filteredOrders);
-    const csvBlob = new Blob(["\uFEFF", csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
+    const csvContent =
+      createCsvContent(
+        filteredOrders
+      );
 
-    const downloadUrl = URL.createObjectURL(csvBlob);
-    const downloadLink = document.createElement("a");
-    const currentDate = new Date().toISOString().slice(0, 10);
+    const csvBlob = new Blob(
+      ["\uFEFF", csvContent],
+      {
+        type: "text/csv;charset=utf-8;",
+      }
+    );
 
-    downloadLink.href = downloadUrl;
-    downloadLink.download = `obsidian-orders-${currentDate}.csv`;
-    document.body.appendChild(downloadLink);
+    const downloadUrl =
+      URL.createObjectURL(
+        csvBlob
+      );
+
+    const downloadLink =
+      document.createElement("a");
+
+    const currentDate =
+      new Date()
+        .toISOString()
+        .slice(0, 10);
+
+    downloadLink.href =
+      downloadUrl;
+
+    downloadLink.download =
+      `obsidian-orders-${currentDate}.csv`;
+
+    document.body.appendChild(
+      downloadLink
+    );
+
     downloadLink.click();
-    document.body.removeChild(downloadLink);
 
-    URL.revokeObjectURL(downloadUrl);
+    document.body.removeChild(
+      downloadLink
+    );
+
+    URL.revokeObjectURL(
+      downloadUrl
+    );
   }
 
   function printOrders() {
@@ -457,7 +688,9 @@ export default function OrdersManagementTable({ orders = [] }) {
               id="order-search"
               type="search"
               value={search}
-              onChange={handleSearchChange}
+              onChange={
+                handleSearchChange
+              }
               placeholder="Order ID, customer, phone, email or coupon"
               className="w-full border border-white/10 bg-[#0b0b0b] px-4 py-3 text-sm text-[#f1ece4] outline-none transition placeholder:text-neutral-600 focus:border-white/30"
             />
@@ -474,13 +707,26 @@ export default function OrdersManagementTable({ orders = [] }) {
             <select
               id="order-sort"
               value={sortOrder}
-              onChange={handleSortChange}
+              onChange={
+                handleSortChange
+              }
               className="w-full min-w-48 border border-white/10 bg-[#0b0b0b] px-4 py-3 text-sm text-[#f1ece4] outline-none transition focus:border-white/30"
             >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="highest">Highest Total</option>
-              <option value="lowest">Lowest Total</option>
+              <option value="newest">
+                Newest First
+              </option>
+
+              <option value="oldest">
+                Oldest First
+              </option>
+
+              <option value="highest">
+                Highest Total
+              </option>
+
+              <option value="lowest">
+                Lowest Total
+              </option>
             </select>
           </div>
 
@@ -495,31 +741,48 @@ export default function OrdersManagementTable({ orders = [] }) {
             <select
               id="order-page-size"
               value={pageSize}
-              onChange={handlePageSizeChange}
+              onChange={
+                handlePageSizeChange
+              }
               className="w-full min-w-32 border border-white/10 bg-[#0b0b0b] px-4 py-3 text-sm text-[#f1ece4] outline-none transition focus:border-white/30"
             >
-              {pageSizeOptions.map((size) => (
-                <option key={size} value={size}>
-                  {size} Orders
-                </option>
-              ))}
+              {pageSizeOptions.map(
+                (size) => (
+                  <option
+                    key={size}
+                    value={size}
+                  >
+                    {size} Orders
+                  </option>
+                )
+              )}
             </select>
           </div>
 
           <div className="flex items-end gap-2 bg-[#0e0e0e] p-5">
-            <button
-              type="button"
-              onClick={exportOrders}
-              disabled={filteredOrders.length === 0}
-              className="h-[46px] border border-white/15 px-4 text-xs uppercase tracking-[0.18em] text-neutral-300 transition hover:border-white/40 hover:text-[#f1ece4] disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              Export CSV
-            </button>
+            {canExportOrders ? (
+              <button
+                type="button"
+                onClick={
+                  exportOrders
+                }
+                disabled={
+                  filteredOrders.length ===
+                  0
+                }
+                className="h-[46px] border border-white/15 px-4 text-xs uppercase tracking-[0.18em] text-neutral-300 transition hover:border-white/40 hover:text-[#f1ece4] disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                Export CSV
+              </button>
+            ) : null}
 
             <button
               type="button"
               onClick={printOrders}
-              disabled={filteredOrders.length === 0}
+              disabled={
+                filteredOrders.length ===
+                0
+              }
               className="h-[46px] border border-white/15 px-4 text-xs uppercase tracking-[0.18em] text-neutral-300 transition hover:border-white/40 hover:text-[#f1ece4] disabled:cursor-not-allowed disabled:opacity-30"
             >
               Print
@@ -530,37 +793,59 @@ export default function OrdersManagementTable({ orders = [] }) {
         <div className="border-t border-white/10 px-5 py-4">
           <div className="overflow-x-auto">
             <div className="flex min-w-max gap-2">
-              {statusOptions.map((status) => {
-                const isActive = statusFilter === status;
+              {statusOptions.map(
+                (status) => {
+                  const isActive =
+                    statusFilter ===
+                    status;
 
-                return (
-                  <button
-                    key={status}
-                    type="button"
-                    onClick={() => handleStatusChange(status)}
-                    className={`shrink-0 border px-4 py-2 text-[11px] uppercase tracking-[0.18em] transition ${
-                      isActive
-                        ? "border-[#f1ece4] bg-[#f1ece4] text-[#0b0b0b]"
-                        : "border-white/10 text-neutral-400 hover:border-white/30 hover:text-[#f1ece4]"
-                    }`}
-                  >
-                    {formatLabel(status)} ({statusCounts[status] || 0})
-                  </button>
-                );
-              })}
+                  return (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() =>
+                        handleStatusChange(
+                          status
+                        )
+                      }
+                      className={`shrink-0 border px-4 py-2 text-[11px] uppercase tracking-[0.18em] transition ${
+                        isActive
+                          ? "border-[#f1ece4] bg-[#f1ece4] text-[#0b0b0b]"
+                          : "border-white/10 text-neutral-400 hover:border-white/30 hover:text-[#f1ece4]"
+                      }`}
+                    >
+                      {formatLabel(
+                        status
+                      )}{" "}
+                      (
+                      {statusCounts[
+                        status
+                      ] || 0}
+                      )
+                    </button>
+                  );
+                }
+              )}
             </div>
           </div>
 
           <div className="mt-4 flex flex-col justify-between gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center">
             <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">
-              {filteredOrders.length}{" "}
-              {filteredOrders.length === 1 ? "Result" : "Results"}
+              {
+                filteredOrders.length
+              }{" "}
+              {filteredOrders.length ===
+              1
+                ? "Result"
+                : "Results"}
             </p>
 
             {filtersAreActive ? (
               <button
                 type="button"
-                onClick={clearFilters}
+                onClick={
+                  clearFilters
+                }
                 className="w-fit text-xs uppercase tracking-[0.18em] text-neutral-400 underline decoration-white/20 underline-offset-4 transition hover:text-[#f1ece4]"
               >
                 Clear Filters
@@ -570,7 +855,8 @@ export default function OrdersManagementTable({ orders = [] }) {
         </div>
       </div>
 
-      {filteredOrders.length === 0 ? (
+      {filteredOrders.length ===
+      0 ? (
         <div className="border border-white/10 bg-white/[0.025] p-10 text-center">
           <p className="mb-3 text-xs uppercase tracking-[0.3em] text-neutral-500">
             Order Search
@@ -581,13 +867,17 @@ export default function OrdersManagementTable({ orders = [] }) {
           </h2>
 
           <p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-neutral-400">
-            No orders match your current search and filter settings.
+            No orders match your
+            current search and filter
+            settings.
           </p>
 
           {filtersAreActive ? (
             <button
               type="button"
-              onClick={clearFilters}
+              onClick={
+                clearFilters
+              }
               className="mt-7 border border-white/20 px-6 py-3 text-xs uppercase tracking-[0.25em] transition hover:bg-[#f1ece4] hover:text-[#0b0b0b]"
             >
               Show All Orders
@@ -599,253 +889,368 @@ export default function OrdersManagementTable({ orders = [] }) {
           <div className="hidden overflow-x-auto border border-white/10 lg:block">
             <div className="min-w-[1180px]">
               <div className="grid grid-cols-[1.15fr_1.35fr_0.9fr_0.8fr_0.95fr_0.9fr_0.8fr_0.75fr_0.45fr] border-b border-white/10 bg-white/[0.04] px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                <span>Order ID</span>
-                <span>Customer</span>
+                <span>
+                  Order ID
+                </span>
+
+                <span>
+                  Customer
+                </span>
+
                 <span>Phone</span>
+
                 <span>Total</span>
-                <span>Order Status</span>
-                <span>Payment</span>
-                <span>Payment Status</span>
+
+                <span>
+                  Order Status
+                </span>
+
+                <span>
+                  Payment
+                </span>
+
+                <span>
+                  Payment Status
+                </span>
+
                 <span>Date</span>
-                <span className="text-right">Action</span>
+
+                <span className="text-right">
+                  Action
+                </span>
               </div>
 
-              {paginatedOrders.map((order, index) => {
+              {paginatedOrders.map(
+                (
+                  order,
+                  index
+                ) => {
+                  const orderKey =
+                    order._id ||
+                    order.orderId ||
+                    `${order.createdAt || "order"}-${index}`;
+
+                  const couponCode =
+                    getCouponCode(
+                      order
+                    );
+
+                  const paymentMethod =
+                    getPaymentMethod(
+                      order
+                    );
+
+                  const paymentStatus =
+                    getPaymentStatus(
+                      order
+                    );
+
+                  return (
+                    <article
+                      key={
+                        orderKey
+                      }
+                      className="grid grid-cols-[1.15fr_1.35fr_0.9fr_0.8fr_0.95fr_0.9fr_0.8fr_0.75fr_0.45fr] items-center border-b border-white/10 px-5 py-5 text-sm text-neutral-300 transition last:border-b-0 hover:bg-white/[0.035]"
+                    >
+                      <div className="min-w-0">
+                        <p className="break-all text-[#f1ece4]">
+                          {order.orderId ||
+                            "N/A"}
+                        </p>
+
+                        <p className="mt-1 text-[11px] text-neutral-600">
+                          {getItemQuantity(
+                            order
+                          )}{" "}
+                          {getItemQuantity(
+                            order
+                          ) === 1
+                            ? "item"
+                            : "items"}
+                        </p>
+                      </div>
+
+                      <div className="min-w-0 pr-4">
+                        <p className="truncate">
+                          {order
+                            .customer
+                            ?.fullName ||
+                            "Unknown"}
+                        </p>
+
+                        <p className="mt-1 truncate text-xs text-neutral-600">
+                          {order
+                            .customer
+                            ?.email ||
+                            "No email"}
+                        </p>
+                      </div>
+
+                      <p className="break-all">
+                        {order.customer
+                          ?.phone ||
+                          "N/A"}
+                      </p>
+
+                      <div>
+                        <p className="text-[#f1ece4]">
+                          {formatMoney(
+                            getOrderTotal(
+                              order
+                            )
+                          )}
+                        </p>
+
+                        {couponCode ? (
+                          <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-green-300">
+                            Coupon:{" "}
+                            {
+                              couponCode
+                            }
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <div>
+                        <span
+                          className={`inline-flex border px-3 py-2 text-[10px] uppercase tracking-[0.14em] ${getStatusClass(
+                            order.status
+                          )}`}
+                        >
+                          {formatLabel(
+                            order.status ||
+                              "pending"
+                          )}
+                        </span>
+                      </div>
+
+                      <p className="pr-3 text-xs leading-5">
+                        {formatLabel(
+                          paymentMethod
+                        )}
+                      </p>
+
+                      <div>
+                        <span
+                          className={`inline-flex border px-3 py-2 text-[10px] uppercase tracking-[0.14em] ${getPaymentStatusClass(
+                            paymentStatus
+                          )}`}
+                        >
+                          {formatLabel(
+                            paymentStatus
+                          )}
+                        </span>
+                      </div>
+
+                      <p className="text-xs">
+                        {formatDate(
+                          order.createdAt
+                        )}
+                      </p>
+
+                      <div className="text-right">
+                        <Link
+                          href={`/admin/orders/${encodeURIComponent(
+                            order.orderId
+                          )}`}
+                          className="inline-flex text-[11px] uppercase tracking-[0.18em] text-neutral-500 transition hover:text-[#f1ece4]"
+                        >
+                          View →
+                        </Link>
+                      </div>
+                    </article>
+                  );
+                }
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-4 lg:hidden">
+            {paginatedOrders.map(
+              (
+                order,
+                index
+              ) => {
                 const orderKey =
                   order._id ||
                   order.orderId ||
                   `${order.createdAt || "order"}-${index}`;
 
-                const couponCode = getCouponCode(order);
-                const paymentMethod = getPaymentMethod(order);
-                const paymentStatus = getPaymentStatus(order);
+                const couponCode =
+                  getCouponCode(
+                    order
+                  );
+
+                const paymentMethod =
+                  getPaymentMethod(
+                    order
+                  );
+
+                const paymentStatus =
+                  getPaymentStatus(
+                    order
+                  );
 
                 return (
                   <article
                     key={orderKey}
-                    className="grid grid-cols-[1.15fr_1.35fr_0.9fr_0.8fr_0.95fr_0.9fr_0.8fr_0.75fr_0.45fr] items-center border-b border-white/10 px-5 py-5 text-sm text-neutral-300 transition last:border-b-0 hover:bg-white/[0.035]"
+                    className="border border-white/10 bg-white/[0.025]"
                   >
-                    <div className="min-w-0">
-                      <p className="break-all text-[#f1ece4]">
-                        {order.orderId || "N/A"}
-                      </p>
-
-                      <p className="mt-1 text-[11px] text-neutral-600">
-                        {getItemQuantity(order)}{" "}
-                        {getItemQuantity(order) === 1 ? "item" : "items"}
-                      </p>
-                    </div>
-
-                    <div className="min-w-0 pr-4">
-                      <p className="truncate">
-                        {order.customer?.fullName || "Unknown"}
-                      </p>
-
-                      <p className="mt-1 truncate text-xs text-neutral-600">
-                        {order.customer?.email || "No email"}
-                      </p>
-                    </div>
-
-                    <p className="break-all">
-                      {order.customer?.phone || "N/A"}
-                    </p>
-
-                    <div>
-                      <p className="text-[#f1ece4]">
-                        {formatMoney(getOrderTotal(order))}
-                      </p>
-
-                      {couponCode ? (
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-green-300">
-                          Coupon: {couponCode}
+                    <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
+                      <div className="min-w-0">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
+                          Order ID
                         </p>
-                      ) : null}
-                    </div>
 
-                    <div>
+                        <p className="mt-2 break-all text-sm text-[#f1ece4]">
+                          {order.orderId ||
+                            "N/A"}
+                        </p>
+                      </div>
+
                       <span
-                        className={`inline-flex border px-3 py-2 text-[10px] uppercase tracking-[0.14em] ${getStatusClass(
+                        className={`shrink-0 border px-3 py-2 text-[10px] uppercase tracking-[0.14em] ${getStatusClass(
                           order.status
                         )}`}
                       >
-                        {formatLabel(order.status || "pending")}
+                        {formatLabel(
+                          order.status ||
+                            "pending"
+                        )}
                       </span>
                     </div>
 
-                    <p className="pr-3 text-xs leading-5">
-                      {formatLabel(paymentMethod)}
-                    </p>
+                    <div className="grid gap-px bg-white/10 sm:grid-cols-2">
+                      <div className="bg-[#0e0e0e] p-5">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
+                          Customer
+                        </p>
 
-                    <div>
-                      <span
-                        className={`inline-flex border px-3 py-2 text-[10px] uppercase tracking-[0.14em] ${getPaymentStatusClass(
-                          paymentStatus
-                        )}`}
-                      >
-                        {formatLabel(paymentStatus)}
-                      </span>
+                        <p className="mt-2 text-sm">
+                          {order
+                            .customer
+                            ?.fullName ||
+                            "Unknown"}
+                        </p>
+
+                        <p className="mt-1 break-all text-xs text-neutral-600">
+                          {order
+                            .customer
+                            ?.email ||
+                            "No email"}
+                        </p>
+                      </div>
+
+                      <div className="bg-[#0e0e0e] p-5">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
+                          Phone
+                        </p>
+
+                        <p className="mt-2 break-all text-sm">
+                          {order
+                            .customer
+                            ?.phone ||
+                            "N/A"}
+                        </p>
+                      </div>
+
+                      <div className="bg-[#0e0e0e] p-5">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
+                          Total
+                        </p>
+
+                        <p className="mt-2 text-sm text-[#f1ece4]">
+                          {formatMoney(
+                            getOrderTotal(
+                              order
+                            )
+                          )}
+                        </p>
+
+                        {couponCode ? (
+                          <p className="mt-2 text-[10px] uppercase tracking-[0.15em] text-green-300">
+                            Coupon:{" "}
+                            {
+                              couponCode
+                            }
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <div className="bg-[#0e0e0e] p-5">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
+                          Items
+                        </p>
+
+                        <p className="mt-2 text-sm">
+                          {getItemQuantity(
+                            order
+                          )}
+                        </p>
+                      </div>
+
+                      <div className="bg-[#0e0e0e] p-5">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
+                          Payment Method
+                        </p>
+
+                        <p className="mt-2 text-sm">
+                          {formatLabel(
+                            paymentMethod
+                          )}
+                        </p>
+                      </div>
+
+                      <div className="bg-[#0e0e0e] p-5">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
+                          Payment Status
+                        </p>
+
+                        <span
+                          className={`mt-2 inline-flex border px-3 py-2 text-[10px] uppercase tracking-[0.14em] ${getPaymentStatusClass(
+                            paymentStatus
+                          )}`}
+                        >
+                          {formatLabel(
+                            paymentStatus
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="bg-[#0e0e0e] p-5 sm:col-span-2">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
+                          Order Date
+                        </p>
+
+                        <p className="mt-2 text-sm">
+                          {formatDateTime(
+                            order.createdAt
+                          )}
+                        </p>
+                      </div>
                     </div>
 
-                    <p className="text-xs">
-                      {formatDate(order.createdAt)}
-                    </p>
-
-                    <div className="text-right">
+                    <div className="p-4">
                       <Link
                         href={`/admin/orders/${encodeURIComponent(
                           order.orderId
                         )}`}
-                        className="inline-flex text-[11px] uppercase tracking-[0.18em] text-neutral-500 transition hover:text-[#f1ece4]"
+                        className="flex w-full items-center justify-center border border-white/15 px-5 py-3 text-xs uppercase tracking-[0.22em] text-neutral-300 transition hover:bg-[#f1ece4] hover:text-[#0b0b0b]"
                       >
-                        View →
+                        View Order Details
                       </Link>
                     </div>
                   </article>
                 );
-              })}
-            </div>
-          </div>
-
-          <div className="space-y-4 lg:hidden">
-            {paginatedOrders.map((order, index) => {
-              const orderKey =
-                order._id ||
-                order.orderId ||
-                `${order.createdAt || "order"}-${index}`;
-
-              const couponCode = getCouponCode(order);
-              const paymentMethod = getPaymentMethod(order);
-              const paymentStatus = getPaymentStatus(order);
-
-              return (
-                <article
-                  key={orderKey}
-                  className="border border-white/10 bg-white/[0.025]"
-                >
-                  <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
-                    <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
-                        Order ID
-                      </p>
-
-                      <p className="mt-2 break-all text-sm text-[#f1ece4]">
-                        {order.orderId || "N/A"}
-                      </p>
-                    </div>
-
-                    <span
-                      className={`shrink-0 border px-3 py-2 text-[10px] uppercase tracking-[0.14em] ${getStatusClass(
-                        order.status
-                      )}`}
-                    >
-                      {formatLabel(order.status || "pending")}
-                    </span>
-                  </div>
-
-                  <div className="grid gap-px bg-white/10 sm:grid-cols-2">
-                    <div className="bg-[#0e0e0e] p-5">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
-                        Customer
-                      </p>
-
-                      <p className="mt-2 text-sm">
-                        {order.customer?.fullName || "Unknown"}
-                      </p>
-
-                      <p className="mt-1 break-all text-xs text-neutral-600">
-                        {order.customer?.email || "No email"}
-                      </p>
-                    </div>
-
-                    <div className="bg-[#0e0e0e] p-5">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
-                        Phone
-                      </p>
-
-                      <p className="mt-2 break-all text-sm">
-                        {order.customer?.phone || "N/A"}
-                      </p>
-                    </div>
-
-                    <div className="bg-[#0e0e0e] p-5">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
-                        Total
-                      </p>
-
-                      <p className="mt-2 text-sm text-[#f1ece4]">
-                        {formatMoney(getOrderTotal(order))}
-                      </p>
-
-                      {couponCode ? (
-                        <p className="mt-2 text-[10px] uppercase tracking-[0.15em] text-green-300">
-                          Coupon: {couponCode}
-                        </p>
-                      ) : null}
-                    </div>
-
-                    <div className="bg-[#0e0e0e] p-5">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
-                        Items
-                      </p>
-
-                      <p className="mt-2 text-sm">
-                        {getItemQuantity(order)}
-                      </p>
-                    </div>
-
-                    <div className="bg-[#0e0e0e] p-5">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
-                        Payment Method
-                      </p>
-
-                      <p className="mt-2 text-sm">
-                        {formatLabel(paymentMethod)}
-                      </p>
-                    </div>
-
-                    <div className="bg-[#0e0e0e] p-5">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
-                        Payment Status
-                      </p>
-
-                      <span
-                        className={`mt-2 inline-flex border px-3 py-2 text-[10px] uppercase tracking-[0.14em] ${getPaymentStatusClass(
-                          paymentStatus
-                        )}`}
-                      >
-                        {formatLabel(paymentStatus)}
-                      </span>
-                    </div>
-
-                    <div className="bg-[#0e0e0e] p-5 sm:col-span-2">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
-                        Order Date
-                      </p>
-
-                      <p className="mt-2 text-sm">
-                        {formatDateTime(order.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="p-4">
-                    <Link
-                      href={`/admin/orders/${encodeURIComponent(
-                        order.orderId
-                      )}`}
-                      className="flex w-full items-center justify-center border border-white/15 px-5 py-3 text-xs uppercase tracking-[0.22em] text-neutral-300 transition hover:bg-[#f1ece4] hover:text-[#0b0b0b]"
-                    >
-                      View Order Details
-                    </Link>
-                  </div>
-                </article>
-              );
-            })}
+              }
+            )}
           </div>
 
           <div className="flex flex-col justify-between gap-5 border border-white/10 bg-white/[0.025] px-5 py-4 sm:flex-row sm:items-center sm:px-6 print:hidden">
             <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">
-              Showing {firstVisibleOrder}–{lastVisibleOrder} of{" "}
+              Showing{" "}
+              {firstVisibleOrder}–
+              {lastVisibleOrder} of{" "}
               {filteredOrders.length}
             </p>
 
@@ -853,61 +1258,96 @@ export default function OrdersManagementTable({ orders = [] }) {
               <button
                 type="button"
                 onClick={() =>
-                  setCurrentPage((page) => Math.max(1, page - 1))
+                  setCurrentPage(
+                    (page) =>
+                      Math.max(
+                        1,
+                        page - 1
+                      )
+                  )
                 }
-                disabled={safeCurrentPage === 1}
+                disabled={
+                  safeCurrentPage === 1
+                }
                 className="border border-white/10 px-4 py-2 text-xs uppercase tracking-[0.16em] text-neutral-300 transition hover:border-white/30 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 Previous
               </button>
 
-              {pageNumbers.map((pageNumber, index) => {
-                const previousPageNumber = pageNumbers[index - 1];
+              {pageNumbers.map(
+                (
+                  pageNumber,
+                  index
+                ) => {
+                  const previousPageNumber =
+                    pageNumbers[
+                      index - 1
+                    ];
 
-                const showEllipsis =
-                  previousPageNumber &&
-                  pageNumber - previousPageNumber > 1;
+                  const showEllipsis =
+                    previousPageNumber &&
+                    pageNumber -
+                      previousPageNumber >
+                      1;
 
-                return (
-                  <div
-                    key={pageNumber}
-                    className="flex items-center gap-2"
-                  >
-                    {showEllipsis ? (
-                      <span className="px-1 text-neutral-600">
-                        …
-                      </span>
-                    ) : null}
-
-                    <button
-                      type="button"
-                      onClick={() => setCurrentPage(pageNumber)}
-                      aria-label={`Go to page ${pageNumber}`}
-                      aria-current={
-                        safeCurrentPage === pageNumber
-                          ? "page"
-                          : undefined
+                  return (
+                    <div
+                      key={
+                        pageNumber
                       }
-                      className={`h-9 min-w-9 border px-3 text-xs transition ${
-                        safeCurrentPage === pageNumber
-                          ? "border-[#f1ece4] bg-[#f1ece4] text-[#0b0b0b]"
-                          : "border-white/10 text-neutral-400 hover:border-white/30 hover:text-[#f1ece4]"
-                      }`}
+                      className="flex items-center gap-2"
                     >
-                      {pageNumber}
-                    </button>
-                  </div>
-                );
-              })}
+                      {showEllipsis ? (
+                        <span className="px-1 text-neutral-600">
+                          …
+                        </span>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCurrentPage(
+                            pageNumber
+                          )
+                        }
+                        aria-label={`Go to page ${pageNumber}`}
+                        aria-current={
+                          safeCurrentPage ===
+                          pageNumber
+                            ? "page"
+                            : undefined
+                        }
+                        className={`h-9 min-w-9 border px-3 text-xs transition ${
+                          safeCurrentPage ===
+                          pageNumber
+                            ? "border-[#f1ece4] bg-[#f1ece4] text-[#0b0b0b]"
+                            : "border-white/10 text-neutral-400 hover:border-white/30 hover:text-[#f1ece4]"
+                        }`}
+                      >
+                        {
+                          pageNumber
+                        }
+                      </button>
+                    </div>
+                  );
+                }
+              )}
 
               <button
                 type="button"
                 onClick={() =>
-                  setCurrentPage((page) =>
-                    Math.min(totalPages, page + 1)
+                  setCurrentPage(
+                    (page) =>
+                      Math.min(
+                        totalPages,
+                        page + 1
+                      )
                   )
                 }
-                disabled={safeCurrentPage === totalPages}
+                disabled={
+                  safeCurrentPage ===
+                  totalPages
+                }
                 className="border border-white/10 px-4 py-2 text-xs uppercase tracking-[0.16em] text-neutral-300 transition hover:border-white/30 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 Next

@@ -1,58 +1,98 @@
 import clientPromise from "../../../lib/mongodb";
-import { isAdminAuthenticated } from "../../../lib/adminAuth";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+import {
+  requireAdminApiPermission,
+} from "../../../lib/adminApiAuthorization";
 
-const SUPPORTED_COUPON_TYPES = new Set([
-  "percentage",
-  "fixed",
-  "free_shipping",
-]);
+export const dynamic =
+  "force-dynamic";
 
-const MAX_REQUEST_SIZE = 100_000;
-const MAX_MONEY_VALUE = 10_000_000;
-const MAX_USAGE_LIMIT = 10_000_000;
-const MAX_DISPLAY_ORDER = 10_000;
-const MAX_PUBLIC_COUPONS = 24;
+export const runtime =
+  "nodejs";
 
-function jsonResponse(body, status = 200) {
-  return Response.json(body, {
-    status,
-    headers: {
-      "Cache-Control":
-        "no-store, no-cache, must-revalidate",
-    },
-  });
+const SUPPORTED_COUPON_TYPES =
+  new Set([
+    "percentage",
+    "fixed",
+    "free_shipping",
+  ]);
+
+const MAX_REQUEST_SIZE =
+  100_000;
+
+const MAX_MONEY_VALUE =
+  10_000_000;
+
+const MAX_USAGE_LIMIT =
+  10_000_000;
+
+const MAX_DISPLAY_ORDER =
+  10_000;
+
+const MAX_PUBLIC_COUPONS =
+  24;
+
+function jsonResponse(
+  body,
+  status = 200
+) {
+  return Response.json(
+    body,
+    {
+      status,
+
+      headers: {
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate",
+      },
+    }
+  );
 }
 
-function isPlainObject(value) {
+function isPlainObject(
+  value
+) {
   return Boolean(
     value &&
-      typeof value === "object" &&
+      typeof value ===
+        "object" &&
       !Array.isArray(value)
   );
 }
 
-function normalizeText(value) {
-  return String(value ?? "")
+function normalizeText(
+  value
+) {
+  return String(
+    value ?? ""
+  )
     .normalize("NFKC")
     .trim();
 }
 
-function normalizeCouponCode(value) {
-  return normalizeText(value)
+function normalizeCouponCode(
+  value
+) {
+  return normalizeText(
+    value
+  )
     .toUpperCase()
     .replace(/\s+/g, "");
 }
 
-function normalizeCouponType(value) {
-  const type = normalizeText(
-    value
-  ).toLowerCase();
+function normalizeCouponType(
+  value
+) {
+  const type =
+    normalizeText(
+      value
+    ).toLowerCase();
 
   if (
-    ["percentage", "percent"].includes(type)
+    [
+      "percentage",
+      "percent",
+    ].includes(type)
   ) {
     return "percentage";
   }
@@ -86,12 +126,17 @@ function normalizeBoolean(
   value,
   fallback = true
 ) {
-  if (typeof value === "boolean") {
+  if (
+    typeof value ===
+    "boolean"
+  ) {
     return value;
   }
 
   const normalizedValue =
-    normalizeText(value).toLowerCase();
+    normalizeText(
+      value
+    ).toLowerCase();
 
   if (
     [
@@ -100,7 +145,9 @@ function normalizeBoolean(
       "0",
       "disabled",
       "no",
-    ].includes(normalizedValue)
+    ].includes(
+      normalizedValue
+    )
   ) {
     return false;
   }
@@ -112,7 +159,9 @@ function normalizeBoolean(
       "1",
       "enabled",
       "yes",
-    ].includes(normalizedValue)
+    ].includes(
+      normalizedValue
+    )
   ) {
     return true;
   }
@@ -120,7 +169,10 @@ function normalizeBoolean(
   return fallback;
 }
 
-function parseMoney(value, fieldName) {
+function parseMoney(
+  value,
+  fieldName
+) {
   if (
     value === undefined ||
     value === null ||
@@ -129,12 +181,16 @@ function parseMoney(value, fieldName) {
     return 0;
   }
 
-  const amount = Number(value);
+  const amount =
+    Number(value);
 
   if (
-    !Number.isFinite(amount) ||
+    !Number.isFinite(
+      amount
+    ) ||
     amount < 0 ||
-    amount > MAX_MONEY_VALUE
+    amount >
+      MAX_MONEY_VALUE
   ) {
     throw new Error(
       `${fieldName} is invalid.`
@@ -142,11 +198,15 @@ function parseMoney(value, fieldName) {
   }
 
   return (
-    Math.round(amount * 100) / 100
+    Math.round(
+      amount * 100
+    ) / 100
   );
 }
 
-function parseUsageLimit(value) {
+function parseUsageLimit(
+  value
+) {
   if (
     value === undefined ||
     value === null ||
@@ -155,12 +215,16 @@ function parseUsageLimit(value) {
     return 0;
   }
 
-  const amount = Number(value);
+  const amount =
+    Number(value);
 
   if (
-    !Number.isInteger(amount) ||
+    !Number.isInteger(
+      amount
+    ) ||
     amount < 0 ||
-    amount > MAX_USAGE_LIMIT
+    amount >
+      MAX_USAGE_LIMIT
   ) {
     throw new Error(
       "Usage limit is invalid."
@@ -170,7 +234,9 @@ function parseUsageLimit(value) {
   return amount;
 }
 
-function parseDisplayOrder(value) {
+function parseDisplayOrder(
+  value
+) {
   if (
     value === undefined ||
     value === null ||
@@ -179,12 +245,16 @@ function parseDisplayOrder(value) {
     return 0;
   }
 
-  const displayOrder = Number(value);
+  const displayOrder =
+    Number(value);
 
   if (
-    !Number.isInteger(displayOrder) ||
+    !Number.isInteger(
+      displayOrder
+    ) ||
     displayOrder < 0 ||
-    displayOrder > MAX_DISPLAY_ORDER
+    displayOrder >
+      MAX_DISPLAY_ORDER
   ) {
     throw new Error(
       "Display order is invalid."
@@ -202,9 +272,14 @@ function parseOptionalDate(
     return null;
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     throw new Error(
       `${fieldName} is invalid.`
     );
@@ -213,51 +288,77 @@ function parseOptionalDate(
   return date;
 }
 
-function serializePublicCoupon(coupon) {
+function serializePublicCoupon(
+  coupon
+) {
   const publicTitle =
-    normalizeText(coupon.publicTitle) ||
-    normalizeText(coupon.name) ||
-    normalizeText(coupon.code);
+    normalizeText(
+      coupon.publicTitle
+    ) ||
+    normalizeText(
+      coupon.name
+    ) ||
+    normalizeText(
+      coupon.code
+    );
 
   const publicDescription =
     normalizeText(
       coupon.publicDescription
     ) ||
-    normalizeText(coupon.description);
+    normalizeText(
+      coupon.description
+    );
 
   return {
-    code: normalizeText(coupon.code),
+    code:
+      normalizeText(
+        coupon.code
+      ),
 
-    title: publicTitle,
+    title:
+      publicTitle,
 
-    description: publicDescription,
+    description:
+      publicDescription,
 
-    type: normalizeCouponType(
-      coupon.type
-    ),
+    type:
+      normalizeCouponType(
+        coupon.type
+      ),
 
     value:
-      Number(coupon.value) || 0,
+      Number(
+        coupon.value
+      ) || 0,
 
     minimumOrder:
-      Number(coupon.minimumOrder) || 0,
+      Number(
+        coupon.minimumOrder
+      ) || 0,
 
     maximumDiscount:
-      Number(coupon.maximumDiscount) ||
-      0,
+      Number(
+        coupon.maximumDiscount
+      ) || 0,
 
     startsAt:
-      coupon.startsAt || null,
+      coupon.startsAt ||
+      null,
 
     expiresAt:
-      coupon.expiresAt || null,
+      coupon.expiresAt ||
+      null,
 
-    promoted: Boolean(
-      coupon.promoted
-    ),
+    promoted:
+      Boolean(
+        coupon.promoted
+      ),
 
     displayOrder:
-      Number(coupon.displayOrder) || 0,
+      Number(
+        coupon.displayOrder
+      ) || 0,
   };
 }
 
@@ -271,12 +372,14 @@ async function ensureCouponIndexes(
       },
       {
         unique: true,
+
         name:
           "coupon_normalized_code_unique",
 
         partialFilterExpression: {
           normalizedCode: {
-            $type: "string",
+            $type:
+              "string",
           },
         },
       }
@@ -287,7 +390,8 @@ async function ensureCouponIndexes(
         createdAt: -1,
       },
       {
-        name: "coupon_created_at",
+        name:
+          "coupon_created_at",
       }
     );
 
@@ -307,30 +411,36 @@ async function ensureCouponIndexes(
   } catch (error) {
     console.warn(
       "Coupon index warning:",
-      error?.message || error
+      error?.message ||
+        error
     );
   }
 }
 
 async function getCouponsCollection() {
-  const client = await clientPromise;
+  const client =
+    await clientPromise;
 
   if (
     !client ||
-    typeof client.db !== "function"
+    typeof client.db !==
+      "function"
   ) {
     throw new TypeError(
       "MongoDB connection did not return a valid MongoClient."
     );
   }
 
-  const database = client.db(
-    process.env.MONGODB_DB ||
-      "obsidian"
-  );
+  const database =
+    client.db(
+      process.env.MONGODB_DB ||
+        "obsidian"
+    );
 
   const collection =
-    database.collection("coupons");
+    database.collection(
+      "coupons"
+    );
 
   await ensureCouponIndexes(
     collection
@@ -339,10 +449,13 @@ async function getCouponsCollection() {
   return collection;
 }
 
-function isPublicRequest(request) {
-  const requestUrl = new URL(
-    request.url
-  );
+function isPublicRequest(
+  request
+) {
+  const requestUrl =
+    new URL(
+      request.url
+    );
 
   return (
     requestUrl.searchParams.get(
@@ -354,96 +467,113 @@ function isPublicRequest(request) {
 async function getPublicCoupons(
   collection
 ) {
-  const now = new Date();
+  const now =
+    new Date();
 
-  const coupons = await collection
-    .find({
-      active: true,
-      isPublic: true,
+  const coupons =
+    await collection
+      .find({
+        active: true,
+        isPublic: true,
 
-      $and: [
-        {
-          $or: [
-            {
-              startsAt: null,
-            },
-            {
-              startsAt: {
-                $lte: now,
-              },
-            },
-          ],
-        },
-
-        {
-          $or: [
-            {
-              expiresAt: null,
-            },
-            {
-              expiresAt: {
-                $gt: now,
-              },
-            },
-          ],
-        },
-
-        {
-          $expr: {
+        $and: [
+          {
             $or: [
               {
-                $lte: [
-                  {
-                    $ifNull: [
-                      "$usageLimit",
-                      0,
-                    ],
-                  },
-                  0,
-                ],
+                startsAt:
+                  null,
               },
 
               {
-                $lt: [
-                  {
-                    $ifNull: [
-                      "$usageCount",
-                      0,
-                    ],
-                  },
-
-                  {
-                    $ifNull: [
-                      "$usageLimit",
-                      0,
-                    ],
-                  },
-                ],
+                startsAt: {
+                  $lte:
+                    now,
+                },
               },
             ],
           },
-        },
-      ],
-    })
-    .sort({
-      promoted: -1,
-      displayOrder: 1,
-      createdAt: -1,
-    })
-    .limit(MAX_PUBLIC_COUPONS)
-    .toArray();
+
+          {
+            $or: [
+              {
+                expiresAt:
+                  null,
+              },
+
+              {
+                expiresAt: {
+                  $gt:
+                    now,
+                },
+              },
+            ],
+          },
+
+          {
+            $expr: {
+              $or: [
+                {
+                  $lte: [
+                    {
+                      $ifNull: [
+                        "$usageLimit",
+                        0,
+                      ],
+                    },
+
+                    0,
+                  ],
+                },
+
+                {
+                  $lt: [
+                    {
+                      $ifNull: [
+                        "$usageCount",
+                        0,
+                      ],
+                    },
+
+                    {
+                      $ifNull: [
+                        "$usageLimit",
+                        0,
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      })
+      .sort({
+        promoted: -1,
+        displayOrder: 1,
+        createdAt: -1,
+      })
+      .limit(
+        MAX_PUBLIC_COUPONS
+      )
+      .toArray();
 
   return coupons.map(
     serializePublicCoupon
   );
 }
 
-export async function GET(request) {
+export async function GET(
+  request
+) {
   try {
-    const collection =
-      await getCouponsCollection();
+    if (
+      isPublicRequest(
+        request
+      )
+    ) {
+      const collection =
+        await getCouponsCollection();
 
-    if (isPublicRequest(request)) {
       const coupons =
         await getPublicCoupons(
           collection
@@ -453,29 +583,45 @@ export async function GET(request) {
         success: true,
         public: true,
         coupons,
-        count: coupons.length,
+
+        count:
+          coupons.length,
       });
     }
 
-    if (
-      !(await isAdminAuthenticated())
-    ) {
-      return jsonResponse(
+    const authorization =
+      await requireAdminApiPermission(
+        request,
         {
-          success: false,
-          message:
-            "Admin authentication required.",
+          coupons: [
+            "read",
+          ],
         },
-        401
+        {
+          path:
+            "/api/coupons",
+
+          forbiddenMessage:
+            "You do not have permission to view coupons.",
+        }
       );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
     }
 
-    const coupons = await collection
-      .find({})
-      .sort({
-        createdAt: -1,
-      })
-      .toArray();
+    const collection =
+      await getCouponsCollection();
+
+    const coupons =
+      await collection
+        .find({})
+        .sort({
+          createdAt: -1,
+        })
+        .toArray();
 
     return jsonResponse({
       success: true,
@@ -491,6 +637,7 @@ export async function GET(request) {
     return jsonResponse(
       {
         success: false,
+
         message:
           "Failed to fetch coupons.",
       },
@@ -499,36 +646,51 @@ export async function GET(request) {
   }
 }
 
-export async function POST(request) {
+export async function POST(
+  request
+) {
   try {
-    if (
-      !(await isAdminAuthenticated())
-    ) {
-      return jsonResponse(
+    const authorization =
+      await requireAdminApiPermission(
+        request,
         {
-          success: false,
-          message:
-            "Admin authentication required.",
+          coupons: [
+            "create",
+          ],
         },
-        401
+        {
+          path:
+            "/api/coupons",
+
+          forbiddenMessage:
+            "You do not have permission to create coupons.",
+        }
       );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
     }
 
-    const contentLength = Number(
-      request.headers.get(
-        "content-length"
-      ) || 0
-    );
+    const contentLength =
+      Number(
+        request.headers.get(
+          "content-length"
+        ) || 0
+      );
 
     if (
       Number.isFinite(
         contentLength
       ) &&
-      contentLength > MAX_REQUEST_SIZE
+      contentLength >
+        MAX_REQUEST_SIZE
     ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Request body is too large.",
         },
@@ -539,11 +701,13 @@ export async function POST(request) {
     let body;
 
     try {
-      body = await request.json();
+      body =
+        await request.json();
     } catch {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Invalid request body.",
         },
@@ -551,10 +715,15 @@ export async function POST(request) {
       );
     }
 
-    if (!isPlainObject(body)) {
+    if (
+      !isPlainObject(
+        body
+      )
+    ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Invalid request body.",
         },
@@ -567,9 +736,10 @@ export async function POST(request) {
         body.code
       );
 
-    const name = normalizeText(
-      body.name
-    );
+    const name =
+      normalizeText(
+        body.name
+      );
 
     const description =
       normalizeText(
@@ -590,6 +760,7 @@ export async function POST(request) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Coupon code must be 3–50 characters and use only letters, numbers, dots, underscores or hyphens.",
         },
@@ -604,6 +775,7 @@ export async function POST(request) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Coupon name is required and cannot exceed 120 characters.",
         },
@@ -611,10 +783,14 @@ export async function POST(request) {
       );
     }
 
-    if (description.length > 1000) {
+    if (
+      description.length >
+      1000
+    ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Coupon description cannot exceed 1000 characters.",
         },
@@ -630,6 +806,7 @@ export async function POST(request) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Please select a valid coupon type.",
         },
@@ -663,10 +840,14 @@ export async function POST(request) {
         body.publicDescription
       ) || description;
 
-    if (publicTitle.length > 120) {
+    if (
+      publicTitle.length >
+      120
+    ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Public coupon title cannot exceed 120 characters.",
         },
@@ -681,6 +862,7 @@ export async function POST(request) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Public coupon description cannot exceed 500 characters.",
         },
@@ -698,12 +880,14 @@ export async function POST(request) {
 
     try {
       value =
-        type === "free_shipping"
+        type ===
+        "free_shipping"
           ? 0
           : parseMoney(
               body.value ??
                 body.discountValue ??
                 body.amount,
+
               "Discount value"
             );
 
@@ -712,14 +896,17 @@ export async function POST(request) {
           body.minimumOrder ??
             body.minimumSpend ??
             body.minOrderAmount,
+
           "Minimum order"
         );
 
       maximumDiscount =
-        type === "percentage"
+        type ===
+        "percentage"
           ? parseMoney(
               body.maximumDiscount ??
                 body.maxDiscount,
+
               "Maximum discount"
             )
           : 0;
@@ -734,6 +921,7 @@ export async function POST(request) {
         parseOptionalDate(
           body.startsAt ??
             body.startDate,
+
           "Coupon start date"
         );
 
@@ -741,6 +929,7 @@ export async function POST(request) {
         parseOptionalDate(
           body.expiresAt ??
             body.expiryDate,
+
           "Coupon expiry date"
         );
 
@@ -752,6 +941,7 @@ export async function POST(request) {
       return jsonResponse(
         {
           success: false,
+
           message:
             error.message,
         },
@@ -760,12 +950,14 @@ export async function POST(request) {
     }
 
     if (
-      type !== "free_shipping" &&
+      type !==
+        "free_shipping" &&
       value <= 0
     ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Discount value must be greater than zero.",
         },
@@ -774,12 +966,14 @@ export async function POST(request) {
     }
 
     if (
-      type === "percentage" &&
+      type ===
+        "percentage" &&
       value > 100
     ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Percentage discount cannot exceed 100%.",
         },
@@ -790,11 +984,13 @@ export async function POST(request) {
     if (
       startsAt &&
       expiresAt &&
-      expiresAt <= startsAt
+      expiresAt <=
+        startsAt
     ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Coupon expiry date must be later than its start date.",
         },
@@ -815,13 +1011,15 @@ export async function POST(request) {
 
     const existingCoupon =
       await collection.findOne({
-        normalizedCode: code,
+        normalizedCode:
+          code,
       });
 
     if (existingCoupon) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "A coupon with this code already exists.",
         },
@@ -829,11 +1027,14 @@ export async function POST(request) {
       );
     }
 
-    const now = new Date();
+    const now =
+      new Date();
 
     const coupon = {
       code,
-      normalizedCode: code,
+      normalizedCode:
+        code,
+
       name,
       description,
       type,
@@ -846,9 +1047,11 @@ export async function POST(request) {
       usageCount: 0,
 
       active,
-      status: active
-        ? "active"
-        : "inactive",
+
+      status:
+        active
+          ? "active"
+          : "inactive",
 
       isPublic,
       promoted,
@@ -856,8 +1059,11 @@ export async function POST(request) {
       publicDescription,
       displayOrder,
 
-      createdAt: now,
-      updatedAt: now,
+      createdAt:
+        now,
+
+      updatedAt:
+        now,
     };
 
     const result =
@@ -868,12 +1074,15 @@ export async function POST(request) {
     return jsonResponse(
       {
         success: true,
+
         message:
           "Coupon created successfully.",
 
         coupon: {
           ...coupon,
-          _id: result.insertedId,
+
+          _id:
+            result.insertedId,
         },
       },
       201
@@ -884,10 +1093,13 @@ export async function POST(request) {
       error
     );
 
-    if (error?.code === 11000) {
+    if (
+      error?.code === 11000
+    ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "A coupon with this code already exists.",
         },
@@ -898,6 +1110,7 @@ export async function POST(request) {
     return jsonResponse(
       {
         success: false,
+
         message:
           "Failed to create coupon.",
       },

@@ -3,10 +3,22 @@
 import {
   createAuthClient,
 } from "better-auth/react";
+
 import {
   adminClient,
   twoFactorClient,
 } from "better-auth/client/plugins";
+
+import {
+  adminAccessControl,
+  adminRole,
+  catalogRole,
+  contentRole,
+  marketingRole,
+  operationsRole,
+  userRole,
+  viewerRole,
+} from "./adminPermissions";
 
 export const adminAuthClient =
   createAuthClient({
@@ -24,7 +36,33 @@ export const adminAuthClient =
           "/admin/verify",
       }),
 
-      adminClient(),
+      adminClient({
+        ac:
+          adminAccessControl,
+
+        roles: {
+          admin:
+            adminRole,
+
+          operations:
+            operationsRole,
+
+          catalog:
+            catalogRole,
+
+          content:
+            contentRole,
+
+          marketing:
+            marketingRole,
+
+          viewer:
+            viewerRole,
+
+          user:
+            userRole,
+        },
+      }),
     ],
   });
 

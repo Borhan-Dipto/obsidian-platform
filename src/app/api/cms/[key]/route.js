@@ -1,5 +1,9 @@
 import clientPromise from "../../../../lib/mongodb";
-import { isAdminAuthenticated } from "../../../../lib/adminAuth";
+
+import {
+  requireAdminApiPermission,
+} from "../../../../lib/adminApiAuthorization";
+
 import {
   CMS_SCHEMA_VERSION,
   createCmsDocument,
@@ -9,42 +13,90 @@ import {
   mergeCmsContent,
 } from "../../../../lib/cmsDefaults";
 
-const CMS_COLLECTION_NAME = "cms";
+import {
+  sanitizeNavbarContent,
+  validateNavbarContentInput,
+} from "../../../../lib/navbarCms";
+
+export const dynamic =
+  "force-dynamic";
+
+export const runtime =
+  "nodejs";
+
+const CMS_COLLECTION_NAME =
+  "cms";
+
+const MAX_REQUEST_SIZE =
+  500_000;
 
 function normalizeKey(value) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .trim()
+    .toLowerCase();
 }
 
-function createErrorResponse(message, status = 500) {
-  return Response.json(
+function createResponse(
+  body,
+  status = 200
+) {
+  return Response.json(body, {
+    status,
+
+    headers: {
+      "Cache-Control":
+        "no-store",
+    },
+  });
+}
+
+function createErrorResponse(
+  message,
+  status = 500,
+  details
+) {
+  return createResponse(
     {
       success: false,
       message,
+
+      details:
+        details ||
+        undefined,
     },
-    {
-      status,
-    }
+    status
   );
 }
 
-function serializeDocument(document) {
+function serializeDocument(
+  document
+) {
   if (!document) {
     return null;
   }
 
-  return JSON.parse(JSON.stringify(document));
+  return JSON.parse(
+    JSON.stringify(document)
+  );
 }
 
 function isValidObject(value) {
   return Boolean(
     value &&
-      typeof value === "object" &&
+      typeof value ===
+        "object" &&
       !Array.isArray(value)
   );
 }
 
-function removeProtectedFields(document = {}) {
-  if (!isValidObject(document)) {
+function removeProtectedFields(
+  document = {}
+) {
+  if (
+    !isValidObject(
+      document
+    )
+  ) {
     return {};
   }
 
@@ -60,67 +112,344 @@ function removeProtectedFields(document = {}) {
   return safeDocument;
 }
 
-async function getCmsCollection() {
-  const client = await clientPromise;
-  const db = client.db(process.env.MONGODB_DB || "obsidian");
+function normalizeConfiguredOrigin(
+  value
+) {
+  const candidate =
+    String(value || "").trim();
 
-  return db.collection(CMS_COLLECTION_NAME);
-}
-
-async function resolveCmsKey(params) {
-  const resolvedParams = await params;
-
-  return normalizeKey(resolvedParams?.key);
-}
-
-async function ensureCmsDocument(collection, key) {
-  const existingDocument = await collection.findOne({ key });
-
-  if (existingDocument) {
-    return mergeCmsContent(key, existingDocument);
+  if (!candidate) {
+    return "";
   }
 
-  const newDocument = createCmsDocument(key);
+  try {
+    return new URL(
+      candidate.includes("://")
+        ? candidate
+        : `https://${candidate}`
+    ).origin;
+  } catch {
+    return "";
+  }
+}
+
+function getTrustedOrigins(
+  request
+) {
+  const origins =
+    new Set();
+
+  try {
+    origins.add(
+      new URL(
+        request.url
+      ).origin
+    );
+  } catch {
+    /*
+     * The request URL should normally
+     * always be valid.
+     */
+  }
+
+  const configuredOrigins = [
+    process.env
+      .NEXT_PUBLIC_SITE_URL,
+
+    process.env.SITE_URL,
+    process.env.APP_URL,
+    process.env.VERCEL_URL,
+  ];
+
+  for (
+    const configuredOrigin
+    of configuredOrigins
+  ) {
+    const normalizedOrigin =
+      normalizeConfiguredOrigin(
+        configuredOrigin
+      );
+
+    if (normalizedOrigin) {
+      origins.add(
+        normalizedOrigin
+      );
+    }
+  }
+
+  return origins;
+}
+
+function isTrustedWriteRequest(
+  request
+) {
+  const originHeader =
+    request.headers.get(
+      "origin"
+    );
+
+  if (!originHeader) {
+    return true;
+  }
+
+  const normalizedOrigin =
+    normalizeConfiguredOrigin(
+      originHeader
+    );
+
+  if (!normalizedOrigin) {
+    return false;
+  }
+
+  return getTrustedOrigins(
+    request
+  ).has(normalizedOrigin);
+}
+
+function isJsonRequest(request) {
+  const contentType =
+    request.headers
+      .get("content-type")
+      ?.toLowerCase();
+
+  return Boolean(
+    contentType &&
+      contentType.startsWith(
+        "application/json"
+      )
+  );
+}
+
+async function readJsonBody(
+  request
+) {
+  const contentLength =
+    Number(
+      request.headers.get(
+        "content-length"
+      ) || 0
+    );
+
+  if (
+    Number.isFinite(
+      contentLength
+    ) &&
+    contentLength >
+      MAX_REQUEST_SIZE
+  ) {
+    return {
+      success: false,
+      status: 413,
+
+      message:
+        "CMS request body is too large.",
+    };
+  }
+
+  const rawBody =
+    await request.text();
+
+  if (
+    Buffer.byteLength(
+      rawBody,
+      "utf8"
+    ) >
+    MAX_REQUEST_SIZE
+  ) {
+    return {
+      success: false,
+      status: 413,
+
+      message:
+        "CMS request body is too large.",
+    };
+  }
+
+  if (!rawBody.trim()) {
+    return {
+      success: false,
+      status: 400,
+
+      message:
+        "CMS request body is required.",
+    };
+  }
+
+  try {
+    return {
+      success: true,
+
+      body:
+        JSON.parse(
+          rawBody
+        ),
+    };
+  } catch {
+    return {
+      success: false,
+      status: 400,
+
+      message:
+        "Invalid JSON request body.",
+    };
+  }
+}
+
+function normalizeCmsDocument(
+  key,
+  content = {}
+) {
+  if (key === "navbar") {
+    return sanitizeNavbarContent(
+      content,
+      {
+        schemaVersion:
+          CMS_SCHEMA_VERSION,
+      }
+    );
+  }
+
+  return mergeCmsContent(
+    key,
+    content
+  );
+}
+
+async function getCmsCollection() {
+  const client =
+    await clientPromise;
+
+  const database =
+    client.db(
+      process.env.MONGODB_DB ||
+        "obsidian"
+    );
+
+  return database.collection(
+    CMS_COLLECTION_NAME
+  );
+}
+
+async function resolveCmsKey(
+  params
+) {
+  const resolvedParams =
+    await params;
+
+  return normalizeKey(
+    resolvedParams?.key
+  );
+}
+
+async function ensureCmsDocument(
+  collection,
+  key
+) {
+  const existingDocument =
+    await collection.findOne({
+      key,
+    });
+
+  if (existingDocument) {
+    return normalizeCmsDocument(
+      key,
+      existingDocument
+    );
+  }
+
+  const newDocument =
+    createCmsDocument(key);
 
   if (!newDocument) {
     return null;
   }
 
+  const normalizedNewDocument =
+    normalizeCmsDocument(
+      key,
+      newDocument
+    );
+
+  if (
+    !normalizedNewDocument
+  ) {
+    return null;
+  }
+
+  const now =
+    new Date();
+
+  const documentToInsert = {
+    ...normalizedNewDocument,
+
+    key,
+
+    schemaVersion:
+      CMS_SCHEMA_VERSION,
+
+    createdAt:
+      newDocument.createdAt ||
+      now,
+
+    updatedAt:
+      newDocument.updatedAt ||
+      now,
+  };
+
   await collection.updateOne(
-    { key },
     {
-      $setOnInsert: newDocument,
+      key,
+    },
+    {
+      $setOnInsert:
+        documentToInsert,
     },
     {
       upsert: true,
     }
   );
 
-  const insertedDocument = await collection.findOne({ key });
+  const insertedDocument =
+    await collection.findOne({
+      key,
+    });
 
-  return mergeCmsContent(
+  return normalizeCmsDocument(
     key,
-    insertedDocument || newDocument
+    insertedDocument ||
+      documentToInsert
   );
 }
 
-export async function GET(request, { params }) {
+export async function GET(
+  request,
+  { params }
+) {
   try {
-    const key = await resolveCmsKey(params);
+    const key =
+      await resolveCmsKey(
+        params
+      );
 
-    if (!isSupportedCmsKey(key)) {
+    if (
+      !isSupportedCmsKey(
+        key
+      )
+    ) {
       return createErrorResponse(
         "Unsupported CMS content key.",
         404
       );
     }
 
-    const collection = await getCmsCollection();
+    const collection =
+      await getCmsCollection();
 
-    const document = await ensureCmsDocument(
-      collection,
-      key
-    );
+    const document =
+      await ensureCmsDocument(
+        collection,
+        key
+      );
 
     if (!document) {
       return createErrorResponse(
@@ -129,13 +458,20 @@ export async function GET(request, { params }) {
       );
     }
 
-    return Response.json({
+    return createResponse({
       success: true,
       key,
-      content: serializeDocument(document),
+
+      content:
+        serializeDocument(
+          document
+        ),
     });
   } catch (error) {
-    console.error("GET CMS content error:", error);
+    console.error(
+      "GET CMS content error:",
+      error
+    );
 
     return createErrorResponse(
       "Failed to load CMS content."
@@ -143,49 +479,135 @@ export async function GET(request, { params }) {
   }
 }
 
-export async function PATCH(request, { params }) {
+export async function PATCH(
+  request,
+  { params }
+) {
   try {
-    const authenticated =
-      await isAdminAuthenticated();
+    const authorization =
+      await requireAdminApiPermission(
+        request,
+        {
+          content: [
+            "update",
+          ],
+        },
+        {
+          path:
+            "/api/cms/[key]",
 
-    if (!authenticated) {
+          forbiddenMessage:
+            "You do not have permission to update website content.",
+        }
+      );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
+    }
+
+    if (
+      !isTrustedWriteRequest(
+        request
+      )
+    ) {
       return createErrorResponse(
-        "Unauthorized.",
-        401
+        "Untrusted request origin.",
+        403
       );
     }
 
-    const key = await resolveCmsKey(params);
+    if (
+      !isJsonRequest(
+        request
+      )
+    ) {
+      return createErrorResponse(
+        "Content-Type must be application/json.",
+        415
+      );
+    }
 
-    if (!isSupportedCmsKey(key)) {
+    const key =
+      await resolveCmsKey(
+        params
+      );
+
+    if (
+      !isSupportedCmsKey(
+        key
+      )
+    ) {
       return createErrorResponse(
         "Unsupported CMS content key.",
         404
       );
     }
 
-    let requestBody;
+    const parsedBody =
+      await readJsonBody(
+        request
+      );
 
-    try {
-      requestBody = await request.json();
-    } catch {
+    if (
+      !parsedBody.success
+    ) {
       return createErrorResponse(
-        "Invalid JSON request body.",
-        400
+        parsedBody.message,
+        parsedBody.status
       );
     }
 
-    if (!isValidObject(requestBody)) {
+    const requestBody =
+      parsedBody.body;
+
+    if (
+      !isValidObject(
+        requestBody
+      )
+    ) {
       return createErrorResponse(
         "CMS content must be a valid object.",
         400
       );
     }
 
-    const collection = await getCmsCollection();
+    const safeIncomingDocument =
+      removeProtectedFields(
+        requestBody
+      );
+
+    if (
+      key === "navbar"
+    ) {
+      const validation =
+        validateNavbarContentInput(
+          safeIncomingDocument
+        );
+
+      if (
+        !validation.valid
+      ) {
+        return createErrorResponse(
+          validation.errors[0]
+            ?.message ||
+            "Navbar content is invalid.",
+          400,
+          validation.errors
+        );
+      }
+    }
+
+    const collection =
+      await getCmsCollection();
 
     const storedDocument =
-      (await collection.findOne({ key })) ||
+      (
+        await collection.findOne({
+          key,
+        })
+      ) ||
       getCmsDefault(key);
 
     if (!storedDocument) {
@@ -196,22 +618,25 @@ export async function PATCH(request, { params }) {
     }
 
     const safeStoredDocument =
-      removeProtectedFields(storedDocument);
+      removeProtectedFields(
+        storedDocument
+      );
 
-    const safeIncomingDocument =
-      removeProtectedFields(requestBody);
+    const mergedChanges =
+      deepMerge(
+        safeStoredDocument,
+        safeIncomingDocument
+      );
 
-    const mergedChanges = deepMerge(
-      safeStoredDocument,
-      safeIncomingDocument
-    );
+    const normalizedDocument =
+      normalizeCmsDocument(
+        key,
+        mergedChanges
+      );
 
-    const normalizedDocument = mergeCmsContent(
-      key,
-      mergedChanges
-    );
-
-    if (!normalizedDocument) {
+    if (
+      !normalizedDocument
+    ) {
       return createErrorResponse(
         "CMS content could not be normalized.",
         400
@@ -225,44 +650,109 @@ export async function PATCH(request, { params }) {
       ...contentToSave
     } = normalizedDocument;
 
-    const now = new Date();
+    const now =
+      new Date();
 
-    await collection.updateOne(
-      { key },
-      {
-        $set: {
-          ...contentToSave,
+    const preservedCreatedAt =
+      storedDocument
+        ?.createdAt ||
+      now;
+
+    if (
+      key === "navbar"
+    ) {
+      /*
+       * Replacing the complete Navbar
+       * document removes legacy fields
+       * such as:
+       *
+       * desktop.showAdminLink
+       * account.showAdminLogin
+       * account.adminLoginHref
+       * account.loginHref
+       * account.registerHref
+       */
+      await collection.replaceOne(
+        {
           key,
-          schemaVersion: CMS_SCHEMA_VERSION,
-          updatedAt: now,
         },
+        {
+          ...contentToSave,
 
-        $setOnInsert: {
+          key,
+
+          schemaVersion:
+            CMS_SCHEMA_VERSION,
+
           createdAt:
-            storedDocument?.createdAt || now,
+            preservedCreatedAt,
+
+          updatedAt:
+            now,
         },
-      },
-      {
-        upsert: true,
-      }
-    );
+        {
+          upsert: true,
+        }
+      );
+    } else {
+      await collection.updateOne(
+        {
+          key,
+        },
+        {
+          $set: {
+            ...contentToSave,
+
+            key,
+
+            schemaVersion:
+              CMS_SCHEMA_VERSION,
+
+            updatedAt:
+              now,
+          },
+
+          $setOnInsert: {
+            createdAt:
+              preservedCreatedAt,
+          },
+        },
+        {
+          upsert: true,
+        }
+      );
+    }
 
     const updatedDocument =
-      await collection.findOne({ key });
+      await collection.findOne({
+        key,
+      });
 
-    return Response.json({
+    const normalizedUpdatedDocument =
+      normalizeCmsDocument(
+        key,
+        updatedDocument ||
+          normalizedDocument
+      );
+
+    return createResponse({
       success: true,
-      message: "CMS content updated successfully.",
+
+      message:
+        "CMS content updated successfully.",
+
       key,
-      content: serializeDocument(
-        mergeCmsContent(
-          key,
-          updatedDocument || normalizedDocument
-        )
-      ),
+
+      content:
+        serializeDocument(
+          normalizedUpdatedDocument
+        ),
     });
   } catch (error) {
-    console.error("PATCH CMS content error:", error);
+    console.error(
+      "PATCH CMS content error:",
+      error
+    );
 
     return createErrorResponse(
       "Failed to update CMS content."
@@ -270,6 +760,12 @@ export async function PATCH(request, { params }) {
   }
 }
 
-export async function PUT(request, context) {
-  return PATCH(request, context);
+export async function PUT(
+  request,
+  context
+) {
+  return PATCH(
+    request,
+    context
+  );
 }

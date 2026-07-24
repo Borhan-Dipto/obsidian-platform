@@ -1,11 +1,13 @@
-import { requireAdminAuth } from "../../../../lib/adminAuth";
+import { requireAdminPermission } from "../../../../lib/adminAuth";
 import { getProductContent } from "../../../../lib/getCmsContent";
 import ProductContentEditor from "../../../../components/admin/ProductContentEditor";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminProductContentPage() {
-  await requireAdminAuth();
+  await requireAdminPermission({
+    content: ["update"],
+  });
 
   const productContent = await getProductContent();
 

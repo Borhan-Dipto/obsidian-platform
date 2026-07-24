@@ -1,65 +1,107 @@
 import { ObjectId } from "mongodb";
+
 import clientPromise from "../../../../lib/mongodb";
-import { isAdminAuthenticated } from "../../../../lib/adminAuth";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+import {
+  requireAdminApiPermission,
+} from "../../../../lib/adminApiAuthorization";
 
-const SUPPORTED_COUPON_TYPES = new Set([
-  "percentage",
-  "fixed",
-  "free_shipping",
-]);
+export const dynamic =
+  "force-dynamic";
 
-const MAX_REQUEST_SIZE = 100_000;
-const MAX_MONEY_VALUE = 10_000_000;
-const MAX_USAGE_LIMIT = 10_000_000;
-const MAX_DISPLAY_ORDER = 10_000;
+export const runtime =
+  "nodejs";
 
-function jsonResponse(body, status = 200) {
-  return Response.json(body, {
-    status,
-    headers: {
-      "Cache-Control":
-        "no-store, no-cache, must-revalidate",
-    },
-  });
+const SUPPORTED_COUPON_TYPES =
+  new Set([
+    "percentage",
+    "fixed",
+    "free_shipping",
+  ]);
+
+const MAX_REQUEST_SIZE =
+  100_000;
+
+const MAX_MONEY_VALUE =
+  10_000_000;
+
+const MAX_USAGE_LIMIT =
+  10_000_000;
+
+const MAX_DISPLAY_ORDER =
+  10_000;
+
+function jsonResponse(
+  body,
+  status = 200
+) {
+  return Response.json(
+    body,
+    {
+      status,
+
+      headers: {
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate",
+      },
+    }
+  );
 }
 
-function hasOwn(object, key) {
+function hasOwn(
+  object,
+  key
+) {
   return Object.prototype.hasOwnProperty.call(
     object,
     key
   );
 }
 
-function isPlainObject(value) {
+function isPlainObject(
+  value
+) {
   return Boolean(
     value &&
-      typeof value === "object" &&
+      typeof value ===
+        "object" &&
       !Array.isArray(value)
   );
 }
 
-function normalizeText(value) {
-  return String(value ?? "")
+function normalizeText(
+  value
+) {
+  return String(
+    value ?? ""
+  )
     .normalize("NFKC")
     .trim();
 }
 
-function normalizeCouponCode(value) {
-  return normalizeText(value)
+function normalizeCouponCode(
+  value
+) {
+  return normalizeText(
+    value
+  )
     .toUpperCase()
     .replace(/\s+/g, "");
 }
 
-function normalizeCouponType(value) {
-  const type = normalizeText(
-    value
-  ).toLowerCase();
+function normalizeCouponType(
+  value
+) {
+  const type =
+    normalizeText(
+      value
+    ).toLowerCase();
 
   if (
-    ["percentage", "percent"].includes(type)
+    [
+      "percentage",
+      "percent",
+    ].includes(type)
   ) {
     return "percentage";
   }
@@ -93,12 +135,17 @@ function normalizeBoolean(
   value,
   fallback = true
 ) {
-  if (typeof value === "boolean") {
+  if (
+    typeof value ===
+    "boolean"
+  ) {
     return value;
   }
 
   const normalizedValue =
-    normalizeText(value).toLowerCase();
+    normalizeText(
+      value
+    ).toLowerCase();
 
   if (
     [
@@ -107,7 +154,9 @@ function normalizeBoolean(
       "0",
       "disabled",
       "no",
-    ].includes(normalizedValue)
+    ].includes(
+      normalizedValue
+    )
   ) {
     return false;
   }
@@ -119,7 +168,9 @@ function normalizeBoolean(
       "1",
       "enabled",
       "yes",
-    ].includes(normalizedValue)
+    ].includes(
+      normalizedValue
+    )
   ) {
     return true;
   }
@@ -127,9 +178,12 @@ function normalizeBoolean(
   return fallback;
 }
 
-function normalizeUsageCount(coupon) {
+function normalizeUsageCount(
+  coupon
+) {
   return Math.max(
     0,
+
     Math.floor(
       Number(
         coupon?.usageCount ??
@@ -140,7 +194,10 @@ function normalizeUsageCount(coupon) {
   );
 }
 
-function parseMoney(value, fieldName) {
+function parseMoney(
+  value,
+  fieldName
+) {
   if (
     value === undefined ||
     value === null ||
@@ -149,12 +206,16 @@ function parseMoney(value, fieldName) {
     return 0;
   }
 
-  const amount = Number(value);
+  const amount =
+    Number(value);
 
   if (
-    !Number.isFinite(amount) ||
+    !Number.isFinite(
+      amount
+    ) ||
     amount < 0 ||
-    amount > MAX_MONEY_VALUE
+    amount >
+      MAX_MONEY_VALUE
   ) {
     throw new Error(
       `${fieldName} is invalid.`
@@ -162,11 +223,15 @@ function parseMoney(value, fieldName) {
   }
 
   return (
-    Math.round(amount * 100) / 100
+    Math.round(
+      amount * 100
+    ) / 100
   );
 }
 
-function parseUsageLimit(value) {
+function parseUsageLimit(
+  value
+) {
   if (
     value === undefined ||
     value === null ||
@@ -175,12 +240,16 @@ function parseUsageLimit(value) {
     return 0;
   }
 
-  const amount = Number(value);
+  const amount =
+    Number(value);
 
   if (
-    !Number.isInteger(amount) ||
+    !Number.isInteger(
+      amount
+    ) ||
     amount < 0 ||
-    amount > MAX_USAGE_LIMIT
+    amount >
+      MAX_USAGE_LIMIT
   ) {
     throw new Error(
       "Usage limit is invalid."
@@ -190,7 +259,9 @@ function parseUsageLimit(value) {
   return amount;
 }
 
-function parseDisplayOrder(value) {
+function parseDisplayOrder(
+  value
+) {
   if (
     value === undefined ||
     value === null ||
@@ -199,12 +270,16 @@ function parseDisplayOrder(value) {
     return 0;
   }
 
-  const displayOrder = Number(value);
+  const displayOrder =
+    Number(value);
 
   if (
-    !Number.isInteger(displayOrder) ||
+    !Number.isInteger(
+      displayOrder
+    ) ||
     displayOrder < 0 ||
-    displayOrder > MAX_DISPLAY_ORDER
+    displayOrder >
+      MAX_DISPLAY_ORDER
   ) {
     throw new Error(
       "Display order is invalid."
@@ -226,9 +301,14 @@ function parseOptionalDate(
     return null;
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     throw new Error(
       `${fieldName} is invalid.`
     );
@@ -237,24 +317,33 @@ function parseOptionalDate(
   return date;
 }
 
-function escapeRegex(value) {
-  return String(value || "").replace(
+function escapeRegex(
+  value
+) {
+  return String(
+    value || ""
+  ).replace(
     /[.*+?^${}()|[\]\\]/g,
     "\\$&"
   );
 }
 
-function createCouponFilter(identifier) {
-  const value = normalizeText(
-    identifier
-  );
+function createCouponFilter(
+  identifier
+) {
+  const value =
+    normalizeText(
+      identifier
+    );
 
   if (!value) {
     return null;
   }
 
   const normalizedCode =
-    normalizeCouponCode(value);
+    normalizeCouponCode(
+      value
+    );
 
   const filters = [
     {
@@ -262,27 +351,39 @@ function createCouponFilter(identifier) {
     },
 
     {
-      code: normalizedCode,
+      code:
+        normalizedCode,
     },
 
     {
       code: {
-        $regex: `^${escapeRegex(
-          value
-        )}$`,
-        $options: "i",
+        $regex:
+          `^${escapeRegex(
+            value
+          )}$`,
+
+        $options:
+          "i",
       },
     },
   ];
 
-  if (ObjectId.isValid(value)) {
+  if (
+    ObjectId.isValid(
+      value
+    )
+  ) {
     filters.unshift({
-      _id: new ObjectId(value),
+      _id:
+        new ObjectId(
+          value
+        ),
     });
   }
 
   return {
-    $or: filters,
+    $or:
+      filters,
   };
 }
 
@@ -292,12 +393,14 @@ function createDuplicateCouponFilter(
 ) {
   return {
     _id: {
-      $ne: existingCouponId,
+      $ne:
+        existingCouponId,
     },
 
     $or: [
       {
-        normalizedCode: code,
+        normalizedCode:
+          code,
       },
 
       {
@@ -306,28 +409,38 @@ function createDuplicateCouponFilter(
 
       {
         code: {
-          $regex: `^${escapeRegex(
-            code
-          )}$`,
-          $options: "i",
+          $regex:
+            `^${escapeRegex(
+              code
+            )}$`,
+
+          $options:
+            "i",
         },
       },
     ],
   };
 }
 
-async function resolveCouponId(context) {
-  const params = await context.params;
+async function resolveCouponId(
+  context
+) {
+  const params =
+    await context.params;
 
-  return normalizeText(params?.id);
+  return normalizeText(
+    params?.id
+  );
 }
 
 async function getDatabase() {
-  const client = await clientPromise;
+  const client =
+    await clientPromise;
 
   if (
     !client ||
-    typeof client.db !== "function"
+    typeof client.db !==
+      "function"
   ) {
     throw new TypeError(
       "MongoDB connection did not return a valid MongoClient."
@@ -340,7 +453,9 @@ async function getDatabase() {
   );
 }
 
-function serializeCoupon(coupon) {
+function serializeCoupon(
+  coupon
+) {
   if (!coupon) {
     return null;
   }
@@ -350,7 +465,8 @@ function serializeCoupon(coupon) {
     coupon.isActive !== false &&
     normalizeText(
       coupon.status
-    ).toLowerCase() !== "inactive";
+    ).toLowerCase() !==
+      "inactive";
 
   const isPublic =
     coupon.isPublic === true;
@@ -359,14 +475,18 @@ function serializeCoupon(coupon) {
     ...coupon,
 
     usageCount:
-      normalizeUsageCount(coupon),
+      normalizeUsageCount(
+        coupon
+      ),
 
     active,
-    isActive: active,
+    isActive:
+      active,
 
-    status: active
-      ? "active"
-      : "inactive",
+    status:
+      active
+        ? "active"
+        : "inactive",
 
     startsAt:
       coupon.startsAt ||
@@ -382,13 +502,16 @@ function serializeCoupon(coupon) {
 
     promoted:
       isPublic &&
-      coupon.promoted === true,
+      coupon.promoted ===
+        true,
 
     publicTitle:
       normalizeText(
         coupon.publicTitle
       ) ||
-      normalizeText(coupon.name),
+      normalizeText(
+        coupon.name
+      ),
 
     publicDescription:
       normalizeText(
@@ -401,6 +524,7 @@ function serializeCoupon(coupon) {
     displayOrder:
       Math.max(
         0,
+
         Math.floor(
           Number(
             coupon.displayOrder
@@ -415,29 +539,44 @@ export async function GET(
   context
 ) {
   try {
-    if (
-      !(await isAdminAuthenticated())
-    ) {
-      return jsonResponse(
+    const authorization =
+      await requireAdminApiPermission(
+        request,
         {
-          success: false,
-          message:
-            "Admin authentication required.",
+          coupons: [
+            "read",
+          ],
         },
-        401
+        {
+          path:
+            "/api/coupons/[id]",
+
+          forbiddenMessage:
+            "You do not have permission to view coupons.",
+        }
       );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
     }
 
     const id =
-      await resolveCouponId(context);
+      await resolveCouponId(
+        context
+      );
 
     const filter =
-      createCouponFilter(id);
+      createCouponFilter(
+        id
+      );
 
     if (!filter) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "A valid coupon identifier is required.",
         },
@@ -448,14 +587,20 @@ export async function GET(
     const database =
       await getDatabase();
 
-    const coupon = await database
-      .collection("coupons")
-      .findOne(filter);
+    const coupon =
+      await database
+        .collection(
+          "coupons"
+        )
+        .findOne(
+          filter
+        );
 
     if (!coupon) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Coupon not found.",
         },
@@ -465,8 +610,11 @@ export async function GET(
 
     return jsonResponse({
       success: true,
+
       coupon:
-        serializeCoupon(coupon),
+        serializeCoupon(
+          coupon
+        ),
     });
   } catch (error) {
     console.error(
@@ -477,6 +625,7 @@ export async function GET(
     return jsonResponse(
       {
         success: false,
+
         message:
           "Failed to fetch coupon.",
       },
@@ -490,29 +639,44 @@ export async function PATCH(
   context
 ) {
   try {
-    if (
-      !(await isAdminAuthenticated())
-    ) {
-      return jsonResponse(
+    const authorization =
+      await requireAdminApiPermission(
+        request,
         {
-          success: false,
-          message:
-            "Admin authentication required.",
+          coupons: [
+            "update",
+          ],
         },
-        401
+        {
+          path:
+            "/api/coupons/[id]",
+
+          forbiddenMessage:
+            "You do not have permission to update coupons.",
+        }
       );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
     }
 
     const id =
-      await resolveCouponId(context);
+      await resolveCouponId(
+        context
+      );
 
     const filter =
-      createCouponFilter(id);
+      createCouponFilter(
+        id
+      );
 
     if (!filter) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "A valid coupon identifier is required.",
         },
@@ -520,21 +684,24 @@ export async function PATCH(
       );
     }
 
-    const contentLength = Number(
-      request.headers.get(
-        "content-length"
-      ) || 0
-    );
+    const contentLength =
+      Number(
+        request.headers.get(
+          "content-length"
+        ) || 0
+      );
 
     if (
       Number.isFinite(
         contentLength
       ) &&
-      contentLength > MAX_REQUEST_SIZE
+      contentLength >
+        MAX_REQUEST_SIZE
     ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Request body is too large.",
         },
@@ -545,11 +712,13 @@ export async function PATCH(
     let body;
 
     try {
-      body = await request.json();
+      body =
+        await request.json();
     } catch {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Invalid request body.",
         },
@@ -557,10 +726,15 @@ export async function PATCH(
       );
     }
 
-    if (!isPlainObject(body)) {
+    if (
+      !isPlainObject(
+        body
+      )
+    ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Invalid request body.",
         },
@@ -585,6 +759,7 @@ export async function PATCH(
       return jsonResponse(
         {
           success: false,
+
           message:
             "Coupon not found.",
         },
@@ -609,8 +784,11 @@ export async function PATCH(
 
     const isQuickUpdate =
       bodyKeys.length > 0 &&
-      bodyKeys.every((key) =>
-        quickUpdateKeys.has(key)
+      bodyKeys.every(
+        (key) =>
+          quickUpdateKeys.has(
+            key
+          )
       );
 
     if (isQuickUpdate) {
@@ -619,6 +797,7 @@ export async function PATCH(
           body.isActive ??
             body.active ??
             body.status,
+
           existingCoupon.active !==
             false
         );
@@ -627,6 +806,7 @@ export async function PATCH(
         normalizeBoolean(
           body.isPublic ??
             body.public,
+
           existingCoupon.isPublic ===
             true
         );
@@ -636,6 +816,7 @@ export async function PATCH(
         normalizeBoolean(
           body.promoted ??
             body.isPromoted,
+
           existingCoupon.promoted ===
             true
         );
@@ -656,6 +837,7 @@ export async function PATCH(
         return jsonResponse(
           {
             success: false,
+
             message:
               error.message,
           },
@@ -663,21 +845,26 @@ export async function PATCH(
         );
       }
 
-      const now = new Date();
+      const now =
+        new Date();
 
       const updateOperation = {
         $set: {
           active,
-          isActive: active,
+          isActive:
+            active,
 
-          status: active
-            ? "active"
-            : "inactive",
+          status:
+            active
+              ? "active"
+              : "inactive",
 
           isPublic,
           promoted,
           displayOrder,
-          updatedAt: now,
+
+          updatedAt:
+            now,
         },
       };
 
@@ -696,13 +883,16 @@ export async function PATCH(
       );
 
       const updatedCoupon =
-        await collection.findOne({
-          _id:
-            existingCoupon._id,
-        });
+        await collection.findOne(
+          {
+            _id:
+              existingCoupon._id,
+          }
+        );
 
       return jsonResponse({
         success: true,
+
         message:
           "Coupon settings updated successfully.",
 
@@ -719,10 +909,11 @@ export async function PATCH(
           existingCoupon.code
       );
 
-    const name = normalizeText(
-      body.name ??
-        existingCoupon.name
-    );
+    const name =
+      normalizeText(
+        body.name ??
+          existingCoupon.name
+      );
 
     const description =
       normalizeText(
@@ -745,6 +936,7 @@ export async function PATCH(
       return jsonResponse(
         {
           success: false,
+
           message:
             "Coupon code must be 3–50 characters and use only letters, numbers, dots, underscores or hyphens.",
         },
@@ -759,6 +951,7 @@ export async function PATCH(
       return jsonResponse(
         {
           success: false,
+
           message:
             "Coupon name is required and cannot exceed 120 characters.",
         },
@@ -767,11 +960,13 @@ export async function PATCH(
     }
 
     if (
-      description.length > 1000
+      description.length >
+      1000
     ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Coupon description cannot exceed 1000 characters.",
         },
@@ -787,6 +982,7 @@ export async function PATCH(
       return jsonResponse(
         {
           success: false,
+
           message:
             "Please select a valid coupon type.",
         },
@@ -798,6 +994,7 @@ export async function PATCH(
       normalizeBoolean(
         body.isPublic ??
           body.public,
+
         existingCoupon.isPublic ===
           true
       );
@@ -807,6 +1004,7 @@ export async function PATCH(
       normalizeBoolean(
         body.promoted ??
           body.isPromoted,
+
         existingCoupon.promoted ===
           true
       );
@@ -825,11 +1023,13 @@ export async function PATCH(
       ) || description;
 
     if (
-      publicTitle.length > 120
+      publicTitle.length >
+      120
     ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Public coupon title cannot exceed 120 characters.",
         },
@@ -844,6 +1044,7 @@ export async function PATCH(
       return jsonResponse(
         {
           success: false,
+
           message:
             "Public coupon description cannot exceed 500 characters.",
         },
@@ -860,30 +1061,44 @@ export async function PATCH(
     let displayOrder;
 
     const rawStartsAt =
-      hasOwn(body, "startsAt")
+      hasOwn(
+        body,
+        "startsAt"
+      )
         ? body.startsAt
-        : hasOwn(body, "startDate")
+        : hasOwn(
+              body,
+              "startDate"
+            )
           ? body.startDate
           : existingCoupon.startsAt ??
             existingCoupon.startDate;
 
     const rawExpiresAt =
-      hasOwn(body, "expiresAt")
+      hasOwn(
+        body,
+        "expiresAt"
+      )
         ? body.expiresAt
-        : hasOwn(body, "expiryDate")
+        : hasOwn(
+              body,
+              "expiryDate"
+            )
           ? body.expiryDate
           : existingCoupon.expiresAt ??
             existingCoupon.expiryDate;
 
     try {
       value =
-        type === "free_shipping"
+        type ===
+        "free_shipping"
           ? 0
           : parseMoney(
               body.value ??
                 body.discountValue ??
                 body.amount ??
                 existingCoupon.value,
+
               "Discount value"
             );
 
@@ -893,15 +1108,18 @@ export async function PATCH(
             body.minimumSpend ??
             body.minOrderAmount ??
             existingCoupon.minimumOrder,
+
           "Minimum order"
         );
 
       maximumDiscount =
-        type === "percentage"
+        type ===
+        "percentage"
           ? parseMoney(
               body.maximumDiscount ??
                 body.maxDiscount ??
                 existingCoupon.maximumDiscount,
+
               "Maximum discount"
             )
           : 0;
@@ -934,6 +1152,7 @@ export async function PATCH(
       return jsonResponse(
         {
           success: false,
+
           message:
             error.message,
         },
@@ -942,12 +1161,14 @@ export async function PATCH(
     }
 
     if (
-      type !== "free_shipping" &&
+      type !==
+        "free_shipping" &&
       value <= 0
     ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Discount value must be greater than zero.",
         },
@@ -956,12 +1177,14 @@ export async function PATCH(
     }
 
     if (
-      type === "percentage" &&
+      type ===
+        "percentage" &&
       value > 100
     ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Percentage discount cannot exceed 100%.",
         },
@@ -972,11 +1195,13 @@ export async function PATCH(
     if (
       startsAt &&
       expiresAt &&
-      expiresAt <= startsAt
+      expiresAt <=
+        startsAt
     ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Coupon expiry date must be later than its start date.",
         },
@@ -991,11 +1216,13 @@ export async function PATCH(
 
     if (
       usageLimit > 0 &&
-      usageCount > usageLimit
+      usageCount >
+        usageLimit
     ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "Usage limit cannot be lower than the current usage count.",
         },
@@ -1008,6 +1235,7 @@ export async function PATCH(
         body.isActive ??
           body.active ??
           body.status,
+
         existingCoupon.active !==
           false
       );
@@ -1024,6 +1252,7 @@ export async function PATCH(
       return jsonResponse(
         {
           success: false,
+
           message:
             "A coupon with this code already exists.",
         },
@@ -1031,12 +1260,16 @@ export async function PATCH(
       );
     }
 
-    const now = new Date();
+    const now =
+      new Date();
 
     const updateOperation = {
       $set: {
         code,
-        normalizedCode: code,
+
+        normalizedCode:
+          code,
+
         name,
         description,
         type,
@@ -1049,11 +1282,13 @@ export async function PATCH(
         usageCount,
 
         active,
-        isActive: active,
+        isActive:
+          active,
 
-        status: active
-          ? "active"
-          : "inactive",
+        status:
+          active
+            ? "active"
+            : "inactive",
 
         isPublic,
         promoted,
@@ -1061,7 +1296,8 @@ export async function PATCH(
         publicDescription,
         displayOrder,
 
-        updatedAt: now,
+        updatedAt:
+          now,
       },
 
       $unset: {
@@ -1079,18 +1315,23 @@ export async function PATCH(
 
     await collection.updateOne(
       {
-        _id: existingCoupon._id,
+        _id:
+          existingCoupon._id,
       },
       updateOperation
     );
 
     const updatedCoupon =
-      await collection.findOne({
-        _id: existingCoupon._id,
-      });
+      await collection.findOne(
+        {
+          _id:
+            existingCoupon._id,
+        }
+      );
 
     return jsonResponse({
       success: true,
+
       message:
         "Coupon updated successfully.",
 
@@ -1105,10 +1346,13 @@ export async function PATCH(
       error
     );
 
-    if (error?.code === 11000) {
+    if (
+      error?.code === 11000
+    ) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "A coupon with this code already exists.",
         },
@@ -1119,6 +1363,7 @@ export async function PATCH(
     return jsonResponse(
       {
         success: false,
+
         message:
           "Failed to update coupon.",
       },
@@ -1132,29 +1377,44 @@ export async function DELETE(
   context
 ) {
   try {
-    if (
-      !(await isAdminAuthenticated())
-    ) {
-      return jsonResponse(
+    const authorization =
+      await requireAdminApiPermission(
+        request,
         {
-          success: false,
-          message:
-            "Admin authentication required.",
+          coupons: [
+            "delete",
+          ],
         },
-        401
+        {
+          path:
+            "/api/coupons/[id]",
+
+          forbiddenMessage:
+            "You do not have permission to delete coupons.",
+        }
       );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
     }
 
     const id =
-      await resolveCouponId(context);
+      await resolveCouponId(
+        context
+      );
 
     const filter =
-      createCouponFilter(id);
+      createCouponFilter(
+        id
+      );
 
     if (!filter) {
       return jsonResponse(
         {
           success: false,
+
           message:
             "A valid coupon identifier is required.",
         },
@@ -1179,6 +1439,7 @@ export async function DELETE(
       return jsonResponse(
         {
           success: false,
+
           message:
             "Coupon not found.",
         },
@@ -1200,7 +1461,9 @@ export async function DELETE(
     const linkedOrderCount =
       couponCode
         ? await database
-            .collection("orders")
+            .collection(
+              "orders"
+            )
             .countDocuments({
               "coupon.code":
                 couponCode,
@@ -1211,7 +1474,8 @@ export async function DELETE(
       usageCount > 0 ||
       linkedOrderCount > 0
     ) {
-      const now = new Date();
+      const now =
+        new Date();
 
       await collection.updateOne(
         {
@@ -1220,15 +1484,26 @@ export async function DELETE(
         },
         {
           $set: {
-            active: false,
-            isActive: false,
-            status: "inactive",
+            active:
+              false,
 
-            isPublic: false,
-            promoted: false,
+            isActive:
+              false,
 
-            archivedAt: now,
-            updatedAt: now,
+            status:
+              "inactive",
+
+            isPublic:
+              false,
+
+            promoted:
+              false,
+
+            archivedAt:
+              now,
+
+            updatedAt:
+              now,
           },
         }
       );
@@ -1244,7 +1519,8 @@ export async function DELETE(
     }
 
     await collection.deleteOne({
-      _id: existingCoupon._id,
+      _id:
+        existingCoupon._id,
     });
 
     return jsonResponse({
@@ -1264,6 +1540,7 @@ export async function DELETE(
     return jsonResponse(
       {
         success: false,
+
         message:
           "Failed to delete coupon.",
       },
@@ -1272,4 +1549,5 @@ export async function DELETE(
   }
 }
 
-export const PUT = PATCH;
+export const PUT =
+  PATCH;

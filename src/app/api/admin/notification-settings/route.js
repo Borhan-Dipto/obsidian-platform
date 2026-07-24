@@ -1,6 +1,6 @@
 import {
-  isAdminAuthenticated,
-} from "../../../../lib/adminAuth";
+  requireAdminApiPermission,
+} from "../../../../lib/adminApiAuthorization";
 
 import {
   NOTIFIABLE_ORDER_STATUSES,
@@ -14,10 +14,14 @@ import {
   serializeNotificationSettings,
 } from "../../../../lib/notificationSettings";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+export const dynamic =
+  "force-dynamic";
 
-const MAX_REQUEST_SIZE = 100_000;
+export const runtime =
+  "nodejs";
+
+const MAX_REQUEST_SIZE =
+  100_000;
 
 const EMAIL_FIELDS = [
   "enabled",
@@ -65,13 +69,17 @@ function jsonResponse(
   body,
   status = 200
 ) {
-  return Response.json(body, {
-    status,
+  return Response.json(
+    body,
+    {
+      status,
 
-    headers: {
-      "Cache-Control": "no-store",
-    },
-  });
+      headers: {
+        "Cache-Control":
+          "no-store",
+      },
+    }
+  );
 }
 
 function createErrorResponse(
@@ -87,15 +95,21 @@ function createErrorResponse(
   );
 }
 
-function isPlainObject(value) {
+function isPlainObject(
+  value
+) {
   return Boolean(
     value &&
-      typeof value === "object" &&
+      typeof value ===
+        "object" &&
       !Array.isArray(value)
   );
 }
 
-function hasOwn(object, key) {
+function hasOwn(
+  object,
+  key
+) {
   return Object.prototype.hasOwnProperty.call(
     object,
     key
@@ -106,31 +120,50 @@ function copyAllowedFields(
   source,
   allowedFields
 ) {
-  if (!isPlainObject(source)) {
+  if (
+    !isPlainObject(
+      source
+    )
+  ) {
     return null;
   }
 
   const result = {};
 
-  for (const field of allowedFields) {
-    if (hasOwn(source, field)) {
-      result[field] = source[field];
+  for (
+    const field
+    of allowedFields
+  ) {
+    if (
+      hasOwn(
+        source,
+        field
+      )
+    ) {
+      result[field] =
+        source[field];
     }
   }
 
   return result;
 }
 
-async function readJsonBody(request) {
-  const contentLength = Number(
-    request.headers.get(
-      "content-length"
-    ) || 0
-  );
+async function readJsonBody(
+  request
+) {
+  const contentLength =
+    Number(
+      request.headers.get(
+        "content-length"
+      ) || 0
+    );
 
   if (
-    Number.isFinite(contentLength) &&
-    contentLength > MAX_REQUEST_SIZE
+    Number.isFinite(
+      contentLength
+    ) &&
+    contentLength >
+      MAX_REQUEST_SIZE
   ) {
     throw new Error(
       "REQUEST_TOO_LARGE"
@@ -141,7 +174,10 @@ async function readJsonBody(request) {
     await request.text();
 
   if (
-    rawBody.length >
+    Buffer.byteLength(
+      rawBody,
+      "utf8"
+    ) >
     MAX_REQUEST_SIZE
   ) {
     throw new Error(
@@ -152,12 +188,21 @@ async function readJsonBody(request) {
   let body;
 
   try {
-    body = JSON.parse(rawBody);
+    body =
+      JSON.parse(
+        rawBody
+      );
   } catch {
-    throw new Error("INVALID_JSON");
+    throw new Error(
+      "INVALID_JSON"
+    );
   }
 
-  if (!isPlainObject(body)) {
+  if (
+    !isPlainObject(
+      body
+    )
+  ) {
     throw new Error(
       "INVALID_REQUEST_BODY"
     );
@@ -166,32 +211,53 @@ async function readJsonBody(request) {
   return body;
 }
 
-function sanitizeIncomingSettings(data) {
+function sanitizeIncomingSettings(
+  data
+) {
   const sanitizedSettings = {};
 
-  if (hasOwn(data, "email")) {
-    const email = copyAllowedFields(
-      data.email,
-      EMAIL_FIELDS
-    );
+  if (
+    hasOwn(
+      data,
+      "email"
+    )
+  ) {
+    const email =
+      copyAllowedFields(
+        data.email,
+        EMAIL_FIELDS
+      );
 
     if (email) {
-      sanitizedSettings.email = email;
+      sanitizedSettings.email =
+        email;
     }
   }
 
-  if (hasOwn(data, "sms")) {
-    const sms = copyAllowedFields(
-      data.sms,
-      SMS_FIELDS
-    );
+  if (
+    hasOwn(
+      data,
+      "sms"
+    )
+  ) {
+    const sms =
+      copyAllowedFields(
+        data.sms,
+        SMS_FIELDS
+      );
 
     if (sms) {
-      sanitizedSettings.sms = sms;
+      sanitizedSettings.sms =
+        sms;
     }
   }
 
-  if (hasOwn(data, "whatsapp")) {
+  if (
+    hasOwn(
+      data,
+      "whatsapp"
+    )
+  ) {
     const whatsapp =
       copyAllowedFields(
         data.whatsapp,
@@ -220,7 +286,12 @@ function sanitizeIncomingSettings(data) {
     }
   }
 
-  if (hasOwn(data, "statusEvents")) {
+  if (
+    hasOwn(
+      data,
+      "statusEvents"
+    )
+  ) {
     const statusEvents =
       copyAllowedFields(
         data.statusEvents,
@@ -240,11 +311,16 @@ function validateBoolean(
   value,
   fieldName
 ) {
-  if (value === undefined) {
+  if (
+    value === undefined
+  ) {
     return null;
   }
 
-  if (typeof value !== "boolean") {
+  if (
+    typeof value !==
+    "boolean"
+  ) {
     return `${fieldName} must be enabled or disabled.`;
   }
 
@@ -259,11 +335,16 @@ function validateText(
     required = false,
   } = {}
 ) {
-  if (value === undefined) {
+  if (
+    value === undefined
+  ) {
     return null;
   }
 
-  if (typeof value !== "string") {
+  if (
+    typeof value !==
+    "string"
+  ) {
     return `${fieldName} must be text.`;
   }
 
@@ -291,28 +372,40 @@ function validateEmailRecipients(
   value,
   fieldName
 ) {
-  if (value === undefined) {
+  if (
+    value === undefined
+  ) {
     return null;
   }
 
-  const source = Array.isArray(value)
-    ? value
-    : String(value || "").split(
-        /[\n,;]+/
-      );
+  const source =
+    Array.isArray(value)
+      ? value
+      : String(
+          value || ""
+        ).split(
+          /[\n,;]+/
+        );
 
-  if (source.length > 20) {
+  if (
+    source.length > 20
+  ) {
     return `${fieldName} cannot contain more than 20 recipients.`;
   }
 
   const normalizedRecipients =
-    normalizeEmailRecipients(value);
+    normalizeEmailRecipients(
+      value
+    );
 
-  const nonEmptyEntries = source
-    .map((entry) =>
-      String(entry || "").trim()
-    )
-    .filter(Boolean);
+  const nonEmptyEntries =
+    source
+      .map((entry) =>
+        String(
+          entry || ""
+        ).trim()
+      )
+      .filter(Boolean);
 
   if (
     normalizedRecipients.length !==
@@ -328,33 +421,49 @@ function validatePhoneRecipients(
   value,
   fieldName
 ) {
-  if (value === undefined) {
+  if (
+    value === undefined
+  ) {
     return null;
   }
 
-  const source = Array.isArray(value)
-    ? value
-    : String(value || "").split(
-        /[\n,;]+/
-      );
+  const source =
+    Array.isArray(value)
+      ? value
+      : String(
+          value || ""
+        ).split(
+          /[\n,;]+/
+        );
 
-  if (source.length > 20) {
+  if (
+    source.length > 20
+  ) {
     return `${fieldName} cannot contain more than 20 recipients.`;
   }
 
   const normalizedRecipients =
-    normalizePhoneRecipients(value);
+    normalizePhoneRecipients(
+      value
+    );
 
-  const nonEmptyEntries = source
-    .map((entry) =>
-      String(entry || "")
-        .replace(/\D/g, "")
-    )
-    .filter(Boolean);
+  const nonEmptyEntries =
+    source
+      .map((entry) =>
+        String(
+          entry || ""
+        ).replace(
+          /\D/g,
+          ""
+        )
+      )
+      .filter(Boolean);
 
   if (
     normalizedRecipients.length !==
-    new Set(nonEmptyEntries).size
+    new Set(
+      nonEmptyEntries
+    ).size
   ) {
     return `${fieldName} contains an invalid phone number.`;
   }
@@ -365,11 +474,16 @@ function validatePhoneRecipients(
 function validateLanguageCode(
   value
 ) {
-  if (value === undefined) {
+  if (
+    value === undefined
+  ) {
     return null;
   }
 
-  if (typeof value !== "string") {
+  if (
+    typeof value !==
+    "string"
+  ) {
     return "WhatsApp language code must be text.";
   }
 
@@ -392,11 +506,16 @@ function validateTemplateName(
   value,
   fieldName
 ) {
-  if (value === undefined) {
+  if (
+    value === undefined
+  ) {
     return null;
   }
 
-  if (typeof value !== "string") {
+  if (
+    typeof value !==
+    "string"
+  ) {
     return `${fieldName} must be text.`;
   }
 
@@ -408,7 +527,8 @@ function validateTemplateName(
   }
 
   if (
-    templateName.length > 512 ||
+    templateName.length >
+      512 ||
     !/^[a-z0-9_]+$/.test(
       templateName
     )
@@ -513,7 +633,9 @@ function validateEmailSettings(
   ].filter(Boolean);
 }
 
-function validateSmsSettings(sms) {
+function validateSmsSettings(
+  sms
+) {
   if (!sms) {
     return [];
   }
@@ -680,20 +802,40 @@ function hasSupportedChanges(
     settings
   ).some(
     (section) =>
-      isPlainObject(section) &&
-      Object.keys(section).length > 0
+      isPlainObject(
+        section
+      ) &&
+      Object.keys(
+        section
+      ).length > 0
   );
 }
 
-export async function GET() {
+export async function GET(
+  request
+) {
   try {
-    if (
-      !(await isAdminAuthenticated())
-    ) {
-      return createErrorResponse(
-        "Admin authentication required.",
-        401
+    const authorization =
+      await requireAdminApiPermission(
+        request,
+        {
+          notifications: [
+            "read",
+          ],
+        },
+        {
+          path:
+            "/api/admin/notification-settings",
+
+          forbiddenMessage:
+            "You do not have permission to view notification settings.",
+        }
       );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
     }
 
     const settings =
@@ -722,22 +864,40 @@ export async function GET() {
   }
 }
 
-export async function PATCH(request) {
+export async function PATCH(
+  request
+) {
   try {
-    if (
-      !(await isAdminAuthenticated())
-    ) {
-      return createErrorResponse(
-        "Admin authentication required.",
-        401
+    const authorization =
+      await requireAdminApiPermission(
+        request,
+        {
+          notifications: [
+            "update",
+          ],
+        },
+        {
+          path:
+            "/api/admin/notification-settings",
+
+          forbiddenMessage:
+            "You do not have permission to update notification settings.",
+        }
       );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
     }
 
     let requestBody;
 
     try {
       requestBody =
-        await readJsonBody(request);
+        await readJsonBody(
+          request
+        );
     } catch (error) {
       if (
         error.message ===
@@ -777,7 +937,8 @@ export async function PATCH(request) {
       );
 
     if (
-      validationErrors.length > 0
+      validationErrors.length >
+      0
     ) {
       return createErrorResponse(
         validationErrors[0],
@@ -797,7 +958,8 @@ export async function PATCH(request) {
     const collection =
       await getNotificationSettingsCollection();
 
-    const now = new Date();
+    const now =
+      new Date();
 
     await collection.updateOne(
       {
@@ -819,10 +981,12 @@ export async function PATCH(request) {
             mergedSettings.statusEvents,
 
           createdAt:
-            existingSettings.createdAt ||
+            existingSettings
+              .createdAt ||
             now,
 
-          updatedAt: now,
+          updatedAt:
+            now,
         },
 
         $setOnInsert: {
@@ -864,4 +1028,5 @@ export async function PATCH(request) {
   }
 }
 
-export const PUT = PATCH;
+export const PUT =
+  PATCH;

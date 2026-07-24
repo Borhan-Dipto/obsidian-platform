@@ -1,21 +1,31 @@
 import Link from "next/link";
 import clientPromise from "../../../lib/mongodb";
-import { requireAdminAuth } from "../../../lib/adminAuth";
+import {
+  hasAdminPermission,
+  requireAdminPermission,
+} from "../../../lib/adminAuth";
 import OrdersManagementTable from "../../../components/admin/OrdersManagementTable";
 
 export const dynamic = "force-dynamic";
 
 async function getOrders() {
   const client = await clientPromise;
-  const db = client.db(process.env.MONGODB_DB || "obsidian");
+
+  const db = client.db(
+    process.env.MONGODB_DB || "obsidian"
+  );
 
   const orders = await db
     .collection("orders")
     .find({})
-    .sort({ createdAt: -1 })
+    .sort({
+      createdAt: -1,
+    })
     .toArray();
 
-  return JSON.parse(JSON.stringify(orders));
+  return JSON.parse(
+    JSON.stringify(orders)
+  );
 }
 
 function formatMoney(value) {
@@ -29,13 +39,17 @@ function formatMoney(value) {
 }
 
 function getOrderTotal(order) {
-  const directTotal = Number(order.total ?? order.grandTotal);
+  const directTotal = Number(
+    order.total ??
+      order.grandTotal
+  );
 
   if (Number.isFinite(directTotal)) {
     return directTotal;
   }
 
-  const subtotal = Number(order.subtotal) || 0;
+  const subtotal =
+    Number(order.subtotal) || 0;
 
   const discount =
     Number(
@@ -43,7 +57,8 @@ function getOrderTotal(order) {
         order.discount ??
         order.couponDiscount ??
         order.coupon?.discountAmount ??
-        order.appliedCoupon?.discountAmount
+        order.appliedCoupon
+          ?.discountAmount
     ) || 0;
 
   const deliveryCharge =
@@ -53,11 +68,18 @@ function getOrderTotal(order) {
         order.deliveryFee
     ) || 0;
 
-  return Math.max(subtotal - discount + deliveryCharge, 0);
+  return Math.max(
+    subtotal -
+      discount +
+      deliveryCharge,
+    0
+  );
 }
 
 function getOrderStatus(order) {
-  return String(order.status || "pending").toLowerCase();
+  return String(
+    order.status || "pending"
+  ).toLowerCase();
 }
 
 function getPaymentMethod(order) {
@@ -76,7 +98,9 @@ function getPaymentStatus(order) {
     order.transactionStatus;
 
   if (storedStatus) {
-    return String(storedStatus).toLowerCase();
+    return String(
+      storedStatus
+    ).toLowerCase();
   }
 
   const paymentMethod = String(
@@ -86,7 +110,9 @@ function getPaymentStatus(order) {
   if (
     paymentMethod.includes("cash") ||
     paymentMethod.includes("cod") ||
-    paymentMethod.includes("delivery")
+    paymentMethod.includes(
+      "delivery"
+    )
   ) {
     return "unpaid";
   }
@@ -99,149 +125,250 @@ function getOrderDate(order) {
     return null;
   }
 
-  const date = new Date(order.createdAt);
+  const date = new Date(
+    order.createdAt
+  );
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return null;
   }
 
   return date;
 }
 
-function isSameCalendarDay(firstDate, secondDate) {
+function isSameCalendarDay(
+  firstDate,
+  secondDate
+) {
   return (
-    firstDate.getFullYear() === secondDate.getFullYear() &&
-    firstDate.getMonth() === secondDate.getMonth() &&
-    firstDate.getDate() === secondDate.getDate()
+    firstDate.getFullYear() ===
+      secondDate.getFullYear() &&
+    firstDate.getMonth() ===
+      secondDate.getMonth() &&
+    firstDate.getDate() ===
+      secondDate.getDate()
   );
 }
 
-function getTodayOrdersCount(orders) {
+function getTodayOrdersCount(
+  orders
+) {
   const now = new Date();
 
-  return orders.filter((order) => {
-    const orderDate = getOrderDate(order);
-
-    return orderDate
-      ? isSameCalendarDay(orderDate, now)
-      : false;
-  }).length;
-}
-
-function getPendingOrdersCount(orders) {
   return orders.filter(
-    (order) => getOrderStatus(order) === "pending"
+    (order) => {
+      const orderDate =
+        getOrderDate(order);
+
+      return orderDate
+        ? isSameCalendarDay(
+            orderDate,
+            now
+          )
+        : false;
+    }
   ).length;
 }
 
-function getActiveFulfilmentCount(orders) {
-  const activeStatuses = new Set([
-    "confirmed",
-    "processing",
-    "packed",
-    "shipped",
-  ]);
-
-  return orders.filter((order) =>
-    activeStatuses.has(getOrderStatus(order))
+function getPendingOrdersCount(
+  orders
+) {
+  return orders.filter(
+    (order) =>
+      getOrderStatus(order) ===
+      "pending"
   ).length;
 }
 
-function getDeliveredOrdersCount(orders) {
+function getActiveFulfilmentCount(
+  orders
+) {
+  const activeStatuses =
+    new Set([
+      "confirmed",
+      "processing",
+      "packed",
+      "shipped",
+    ]);
+
   return orders.filter(
-    (order) => getOrderStatus(order) === "delivered"
+    (order) =>
+      activeStatuses.has(
+        getOrderStatus(order)
+      )
   ).length;
 }
 
-function getCancelledOrdersCount(orders) {
+function getDeliveredOrdersCount(
+  orders
+) {
   return orders.filter(
-    (order) => getOrderStatus(order) === "cancelled"
+    (order) =>
+      getOrderStatus(order) ===
+      "delivered"
+  ).length;
+}
+
+function getCancelledOrdersCount(
+  orders
+) {
+  return orders.filter(
+    (order) =>
+      getOrderStatus(order) ===
+      "cancelled"
   ).length;
 }
 
 function getPaidOrdersCount(orders) {
-  const paidStatuses = new Set([
-    "paid",
-    "completed",
-    "successful",
-  ]);
+  const paidStatuses =
+    new Set([
+      "paid",
+      "completed",
+      "successful",
+    ]);
 
-  return orders.filter((order) =>
-    paidStatuses.has(getPaymentStatus(order))
+  return orders.filter(
+    (order) =>
+      paidStatuses.has(
+        getPaymentStatus(order)
+      )
   ).length;
 }
 
-function getGrossOrderValue(orders) {
+function getGrossOrderValue(
+  orders
+) {
   return orders.reduce(
-    (total, order) => total + getOrderTotal(order),
+    (total, order) =>
+      total +
+      getOrderTotal(order),
     0
   );
 }
 
-function getConfirmedRevenue(orders) {
-  const acceptedPaymentStatuses = new Set([
-    "paid",
-    "completed",
-    "successful",
-  ]);
+function getConfirmedRevenue(
+  orders
+) {
+  const acceptedPaymentStatuses =
+    new Set([
+      "paid",
+      "completed",
+      "successful",
+    ]);
 
-  return orders.reduce((total, order) => {
-    const orderStatus = getOrderStatus(order);
-    const paymentStatus = getPaymentStatus(order);
-    const paymentMethod = String(
-      getPaymentMethod(order)
-    ).toLowerCase();
+  return orders.reduce(
+    (total, order) => {
+      const orderStatus =
+        getOrderStatus(order);
 
-    const isCancelled = orderStatus === "cancelled";
-    const isRefunded =
-      paymentStatus === "refunded" ||
-      paymentStatus === "failed" ||
-      paymentStatus === "cancelled";
+      const paymentStatus =
+        getPaymentStatus(order);
 
-    if (isCancelled || isRefunded) {
-      return total;
-    }
+      const paymentMethod =
+        String(
+          getPaymentMethod(order)
+        ).toLowerCase();
 
-    const isPaid =
-      acceptedPaymentStatuses.has(paymentStatus);
+      const isCancelled =
+        orderStatus === "cancelled";
 
-    const isDeliveredCashOrder =
-      orderStatus === "delivered" &&
-      (paymentMethod.includes("cash") ||
-        paymentMethod.includes("cod") ||
-        paymentMethod.includes("delivery"));
+      const isRefunded =
+        paymentStatus ===
+          "refunded" ||
+        paymentStatus ===
+          "failed" ||
+        paymentStatus ===
+          "cancelled";
 
-    if (!isPaid && !isDeliveredCashOrder) {
-      return total;
-    }
+      if (
+        isCancelled ||
+        isRefunded
+      ) {
+        return total;
+      }
 
-    return total + getOrderTotal(order);
-  }, 0);
+      const isPaid =
+        acceptedPaymentStatuses.has(
+          paymentStatus
+        );
+
+      const isDeliveredCashOrder =
+        orderStatus ===
+          "delivered" &&
+        (paymentMethod.includes(
+          "cash"
+        ) ||
+          paymentMethod.includes(
+            "cod"
+          ) ||
+          paymentMethod.includes(
+            "delivery"
+          ));
+
+      if (
+        !isPaid &&
+        !isDeliveredCashOrder
+      ) {
+        return total;
+      }
+
+      return (
+        total +
+        getOrderTotal(order)
+      );
+    },
+    0
+  );
 }
 
-function getAverageOrderValue(orders) {
-  const validOrders = orders.filter(
-    (order) => getOrderStatus(order) !== "cancelled"
-  );
+function getAverageOrderValue(
+  orders
+) {
+  const validOrders =
+    orders.filter(
+      (order) =>
+        getOrderStatus(
+          order
+        ) !== "cancelled"
+    );
 
-  if (validOrders.length === 0) {
+  if (
+    validOrders.length === 0
+  ) {
     return 0;
   }
 
-  const total = validOrders.reduce(
-    (sum, order) => sum + getOrderTotal(order),
-    0
-  );
+  const total =
+    validOrders.reduce(
+      (sum, order) =>
+        sum +
+        getOrderTotal(order),
+      0
+    );
 
-  return total / validOrders.length;
+  return (
+    total /
+    validOrders.length
+  );
 }
 
-function getConversionRate(numerator, denominator) {
+function getConversionRate(
+  numerator,
+  denominator
+) {
   if (!denominator) {
     return 0;
   }
 
-  return (numerator / denominator) * 100;
+  return (
+    (numerator /
+      denominator) *
+    100
+  );
 }
 
 function formatPercentage(value) {
@@ -282,34 +409,80 @@ function MetricCard({
 }
 
 export default async function AdminOrdersPage() {
-  await requireAdminAuth();
+  await requireAdminPermission({
+    orders: ["read"],
+  });
 
-  const orders = await getOrders();
+  const [
+    orders,
+    canExportOrders,
+  ] = await Promise.all([
+    getOrders(),
 
-  const totalOrders = orders.length;
-  const todayOrdersCount = getTodayOrdersCount(orders);
-  const pendingOrdersCount = getPendingOrdersCount(orders);
+    hasAdminPermission({
+      orders: ["export"],
+    }),
+  ]);
+
+  const totalOrders =
+    orders.length;
+
+  const todayOrdersCount =
+    getTodayOrdersCount(
+      orders
+    );
+
+  const pendingOrdersCount =
+    getPendingOrdersCount(
+      orders
+    );
+
   const activeFulfilmentCount =
-    getActiveFulfilmentCount(orders);
+    getActiveFulfilmentCount(
+      orders
+    );
+
   const deliveredOrdersCount =
-    getDeliveredOrdersCount(orders);
+    getDeliveredOrdersCount(
+      orders
+    );
+
   const cancelledOrdersCount =
-    getCancelledOrdersCount(orders);
-  const paidOrdersCount = getPaidOrdersCount(orders);
+    getCancelledOrdersCount(
+      orders
+    );
 
-  const grossOrderValue = getGrossOrderValue(orders);
-  const confirmedRevenue = getConfirmedRevenue(orders);
-  const averageOrderValue = getAverageOrderValue(orders);
+  const paidOrdersCount =
+    getPaidOrdersCount(
+      orders
+    );
 
-  const deliveryRate = getConversionRate(
-    deliveredOrdersCount,
-    totalOrders
-  );
+  const grossOrderValue =
+    getGrossOrderValue(
+      orders
+    );
 
-  const cancellationRate = getConversionRate(
-    cancelledOrdersCount,
-    totalOrders
-  );
+  const confirmedRevenue =
+    getConfirmedRevenue(
+      orders
+    );
+
+  const averageOrderValue =
+    getAverageOrderValue(
+      orders
+    );
+
+  const deliveryRate =
+    getConversionRate(
+      deliveredOrdersCount,
+      totalOrders
+    );
+
+  const cancellationRate =
+    getConversionRate(
+      cancelledOrdersCount,
+      totalOrders
+    );
 
   return (
     <main className="min-h-screen bg-[#0b0b0b] px-4 py-8 text-[#f1ece4] sm:px-6 lg:px-10 lg:py-10">
@@ -326,9 +499,12 @@ export default async function AdminOrdersPage() {
               </h1>
 
               <p className="mt-5 max-w-2xl text-sm leading-7 text-neutral-400">
-                Review customer orders, monitor fulfilment,
-                verify payment, assign courier information and
-                manage the complete order lifecycle from one
+                Review customer orders,
+                monitor fulfilment,
+                verify payment, assign
+                courier information and
+                manage the complete order
+                lifecycle from one
                 operational workspace.
               </p>
             </div>
@@ -336,7 +512,9 @@ export default async function AdminOrdersPage() {
             <div className="flex flex-col gap-4 lg:items-end">
               <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">
                 {totalOrders}{" "}
-                {totalOrders === 1 ? "Order" : "Orders"}
+                {totalOrders === 1
+                  ? "Order"
+                  : "Orders"}
               </p>
 
               <Link
@@ -360,9 +538,12 @@ export default async function AdminOrdersPage() {
             </h2>
 
             <p className="mt-5 max-w-xl text-sm leading-7 text-neutral-400">
-              New customer orders will appear here after
-              checkout. Once orders are placed, you will be able
-              to search, filter, review, export and manage them
+              New customer orders
+              will appear here after
+              checkout. Once orders
+              are placed, you will be
+              able to search, filter,
+              review and manage them
               from this page.
             </p>
 
@@ -389,27 +570,35 @@ export default async function AdminOrdersPage() {
               <div className="grid gap-px sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard
                   label="Total Orders"
-                  value={totalOrders}
+                  value={
+                    totalOrders
+                  }
                   note={`${todayOrdersCount} received today`}
                 />
 
                 <MetricCard
                   label="Pending Review"
-                  value={pendingOrdersCount}
+                  value={
+                    pendingOrdersCount
+                  }
                   note="Orders awaiting initial action"
                   valueClassName="text-yellow-300"
                 />
 
                 <MetricCard
                   label="Active Fulfilment"
-                  value={activeFulfilmentCount}
+                  value={
+                    activeFulfilmentCount
+                  }
                   note="Confirmed through shipped"
                   valueClassName="text-cyan-300"
                 />
 
                 <MetricCard
                   label="Confirmed Revenue"
-                  value={formatMoney(confirmedRevenue)}
+                  value={formatMoney(
+                    confirmedRevenue
+                  )}
                   note="Paid orders and delivered COD orders"
                   valueClassName="text-green-300"
                 />
@@ -418,19 +607,25 @@ export default async function AdminOrdersPage() {
               <div className="grid gap-px border-t border-white/10 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard
                   label="Gross Order Value"
-                  value={formatMoney(grossOrderValue)}
+                  value={formatMoney(
+                    grossOrderValue
+                  )}
                   note="Includes all orders before exclusions"
                 />
 
                 <MetricCard
                   label="Average Order Value"
-                  value={formatMoney(averageOrderValue)}
+                  value={formatMoney(
+                    averageOrderValue
+                  )}
                   note="Cancelled orders excluded"
                 />
 
                 <MetricCard
                   label="Delivered Orders"
-                  value={deliveredOrdersCount}
+                  value={
+                    deliveredOrdersCount
+                  }
                   note={`${formatPercentage(
                     deliveryRate
                   )} of all orders`}
@@ -439,12 +634,15 @@ export default async function AdminOrdersPage() {
 
                 <MetricCard
                   label="Cancelled Orders"
-                  value={cancelledOrdersCount}
+                  value={
+                    cancelledOrdersCount
+                  }
                   note={`${formatPercentage(
                     cancellationRate
                   )} cancellation rate`}
                   valueClassName={
-                    cancelledOrdersCount > 0
+                    cancelledOrdersCount >
+                    0
                       ? "text-red-300"
                       : ""
                   }
@@ -459,7 +657,9 @@ export default async function AdminOrdersPage() {
                 </p>
 
                 <p className="mt-3 font-heading text-3xl font-light">
-                  {todayOrdersCount}
+                  {
+                    todayOrdersCount
+                  }
                 </p>
 
                 <p className="mt-2 text-xs text-neutral-600">
@@ -473,7 +673,9 @@ export default async function AdminOrdersPage() {
                 </p>
 
                 <p className="mt-3 font-heading text-3xl font-light text-green-300">
-                  {paidOrdersCount}
+                  {
+                    paidOrdersCount
+                  }
                 </p>
 
                 <p className="mt-2 text-xs text-neutral-600">
@@ -487,7 +689,9 @@ export default async function AdminOrdersPage() {
                 </p>
 
                 <p className="mt-3 font-heading text-3xl font-light text-cyan-300">
-                  {deliveredOrdersCount}
+                  {
+                    deliveredOrdersCount
+                  }
                 </p>
 
                 <p className="mt-2 text-xs text-neutral-600">
@@ -511,7 +715,12 @@ export default async function AdminOrdersPage() {
               </div>
             </section>
 
-            <OrdersManagementTable orders={orders} />
+            <OrdersManagementTable
+              orders={orders}
+              canExportOrders={
+                canExportOrders
+              }
+            />
           </>
         )}
       </div>

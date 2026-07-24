@@ -1,4 +1,7 @@
-import { isAdminAuthenticated } from "../../../lib/adminAuth";
+import {
+  requireAdminApiPermission,
+} from "../../../lib/adminApiAuthorization";
+
 import {
   PRODUCTS_COLLECTION_NAME,
   ensureCatalogIndexes,
@@ -10,9 +13,13 @@ import {
   resolveCanonicalSeries,
 } from "../../../lib/catalog";
 
-export const dynamic = "force-dynamic";
+export const dynamic =
+  "force-dynamic";
 
-function createErrorResponse(message, status = 500) {
+function createErrorResponse(
+  message,
+  status = 500
+) {
   return Response.json(
     {
       success: false,
@@ -27,28 +34,41 @@ function createErrorResponse(message, status = 500) {
 function isPlainObject(value) {
   return Boolean(
     value &&
-      typeof value === "object" &&
+      typeof value ===
+        "object" &&
       !Array.isArray(value)
   );
 }
 
-function serializeDocument(document) {
+function serializeDocument(
+  document
+) {
   if (!document) {
     return null;
   }
 
-  return JSON.parse(JSON.stringify(document));
+  return JSON.parse(
+    JSON.stringify(document)
+  );
 }
 
-function normalizeBooleanQuery(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase() === "true";
+function normalizeBooleanQuery(
+  value
+) {
+  return (
+    String(value || "")
+      .trim()
+      .toLowerCase() ===
+    "true"
+  );
 }
 
-export async function GET(request) {
+export async function GET(
+  request
+) {
   try {
-    const requestUrl = new URL(request.url);
+    const requestUrl =
+      new URL(request.url);
 
     const includeInactive =
       normalizeBooleanQuery(
@@ -57,40 +77,61 @@ export async function GET(request) {
         )
       );
 
-    let authenticated = false;
-
     if (includeInactive) {
-      authenticated =
-        await isAdminAuthenticated();
+      const authorization =
+        await requireAdminApiPermission(
+          request,
+          {
+            products: [
+              "read_private",
+            ],
+          },
+          {
+            path:
+              "/api/products",
 
-      if (!authenticated) {
-        return createErrorResponse(
-          "Unauthorized.",
-          401
+            forbiddenMessage:
+              "You do not have permission to view private products.",
+          }
         );
+
+      if (
+        !authorization.authorized
+      ) {
+        return authorization.response;
       }
     }
 
     const database =
       await getCatalogDatabase();
 
-    await ensureCatalogIndexes(database);
+    await ensureCatalogIndexes(
+      database
+    );
 
-    const query = includeInactive
-      ? {}
-      : getPublicProductQuery();
+    const query =
+      includeInactive
+        ? {}
+        : getPublicProductQuery();
 
-    const products = await database
-      .collection(PRODUCTS_COLLECTION_NAME)
-      .find(query)
-      .sort({
-        createdAt: -1,
-      })
-      .toArray();
+    const products =
+      await database
+        .collection(
+          PRODUCTS_COLLECTION_NAME
+        )
+        .find(query)
+        .sort({
+          createdAt: -1,
+        })
+        .toArray();
 
     return Response.json({
       success: true,
-      products: serializeDocument(products),
+
+      products:
+        serializeDocument(
+          products
+        ),
     });
   } catch (error) {
     console.error(
@@ -104,24 +145,41 @@ export async function GET(request) {
   }
 }
 
-export async function POST(request) {
-  let insertedProductId = null;
+export async function POST(
+  request
+) {
+  let insertedProductId =
+    null;
 
   try {
-    const authenticated =
-      await isAdminAuthenticated();
+    const authorization =
+      await requireAdminApiPermission(
+        request,
+        {
+          products: [
+            "create",
+          ],
+        },
+        {
+          path:
+            "/api/products",
 
-    if (!authenticated) {
-      return createErrorResponse(
-        "Unauthorized.",
-        401
+          forbiddenMessage:
+            "You do not have permission to create products.",
+        }
       );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
     }
 
     let requestBody;
 
     try {
-      requestBody = await request.json();
+      requestBody =
+        await request.json();
     } catch {
       return createErrorResponse(
         "Invalid JSON request body.",
@@ -129,7 +187,11 @@ export async function POST(request) {
       );
     }
 
-    if (!isPlainObject(requestBody)) {
+    if (
+      !isPlainObject(
+        requestBody
+      )
+    ) {
       return createErrorResponse(
         "Product data must be a valid object.",
         400
@@ -137,9 +199,13 @@ export async function POST(request) {
     }
 
     const normalizedResult =
-      normalizeProductPayload(requestBody);
+      normalizeProductPayload(
+        requestBody
+      );
 
-    if (!normalizedResult.success) {
+    if (
+      !normalizedResult.success
+    ) {
       return createErrorResponse(
         normalizedResult.message,
         400
@@ -149,7 +215,9 @@ export async function POST(request) {
     const database =
       await getCatalogDatabase();
 
-    await ensureCatalogIndexes(database);
+    await ensureCatalogIndexes(
+      database
+    );
 
     const productStore =
       database.collection(
@@ -159,22 +227,27 @@ export async function POST(request) {
     const canonicalSeries =
       await resolveCanonicalSeries(
         database,
-        normalizedResult.product.series
+        normalizedResult
+          .product.series
       );
 
-    const now = new Date();
+    const now =
+      new Date();
 
     const newProduct = {
       ...normalizedResult.product,
 
       series:
         canonicalSeries ||
-        normalizedResult.product.series,
+        normalizedResult
+          .product.series,
 
-      seriesKey: normalizeSeriesKey(
-        canonicalSeries ||
-          normalizedResult.product.series
-      ),
+      seriesKey:
+        normalizeSeriesKey(
+          canonicalSeries ||
+            normalizedResult
+              .product.series
+        ),
 
       createdAt: now,
       updatedAt: now,
@@ -212,15 +285,23 @@ export async function POST(request) {
         database,
         {
           ...newProduct,
-          _id: insertedProductId,
+
+          _id:
+            insertedProductId,
         }
       );
-    } catch (collectionError) {
-      await productStore.deleteOne({
-        _id: insertedProductId,
-      });
+    } catch (
+      collectionError
+    ) {
+      await productStore.deleteOne(
+        {
+          _id:
+            insertedProductId,
+        }
+      );
 
-      insertedProductId = null;
+      insertedProductId =
+        null;
 
       throw collectionError;
     }
@@ -228,22 +309,29 @@ export async function POST(request) {
     return Response.json(
       {
         success: true,
+
         message:
-          newProduct.isActive === false
+          newProduct.isActive ===
+          false
             ? "Draft product created successfully."
             : "Product created successfully.",
 
-        product: serializeDocument({
-          ...newProduct,
-          _id: insertionResult.insertedId,
-        }),
+        product:
+          serializeDocument({
+            ...newProduct,
+
+            _id:
+              insertionResult.insertedId,
+          }),
       },
       {
         status: 201,
       }
     );
   } catch (error) {
-    if (error?.code === 11000) {
+    if (
+      error?.code === 11000
+    ) {
       return createErrorResponse(
         "A product with this ID already exists.",
         409

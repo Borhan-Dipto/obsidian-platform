@@ -1,6 +1,6 @@
 import Link from "next/link";
 import clientPromise from "../../../lib/mongodb";
-import { requireAdminAuth } from "../../../lib/adminAuth";
+import { requireAdminPermission } from "../../../lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -678,7 +678,9 @@ function MetricCard({
 export default async function AdminCustomersPage({
   searchParams,
 }) {
-  await requireAdminAuth();
+  await requireAdminPermission({
+    customers: ["read"],
+  });
 
   const resolvedSearchParams =
     (await searchParams) || {};

@@ -7,6 +7,8 @@ import {
   useMemo,
   useState,
 } from "react";
+import { adminAuthClient } from "../../lib/adminAuthClient";
+import { normalizeAdminRoles } from "../../lib/adminPermissions";
 
 function formatCurrency(value) {
   const amount = Number(value);
@@ -38,7 +40,9 @@ function formatDate(value) {
 
 function getCouponType(coupon) {
   const type = String(
-    coupon.type || coupon.discountType || ""
+    coupon.type ||
+      coupon.discountType ||
+      ""
   ).toLowerCase();
 
   if (
@@ -248,10 +252,28 @@ function getStatusStyle(status) {
 }
 
 function getCouponIdentifier(coupon) {
-  return coupon._id || coupon.id || coupon.code;
+  const identifier =
+    coupon._id ||
+    coupon.id ||
+    coupon.code;
+
+  if (
+    identifier &&
+    typeof identifier === "object" &&
+    identifier.$oid
+  ) {
+    return identifier.$oid;
+  }
+
+  return identifier
+    ? String(identifier)
+    : "";
 }
 
-function getErrorMessage(data, fallback) {
+function getErrorMessage(
+  data,
+  fallback
+) {
   if (
     data &&
     typeof data.message === "string" &&
@@ -263,27 +285,111 @@ function getErrorMessage(data, fallback) {
   return fallback;
 }
 
+function roleHasPermission(
+  role,
+  permissions
+) {
+  try {
+    return (
+      adminAuthClient.admin.checkRolePermission({
+        role,
+        permissions,
+      }) === true
+    );
+  } catch {
+    return false;
+  }
+}
+
+function rolesHavePermission(
+  roles,
+  permissions
+) {
+  return roles.some((role) =>
+    roleHasPermission(
+      role,
+      permissions
+    )
+  );
+}
+
 export default function CouponSearchTable({
   coupons = [],
 }) {
   const router = useRouter();
 
-  const [couponItems, setCouponItems] =
-    useState(coupons);
+  const {
+    data: session,
+    isPending: isSessionPending,
+  } = adminAuthClient.useSession();
 
-  const [searchTerm, setSearchTerm] =
-    useState("");
+  const roles = useMemo(
+    () =>
+      normalizeAdminRoles(
+        session?.user?.role
+      ),
+    [session?.user?.role]
+  );
 
-  const [statusFilter, setStatusFilter] =
-    useState("all");
+  const canUpdateCoupons = useMemo(
+    () =>
+      !isSessionPending &&
+      rolesHavePermission(
+        roles,
+        {
+          coupons: ["update"],
+        }
+      ),
+    [
+      roles,
+      isSessionPending,
+    ]
+  );
 
-  const [typeFilter, setTypeFilter] =
-    useState("all");
+  const canDeleteCoupons = useMemo(
+    () =>
+      !isSessionPending &&
+      rolesHavePermission(
+        roles,
+        {
+          coupons: ["delete"],
+        }
+      ),
+    [
+      roles,
+      isSessionPending,
+    ]
+  );
 
-  const [processingAction, setProcessingAction] =
-    useState(null);
+  const [
+    couponItems,
+    setCouponItems,
+  ] = useState(coupons);
 
-  const [message, setMessage] = useState({
+  const [
+    searchTerm,
+    setSearchTerm,
+  ] = useState("");
+
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] = useState("all");
+
+  const [
+    typeFilter,
+    setTypeFilter,
+  ] = useState("all");
+
+  const [
+    processingAction,
+    setProcessingAction,
+  ] = useState(null);
+
+  const [
+    message,
+    setMessage,
+  ] = useState({
     type: "",
     text: "",
   });
@@ -292,60 +398,75 @@ export default function CouponSearchTable({
     setCouponItems(coupons);
   }, [coupons]);
 
-  const filteredCoupons = useMemo(() => {
-    const normalizedSearch = searchTerm
-      .trim()
-      .toLowerCase();
+  const filteredCoupons =
+    useMemo(() => {
+      const normalizedSearch =
+        searchTerm
+          .trim()
+          .toLowerCase();
 
-    return couponItems.filter((coupon) => {
-      const status = getCouponStatus(coupon);
-      const type = getCouponType(coupon);
+      return couponItems.filter(
+        (coupon) => {
+          const status =
+            getCouponStatus(coupon);
 
-      const code = String(
-        coupon.code || ""
-      ).toLowerCase();
+          const type =
+            getCouponType(coupon);
 
-      const name = String(
-        coupon.name || ""
-      ).toLowerCase();
+          const code = String(
+            coupon.code || ""
+          ).toLowerCase();
 
-      const description = String(
-        coupon.description || ""
-      ).toLowerCase();
+          const name = String(
+            coupon.name || ""
+          ).toLowerCase();
 
-      const matchesSearch =
-        normalizedSearch.length === 0 ||
-        code.includes(normalizedSearch) ||
-        name.includes(normalizedSearch) ||
-        description.includes(
-          normalizedSearch
-        );
+          const description =
+            String(
+              coupon.description || ""
+            ).toLowerCase();
 
-      const matchesStatus =
-        statusFilter === "all" ||
-        status === statusFilter;
+          const matchesSearch =
+            normalizedSearch.length ===
+              0 ||
+            code.includes(
+              normalizedSearch
+            ) ||
+            name.includes(
+              normalizedSearch
+            ) ||
+            description.includes(
+              normalizedSearch
+            );
 
-      const matchesType =
-        typeFilter === "all" ||
-        type === typeFilter;
+          const matchesStatus =
+            statusFilter === "all" ||
+            status === statusFilter;
 
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesType
+          const matchesType =
+            typeFilter === "all" ||
+            type === typeFilter;
+
+          return (
+            matchesSearch &&
+            matchesStatus &&
+            matchesType
+          );
+        }
       );
-    });
-  }, [
-    couponItems,
-    searchTerm,
-    statusFilter,
-    typeFilter,
-  ]);
+    }, [
+      couponItems,
+      searchTerm,
+      statusFilter,
+      typeFilter,
+    ]);
 
-  const activeCount = couponItems.filter(
-    (coupon) =>
-      getCouponStatus(coupon) === "active"
-  ).length;
+  const activeCount =
+    couponItems.filter(
+      (coupon) =>
+        getCouponStatus(coupon) ===
+        "active"
+    ).length;
 
   const inactiveCount =
     couponItems.filter(
@@ -354,10 +475,12 @@ export default function CouponSearchTable({
         "inactive"
     ).length;
 
-  const expiredCount = couponItems.filter(
-    (coupon) =>
-      getCouponStatus(coupon) === "expired"
-  ).length;
+  const expiredCount =
+    couponItems.filter(
+      (coupon) =>
+        getCouponStatus(coupon) ===
+        "expired"
+    ).length;
 
   function resetFilters() {
     setSearchTerm("");
@@ -365,30 +488,48 @@ export default function CouponSearchTable({
     setTypeFilter("all");
   }
 
-  function showMessage(type, text) {
+  function showMessage(
+    type,
+    text
+  ) {
     setMessage({
       type,
       text,
     });
 
     window.setTimeout(() => {
-      setMessage((currentMessage) => {
-        if (
-          currentMessage.type === type &&
-          currentMessage.text === text
-        ) {
-          return {
-            type: "",
-            text: "",
-          };
-        }
+      setMessage(
+        (currentMessage) => {
+          if (
+            currentMessage.type ===
+              type &&
+            currentMessage.text ===
+              text
+          ) {
+            return {
+              type: "",
+              text: "",
+            };
+          }
 
-        return currentMessage;
-      });
+          return currentMessage;
+        }
+      );
     }, 5000);
   }
 
-  async function handleToggleCoupon(coupon) {
+  async function handleToggleCoupon(
+    coupon
+  ) {
+    if (!canUpdateCoupons) {
+      showMessage(
+        "error",
+        "You do not have permission to update coupons."
+      );
+
+      return;
+    }
+
     const couponId =
       getCouponIdentifier(coupon);
 
@@ -407,7 +548,8 @@ export default function CouponSearchTable({
     const nextActiveState =
       !currentlyActive;
 
-    const actionKey = `toggle-${couponId}`;
+    const actionKey =
+      `toggle-${couponId}`;
 
     setProcessingAction(actionKey);
 
@@ -423,12 +565,15 @@ export default function CouponSearchTable({
         )}`,
         {
           method: "PATCH",
+
           headers: {
             "Content-Type":
               "application/json",
           },
+
           body: JSON.stringify({
-            isActive: nextActiveState,
+            isActive:
+              nextActiveState,
           }),
         }
       );
@@ -437,7 +582,10 @@ export default function CouponSearchTable({
         .json()
         .catch(() => null);
 
-      if (!response.ok || !data?.success) {
+      if (
+        !response.ok ||
+        !data?.success
+      ) {
         throw new Error(
           getErrorMessage(
             data,
@@ -449,34 +597,39 @@ export default function CouponSearchTable({
       const updatedCoupon =
         data.coupon || {
           ...coupon,
-          active: nextActiveState,
-          isActive: nextActiveState,
-          status: nextActiveState
-            ? "active"
-            : "inactive",
+          active:
+            nextActiveState,
+          isActive:
+            nextActiveState,
+          status:
+            nextActiveState
+              ? "active"
+              : "inactive",
         };
 
-      setCouponItems((currentCoupons) =>
-        currentCoupons.map(
-          (currentCoupon) => {
-            const currentCouponId =
-              getCouponIdentifier(
-                currentCoupon
-              );
+      setCouponItems(
+        (currentCoupons) =>
+          currentCoupons.map(
+            (currentCoupon) => {
+              const currentCouponId =
+                getCouponIdentifier(
+                  currentCoupon
+                );
 
-            if (
-              String(currentCouponId) ===
-              String(couponId)
-            ) {
-              return {
-                ...currentCoupon,
-                ...updatedCoupon,
-              };
+              if (
+                String(
+                  currentCouponId
+                ) === String(couponId)
+              ) {
+                return {
+                  ...currentCoupon,
+                  ...updatedCoupon,
+                };
+              }
+
+              return currentCoupon;
             }
-
-            return currentCoupon;
-          }
-        )
+          )
       );
 
       showMessage(
@@ -507,7 +660,18 @@ export default function CouponSearchTable({
     }
   }
 
-  async function handleDeleteCoupon(coupon) {
+  async function handleDeleteCoupon(
+    coupon
+  ) {
+    if (!canDeleteCoupons) {
+      showMessage(
+        "error",
+        "You do not have permission to delete coupons."
+      );
+
+      return;
+    }
+
     const couponId =
       getCouponIdentifier(coupon);
 
@@ -521,17 +685,20 @@ export default function CouponSearchTable({
     }
 
     const couponCode =
-      coupon.code || "this coupon";
+      coupon.code ||
+      "this coupon";
 
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${couponCode}"?\n\nThis action cannot be undone.`
-    );
+    const confirmed =
+      window.confirm(
+        `Are you sure you want to delete "${couponCode}"?\n\nThis action cannot be undone.`
+      );
 
     if (!confirmed) {
       return;
     }
 
-    const actionKey = `delete-${couponId}`;
+    const actionKey =
+      `delete-${couponId}`;
 
     setProcessingAction(actionKey);
 
@@ -554,7 +721,10 @@ export default function CouponSearchTable({
         .json()
         .catch(() => null);
 
-      if (!response.ok || !data?.success) {
+      if (
+        !response.ok ||
+        !data?.success
+      ) {
         throw new Error(
           getErrorMessage(
             data,
@@ -563,15 +733,16 @@ export default function CouponSearchTable({
         );
       }
 
-      setCouponItems((currentCoupons) =>
-        currentCoupons.filter(
-          (currentCoupon) =>
-            String(
-              getCouponIdentifier(
-                currentCoupon
-              )
-            ) !== String(couponId)
-        )
+      setCouponItems(
+        (currentCoupons) =>
+          currentCoupons.filter(
+            (currentCoupon) =>
+              String(
+                getCouponIdentifier(
+                  currentCoupon
+                )
+              ) !== String(couponId)
+          )
       );
 
       showMessage(
@@ -675,11 +846,13 @@ export default function CouponSearchTable({
       <div className="border border-white/10 bg-white/[0.02] p-5">
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px_220px_auto]">
           <input
-            type="text"
+            type="search"
             placeholder="Search coupons by code, name or description..."
             value={searchTerm}
             onChange={(event) =>
-              setSearchTerm(event.target.value)
+              setSearchTerm(
+                event.target.value
+              )
             }
             className="w-full border border-white/10 bg-white/5 px-5 py-4 text-sm text-[#f1ece4] outline-none transition placeholder:text-neutral-600 focus:border-white/30"
           />
@@ -756,8 +929,10 @@ export default function CouponSearchTable({
 
       <div className="flex flex-col gap-3 text-xs uppercase tracking-[0.25em] text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
         <span>
-          Showing {filteredCoupons.length} of{" "}
-          {couponItems.length} coupons
+          Showing{" "}
+          {filteredCoupons.length}{" "}
+          of {couponItems.length}{" "}
+          coupons
         </span>
 
         <span>
@@ -806,22 +981,32 @@ export default function CouponSearchTable({
                   );
 
                 const status =
-                  getCouponStatus(coupon);
+                  getCouponStatus(
+                    coupon
+                  );
 
                 const isActive =
-                  getCouponIsActive(coupon);
+                  getCouponIsActive(
+                    coupon
+                  );
 
-                const usageCount = Number(
-                  coupon.usageCount || 0
-                );
+                const usageCount =
+                  Number(
+                    coupon.usageCount ||
+                      0
+                  );
 
-                const usageLimit = Number(
-                  coupon.usageLimit || 0
-                );
+                const usageLimit =
+                  Number(
+                    coupon.usageLimit ||
+                      0
+                  );
 
-                const toggleActionKey = `toggle-${couponId}`;
+                const toggleActionKey =
+                  `toggle-${couponId}`;
 
-                const deleteActionKey = `delete-${couponId}`;
+                const deleteActionKey =
+                  `delete-${couponId}`;
 
                 const isToggling =
                   processingAction ===
@@ -832,7 +1017,9 @@ export default function CouponSearchTable({
                   deleteActionKey;
 
                 const isProcessing =
-                  Boolean(processingAction);
+                  Boolean(
+                    processingAction
+                  );
 
                 return (
                   <div
@@ -932,48 +1119,72 @@ export default function CouponSearchTable({
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      <Link
-                        href={`/admin/coupons/${couponId}/edit`}
-                        className={`border border-blue-500/70 px-3 py-2 text-xs text-blue-400 transition hover:bg-blue-500 hover:text-white ${
-                          isProcessing
-                            ? "pointer-events-none opacity-50"
-                            : ""
-                        }`}
-                      >
-                        Edit
-                      </Link>
+                      {canUpdateCoupons ? (
+                        <>
+                          <Link
+                            href={`/admin/coupons/${couponId}/edit`}
+                            className={`border border-blue-500/70 px-3 py-2 text-xs text-blue-400 transition hover:bg-blue-500 hover:text-white ${
+                              isProcessing
+                                ? "pointer-events-none opacity-50"
+                                : ""
+                            }`}
+                          >
+                            Edit
+                          </Link>
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleToggleCoupon(
-                            coupon
-                          )
-                        }
-                        disabled={isProcessing}
-                        className="border border-white/20 px-3 py-2 text-xs text-neutral-300 transition hover:border-white/40 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {isToggling
-                          ? "Updating..."
-                          : isActive
-                            ? "Deactivate"
-                            : "Activate"}
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleToggleCoupon(
+                                coupon
+                              )
+                            }
+                            disabled={
+                              isProcessing
+                            }
+                            className="border border-white/20 px-3 py-2 text-xs text-neutral-300 transition hover:border-white/40 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isToggling
+                              ? "Updating..."
+                              : isActive
+                                ? "Deactivate"
+                                : "Activate"}
+                          </button>
+                        </>
+                      ) : null}
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleDeleteCoupon(
-                            coupon
-                          )
-                        }
-                        disabled={isProcessing}
-                        className="border border-red-500/50 px-3 py-2 text-xs text-red-400 transition hover:bg-red-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {isDeleting
-                          ? "Deleting..."
-                          : "Delete"}
-                      </button>
+                      {canDeleteCoupons ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleDeleteCoupon(
+                              coupon
+                            )
+                          }
+                          disabled={
+                            isProcessing
+                          }
+                          className="border border-red-500/50 px-3 py-2 text-xs text-red-400 transition hover:bg-red-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isDeleting
+                            ? "Deleting..."
+                            : "Delete"}
+                        </button>
+                      ) : null}
+
+                      {!isSessionPending &&
+                      !canUpdateCoupons &&
+                      !canDeleteCoupons ? (
+                        <span className="border border-white/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-neutral-600">
+                          Read Only
+                        </span>
+                      ) : null}
+
+                      {isSessionPending ? (
+                        <span className="border border-white/10 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-neutral-600">
+                          Checking Access
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 );

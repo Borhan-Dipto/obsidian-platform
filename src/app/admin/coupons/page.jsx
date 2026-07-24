@@ -1,25 +1,46 @@
 import Link from "next/link";
 import clientPromise from "../../../lib/mongodb";
-import { requireAdminAuth } from "../../../lib/adminAuth";
+import {
+  hasAdminPermission,
+  requireAdminPermission,
+} from "../../../lib/adminAuth";
 import CouponSearchTable from "../../../components/admin/CouponSearchTable";
 
 async function getCoupons() {
   const client = await clientPromise;
-  const db = client.db(process.env.MONGODB_DB || "obsidian");
+
+  const db = client.db(
+    process.env.MONGODB_DB || "obsidian"
+  );
 
   const coupons = await db
     .collection("coupons")
     .find({})
-    .sort({ createdAt: -1 })
+    .sort({
+      createdAt: -1,
+    })
     .toArray();
 
-  return JSON.parse(JSON.stringify(coupons));
+  return JSON.parse(
+    JSON.stringify(coupons)
+  );
 }
 
 export default async function AdminCouponsPage() {
-  await requireAdminAuth();
+  await requireAdminPermission({
+    coupons: ["read"],
+  });
 
-  const coupons = await getCoupons();
+  const [
+    coupons,
+    canCreateCoupons,
+  ] = await Promise.all([
+    getCoupons(),
+
+    hasAdminPermission({
+      coupons: ["create"],
+    }),
+  ]);
 
   return (
     <main className="min-h-screen bg-[#0b0b0b] px-6 py-10 text-[#f1ece4]">
@@ -35,18 +56,21 @@ export default async function AdminCouponsPage() {
             </h1>
 
             <p className="mt-5 max-w-2xl text-sm leading-7 text-neutral-500">
-              Create and manage promotional discount codes, validity dates,
-              usage limits, order requirements and shipping offers.
+              Create and manage promotional discount codes,
+              validity dates, usage limits, order requirements
+              and shipping offers.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-4">
-            <Link
-              href="/admin/coupons/new"
-              className="bg-[#f1ece4] px-6 py-3 text-xs uppercase tracking-[0.3em] text-[#0b0b0b] transition hover:opacity-80"
-            >
-              Add Coupon
-            </Link>
+            {canCreateCoupons ? (
+              <Link
+                href="/admin/coupons/new"
+                className="bg-[#f1ece4] px-6 py-3 text-xs uppercase tracking-[0.3em] text-[#0b0b0b] transition hover:opacity-80"
+              >
+                Add Coupon
+              </Link>
+            ) : null}
 
             <Link
               href="/admin"
@@ -64,19 +88,24 @@ export default async function AdminCouponsPage() {
             </p>
 
             <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-neutral-500">
-              Create your first promotional coupon to offer percentage
-              discounts, fixed discounts or free shipping to customers.
+              {canCreateCoupons
+                ? "Create your first promotional coupon to offer percentage discounts, fixed discounts or free shipping to customers."
+                : "No promotional coupons are currently available. This role has read-only access to coupon records."}
             </p>
 
-            <Link
-              href="/admin/coupons/new"
-              className="mt-8 inline-flex bg-[#f1ece4] px-6 py-3 text-xs uppercase tracking-[0.3em] text-[#0b0b0b] transition hover:opacity-80"
-            >
-              Create First Coupon
-            </Link>
+            {canCreateCoupons ? (
+              <Link
+                href="/admin/coupons/new"
+                className="mt-8 inline-flex bg-[#f1ece4] px-6 py-3 text-xs uppercase tracking-[0.3em] text-[#0b0b0b] transition hover:opacity-80"
+              >
+                Create First Coupon
+              </Link>
+            ) : null}
           </div>
         ) : (
-          <CouponSearchTable coupons={coupons} />
+          <CouponSearchTable
+            coupons={coupons}
+          />
         )}
       </div>
     </main>

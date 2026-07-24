@@ -1,11 +1,13 @@
-import { requireAdminAuth } from "../../../../lib/adminAuth";
+import { requireAdminPermission } from "../../../../lib/adminAuth";
 import { getCollectionsContent } from "../../../../lib/getCmsContent";
 import CollectionsContentEditor from "../../../../components/admin/CollectionsContentEditor";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminCollectionsContentPage() {
-  await requireAdminAuth();
+  await requireAdminPermission({
+    content: ["update"],
+  });
 
   const collectionsContent = await getCollectionsContent();
 

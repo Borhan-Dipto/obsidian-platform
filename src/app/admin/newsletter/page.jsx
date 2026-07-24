@@ -3,7 +3,10 @@ import { ObjectId } from "mongodb";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import clientPromise from "../../../lib/mongodb";
-import { requireAdminAuth } from "../../../lib/adminAuth";
+import {
+  hasAdminPermission,
+  requireAdminPermission,
+} from "../../../lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -349,7 +352,9 @@ async function getNewsletterData({
 async function addSubscriber(formData) {
   "use server";
 
-  await requireAdminAuth();
+  await requireAdminPermission({
+    newsletter: ["create"],
+  });
 
   const email = normalizeEmail(
     formData.get("email")
@@ -468,7 +473,9 @@ async function updateSubscriberStatus(
 ) {
   "use server";
 
-  await requireAdminAuth();
+  await requireAdminPermission({
+    newsletter: ["update"],
+  });
 
   const subscriberId = normalizeText(
     formData.get("subscriberId")
@@ -568,7 +575,9 @@ async function updateSubscriberStatus(
 async function deleteSubscriber(formData) {
   "use server";
 
-  await requireAdminAuth();
+  await requireAdminPermission({
+    newsletter: ["delete"],
+  });
 
   const subscriberId = normalizeText(
     formData.get("subscriberId")
@@ -675,7 +684,32 @@ function getErrorMessage(code) {
 export default async function NewsletterAdminPage({
   searchParams,
 }) {
-  await requireAdminAuth();
+  await requireAdminPermission({
+    newsletter: ["read"],
+  });
+
+  const [
+    canCreateSubscribers,
+    canUpdateSubscribers,
+    canDeleteSubscribers,
+    canExportSubscribers,
+  ] = await Promise.all([
+    hasAdminPermission({
+      newsletter: ["create"],
+    }),
+
+    hasAdminPermission({
+      newsletter: ["update"],
+    }),
+
+    hasAdminPermission({
+      newsletter: ["delete"],
+    }),
+
+    hasAdminPermission({
+      newsletter: ["export"],
+    }),
+  ]);
 
   const resolvedSearchParams =
     await searchParams;
@@ -807,12 +841,14 @@ export default async function NewsletterAdminPage({
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            <a
-              href={exportUrl}
-              className="inline-flex items-center justify-center border border-white/15 px-6 py-4 text-[10px] uppercase tracking-[0.3em] text-neutral-300 transition hover:bg-[#f1ece4] hover:text-[#0b0b0b]"
-            >
-              Export CSV ↓
-            </a>
+            {canExportSubscribers ? (
+              <a
+                href={exportUrl}
+                className="inline-flex items-center justify-center border border-white/15 px-6 py-4 text-[10px] uppercase tracking-[0.3em] text-neutral-300 transition hover:bg-[#f1ece4] hover:text-[#0b0b0b]"
+              >
+                Export CSV ↓
+              </a>
+            ) : null}
 
             <Link
               href="/"
@@ -865,59 +901,72 @@ export default async function NewsletterAdminPage({
         </section>
 
         <section className="mt-10 border border-white/10 bg-[#0b0b0b]">
-          <div className="border-b border-white/10 p-6 lg:p-8">
-            <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.75fr)] xl:items-end">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.35em] text-neutral-600">
-                  Add Subscriber
-                </p>
+          {canCreateSubscribers ? (
+            <div className="border-b border-white/10 p-6 lg:p-8">
+              <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.75fr)] xl:items-end">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-neutral-600">
+                    Add Subscriber
+                  </p>
 
-                <h2 className="mt-4 font-heading text-3xl font-light">
-                  Manual subscription
-                </h2>
+                  <h2 className="mt-4 font-heading text-3xl font-light">
+                    Manual subscription
+                  </h2>
 
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-neutral-500">
-                  Add a customer manually. Existing
-                  unsubscribed emails will be
-                  reactivated instead of duplicated.
-                </p>
-              </div>
+                  <p className="mt-3 max-w-2xl text-sm leading-7 text-neutral-500">
+                    Add a customer manually. Existing
+                    unsubscribed emails will be
+                    reactivated instead of duplicated.
+                  </p>
+                </div>
 
-              <form
-                action={addSubscriber}
-                className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]"
-              >
-                <input
-                  type="hidden"
-                  name="returnUrl"
-                  value={currentUrl}
-                />
-
-                <label className="block">
-                  <span className="sr-only">
-                    Subscriber email
-                  </span>
-
-                  <input
-                    type="email"
-                    name="email"
-                    required
-                    maxLength={254}
-                    autoComplete="email"
-                    placeholder="customer@example.com"
-                    className="h-12 w-full border border-white/10 bg-[#080808] px-4 text-sm text-[#f1ece4] outline-none transition placeholder:text-neutral-700 focus:border-white/30"
-                  />
-                </label>
-
-                <button
-                  type="submit"
-                  className="h-12 border border-[#f1ece4] bg-[#f1ece4] px-6 text-[10px] uppercase tracking-[0.28em] text-[#0b0b0b] transition hover:bg-transparent hover:text-[#f1ece4]"
+                <form
+                  action={addSubscriber}
+                  className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]"
                 >
-                  Add Subscriber
-                </button>
-              </form>
+                  <input
+                    type="hidden"
+                    name="returnUrl"
+                    value={currentUrl}
+                  />
+
+                  <label className="block">
+                    <span className="sr-only">
+                      Subscriber email
+                    </span>
+
+                    <input
+                      type="email"
+                      name="email"
+                      required
+                      maxLength={254}
+                      autoComplete="email"
+                      placeholder="customer@example.com"
+                      className="h-12 w-full border border-white/10 bg-[#080808] px-4 text-sm text-[#f1ece4] outline-none transition placeholder:text-neutral-700 focus:border-white/30"
+                    />
+                  </label>
+
+                  <button
+                    type="submit"
+                    className="h-12 border border-[#f1ece4] bg-[#f1ece4] px-6 text-[10px] uppercase tracking-[0.28em] text-[#0b0b0b] transition hover:bg-transparent hover:text-[#f1ece4]"
+                  >
+                    Add Subscriber
+                  </button>
+                </form>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="border-b border-white/10 p-6 lg:p-8">
+              <p className="text-[10px] uppercase tracking-[0.35em] text-neutral-600">
+                Read-only access
+              </p>
+
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-neutral-500">
+                You can review and filter newsletter subscribers. Manual
+                subscription controls are hidden for this role.
+              </p>
+            </div>
+          )}
 
           <div className="border-b border-white/10 p-5 sm:p-6">
             <form
@@ -992,12 +1041,14 @@ export default async function NewsletterAdminPage({
                 {totalPages}
               </p>
 
-              <a
-                href={exportUrl}
-                className="text-[10px] uppercase tracking-[0.24em] text-neutral-400 transition hover:text-white"
-              >
-                Export these results
-              </a>
+              {canExportSubscribers ? (
+                <a
+                  href={exportUrl}
+                  className="text-[10px] uppercase tracking-[0.24em] text-neutral-400 transition hover:text-white"
+                >
+                  Export these results
+                </a>
+              ) : null}
             </div>
           </div>
 
@@ -1008,9 +1059,9 @@ export default async function NewsletterAdminPage({
               </p>
 
               <p className="mx-auto mt-4 max-w-md text-sm leading-7 text-neutral-500">
-                Add a subscriber manually or wait
-                for customers to join through the
-                storefront newsletter form.
+                {canCreateSubscribers
+                  ? "Add a subscriber manually or wait for customers to join through the storefront newsletter form."
+                  : "No subscriber records match the current search and filter selection."}
               </p>
             </div>
           ) : (
@@ -1085,77 +1136,88 @@ export default async function NewsletterAdminPage({
 
                             <td className="px-6 py-5">
                               <div className="flex items-center justify-end gap-3">
-                                <form
-                                  action={
-                                    updateSubscriberStatus
-                                  }
-                                  className="flex items-center gap-2"
-                                >
-                                  <input
-                                    type="hidden"
-                                    name="subscriberId"
-                                    value={
-                                      subscriber._id
+                                {canUpdateSubscribers ? (
+                                  <form
+                                    action={
+                                      updateSubscriberStatus
                                     }
-                                  />
+                                    className="flex items-center gap-2"
+                                  >
+                                    <input
+                                      type="hidden"
+                                      name="subscriberId"
+                                      value={
+                                        subscriber._id
+                                      }
+                                    />
 
-                                  <input
-                                    type="hidden"
-                                    name="returnUrl"
-                                    value={currentUrl}
-                                  />
+                                    <input
+                                      type="hidden"
+                                      name="returnUrl"
+                                      value={currentUrl}
+                                    />
 
-                                  <select
-                                    name="status"
-                                    defaultValue={
-                                      subscriberStatus
+                                    <select
+                                      name="status"
+                                      defaultValue={
+                                        subscriberStatus
+                                      }
+                                      aria-label={`Status for ${subscriber.email}`}
+                                      className="h-10 border border-white/10 bg-[#080808] px-3 text-xs text-neutral-300 outline-none transition focus:border-white/30"
+                                    >
+                                      <option value="active">
+                                        Active
+                                      </option>
+
+                                      <option value="unsubscribed">
+                                        Unsubscribed
+                                      </option>
+                                    </select>
+
+                                    <button
+                                      type="submit"
+                                      className="h-10 border border-white/15 px-4 text-[9px] uppercase tracking-[0.22em] text-neutral-300 transition hover:border-white/35 hover:text-white"
+                                    >
+                                      Update
+                                    </button>
+                                  </form>
+                                ) : null}
+
+                                {canDeleteSubscribers ? (
+                                  <form
+                                    action={
+                                      deleteSubscriber
                                     }
-                                    aria-label={`Status for ${subscriber.email}`}
-                                    className="h-10 border border-white/10 bg-[#080808] px-3 text-xs text-neutral-300 outline-none transition focus:border-white/30"
                                   >
-                                    <option value="active">
-                                      Active
-                                    </option>
+                                    <input
+                                      type="hidden"
+                                      name="subscriberId"
+                                      value={
+                                        subscriber._id
+                                      }
+                                    />
 
-                                    <option value="unsubscribed">
-                                      Unsubscribed
-                                    </option>
-                                  </select>
+                                    <input
+                                      type="hidden"
+                                      name="returnUrl"
+                                      value={currentUrl}
+                                    />
 
-                                  <button
-                                    type="submit"
-                                    className="h-10 border border-white/15 px-4 text-[9px] uppercase tracking-[0.22em] text-neutral-300 transition hover:border-white/35 hover:text-white"
-                                  >
-                                    Update
-                                  </button>
-                                </form>
+                                    <button
+                                      type="submit"
+                                      className="h-10 border border-red-400/20 px-4 text-[9px] uppercase tracking-[0.22em] text-red-300 transition hover:bg-red-400/10"
+                                    >
+                                      Delete
+                                    </button>
+                                  </form>
+                                ) : null}
 
-                                <form
-                                  action={
-                                    deleteSubscriber
-                                  }
-                                >
-                                  <input
-                                    type="hidden"
-                                    name="subscriberId"
-                                    value={
-                                      subscriber._id
-                                    }
-                                  />
-
-                                  <input
-                                    type="hidden"
-                                    name="returnUrl"
-                                    value={currentUrl}
-                                  />
-
-                                  <button
-                                    type="submit"
-                                    className="h-10 border border-red-400/20 px-4 text-[9px] uppercase tracking-[0.22em] text-red-300 transition hover:bg-red-400/10"
-                                  >
-                                    Delete
-                                  </button>
-                                </form>
+                                {!canUpdateSubscribers &&
+                                !canDeleteSubscribers ? (
+                                  <span className="inline-flex h-10 items-center border border-white/10 px-4 text-[9px] uppercase tracking-[0.22em] text-neutral-600">
+                                    Read Only
+                                  </span>
+                                ) : null}
                               </div>
                             </td>
                           </tr>
@@ -1208,71 +1270,84 @@ export default async function NewsletterAdminPage({
                         </p>
 
                         <div className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-                          <form
-                            action={
-                              updateSubscriberStatus
-                            }
-                            className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]"
-                          >
-                            <input
-                              type="hidden"
-                              name="subscriberId"
-                              value={subscriber._id}
-                            />
-
-                            <input
-                              type="hidden"
-                              name="returnUrl"
-                              value={currentUrl}
-                            />
-
-                            <select
-                              name="status"
-                              defaultValue={
-                                subscriberStatus
+                          {canUpdateSubscribers ? (
+                            <form
+                              action={
+                                updateSubscriberStatus
                               }
-                              aria-label={`Status for ${subscriber.email}`}
-                              className="h-11 w-full border border-white/10 bg-[#080808] px-3 text-xs text-neutral-300 outline-none transition focus:border-white/30"
+                              className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]"
                             >
-                              <option value="active">
-                                Active
-                              </option>
+                              <input
+                                type="hidden"
+                                name="subscriberId"
+                                value={subscriber._id}
+                              />
 
-                              <option value="unsubscribed">
-                                Unsubscribed
-                              </option>
-                            </select>
+                              <input
+                                type="hidden"
+                                name="returnUrl"
+                                value={currentUrl}
+                              />
 
-                            <button
-                              type="submit"
-                              className="h-11 border border-white/15 px-4 text-[9px] uppercase tracking-[0.22em] text-neutral-300 transition hover:border-white/35 hover:text-white"
+                              <select
+                                name="status"
+                                defaultValue={
+                                  subscriberStatus
+                                }
+                                aria-label={`Status for ${subscriber.email}`}
+                                className="h-11 w-full border border-white/10 bg-[#080808] px-3 text-xs text-neutral-300 outline-none transition focus:border-white/30"
+                              >
+                                <option value="active">
+                                  Active
+                                </option>
+
+                                <option value="unsubscribed">
+                                  Unsubscribed
+                                </option>
+                              </select>
+
+                              <button
+                                type="submit"
+                                className="h-11 border border-white/15 px-4 text-[9px] uppercase tracking-[0.22em] text-neutral-300 transition hover:border-white/35 hover:text-white"
+                              >
+                                Update
+                              </button>
+                            </form>
+                          ) : null}
+
+                          {canDeleteSubscribers ? (
+                            <form
+                              action={
+                                deleteSubscriber
+                              }
                             >
-                              Update
-                            </button>
-                          </form>
+                              <input
+                                type="hidden"
+                                name="subscriberId"
+                                value={subscriber._id}
+                              />
 
-                          <form
-                            action={deleteSubscriber}
-                          >
-                            <input
-                              type="hidden"
-                              name="subscriberId"
-                              value={subscriber._id}
-                            />
+                              <input
+                                type="hidden"
+                                name="returnUrl"
+                                value={currentUrl}
+                              />
 
-                            <input
-                              type="hidden"
-                              name="returnUrl"
-                              value={currentUrl}
-                            />
+                              <button
+                                type="submit"
+                                className="h-11 w-full border border-red-400/20 px-4 text-[9px] uppercase tracking-[0.22em] text-red-300 transition hover:bg-red-400/10"
+                              >
+                                Delete
+                              </button>
+                            </form>
+                          ) : null}
 
-                            <button
-                              type="submit"
-                              className="h-11 w-full border border-red-400/20 px-4 text-[9px] uppercase tracking-[0.22em] text-red-300 transition hover:bg-red-400/10"
-                            >
-                              Delete
-                            </button>
-                          </form>
+                          {!canUpdateSubscribers &&
+                          !canDeleteSubscribers ? (
+                            <span className="flex h-11 items-center justify-center border border-white/10 px-4 text-[9px] uppercase tracking-[0.22em] text-neutral-600">
+                              Read Only
+                            </span>
+                          ) : null}
                         </div>
                       </article>
                     );

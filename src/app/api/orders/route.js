@@ -1,11 +1,17 @@
 import crypto from "crypto";
+
+import {
+  requireAdminApiPermission,
+} from "../../../lib/adminApiAuthorization";
+
 import clientPromise from "../../../lib/mongodb";
-import { isAdminAuthenticated } from "../../../lib/adminAuth";
 import { getCurrentCustomer } from "../../../lib/customerAuth";
 import { PRODUCTS_COLLECTION_NAME } from "../../../lib/catalog";
+
 import {
   dispatchOrderPlacedNotifications,
 } from "../../../lib/orderNotifications";
+
 import {
   COUPONS_COLLECTION_NAME,
   ORDERS_COLLECTION_NAME,
@@ -16,26 +22,42 @@ import {
   createStockReservationOperation,
 } from "../../../lib/orderPricing";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+export const dynamic =
+  "force-dynamic";
 
-const MAX_REQUEST_SIZE = 250_000;
-const MAX_ORDER_LIMIT = 500;
+export const runtime =
+  "nodejs";
 
-function jsonResponse(body, status = 200) {
-  return Response.json(body, {
-    status,
+const MAX_REQUEST_SIZE =
+  250_000;
 
-    headers: {
-      "Cache-Control": "no-store",
-    },
-  });
+const MAX_ORDER_LIMIT =
+  500;
+
+function jsonResponse(
+  body,
+  status = 200
+) {
+  return Response.json(
+    body,
+    {
+      status,
+
+      headers: {
+        "Cache-Control":
+          "no-store",
+      },
+    }
+  );
 }
 
-function isPlainObject(value) {
+function isPlainObject(
+  value
+) {
   return Boolean(
     value &&
-      typeof value === "object" &&
+      typeof value ===
+        "object" &&
       !Array.isArray(value)
   );
 }
@@ -44,98 +66,137 @@ function normalizeText(
   value,
   maximumLength = 1000
 ) {
-  return String(value ?? "")
+  return String(
+    value ?? ""
+  )
     .normalize("NFKC")
     .trim()
-    .slice(0, maximumLength);
+    .slice(
+      0,
+      maximumLength
+    );
 }
 
-function normalizePhone(value) {
-  return String(value ?? "").replace(
+function normalizePhone(
+  value
+) {
+  return String(
+    value ?? ""
+  ).replace(
     /\D/g,
     ""
   );
 }
 
-function normalizeEmail(value) {
+function normalizeEmail(
+  value
+) {
   return normalizeText(
     value,
     254
   ).toLowerCase();
 }
 
-function normalizeCheckoutToken(value) {
-  const token = normalizeText(
-    value,
-    120
-  );
+function normalizeCheckoutToken(
+  value
+) {
+  const token =
+    normalizeText(
+      value,
+      120
+    );
 
   if (!token) {
     return {
-      token: `server-${crypto.randomUUID()}`,
-      clientProvided: false,
+      token:
+        `server-${crypto.randomUUID()}`,
+
+      clientProvided:
+        false,
     };
   }
 
   if (
     token.length < 16 ||
-    !/^[A-Za-z0-9._:-]+$/.test(token)
+    !/^[A-Za-z0-9._:-]+$/.test(
+      token
+    )
   ) {
     throw new OrderPricingError(
       "Checkout session is invalid. Please refresh checkout and try again.",
       {
         status: 400,
-        code: "INVALID_CHECKOUT_TOKEN",
+
+        code:
+          "INVALID_CHECKOUT_TOKEN",
       }
     );
   }
 
   return {
     token,
-    clientProvided: true,
+
+    clientProvided:
+      true,
   };
 }
 
-function validateCustomer(customer) {
-  if (!isPlainObject(customer)) {
+function validateCustomer(
+  customer
+) {
+  if (
+    !isPlainObject(
+      customer
+    )
+  ) {
     throw new OrderPricingError(
       "Please provide valid customer details.",
       {
         status: 400,
-        code: "INVALID_CUSTOMER",
+        code:
+          "INVALID_CUSTOMER",
       }
     );
   }
 
-  const fullName = normalizeText(
-    customer.fullName,
-    120
-  );
+  const fullName =
+    normalizeText(
+      customer.fullName,
+      120
+    );
 
-  const phone = normalizePhone(
-    customer.phone
-  );
+  const phone =
+    normalizePhone(
+      customer.phone
+    );
 
-  const email = normalizeEmail(
-    customer.email
-  );
+  const email =
+    normalizeEmail(
+      customer.email
+    );
 
-  const address = normalizeText(
-    customer.address,
-    1000
-  );
+  const address =
+    normalizeText(
+      customer.address,
+      1000
+    );
 
-  const note = normalizeText(
-    customer.note,
-    1000
-  );
+  const note =
+    normalizeText(
+      customer.note,
+      1000
+    );
 
-  if (fullName.length < 2) {
+  if (
+    fullName.length < 2
+  ) {
     throw new OrderPricingError(
       "Please enter your full name.",
       {
         status: 400,
-        code: "INVALID_CUSTOMER_NAME",
+
+        code:
+          "INVALID_CUSTOMER_NAME",
       }
     );
   }
@@ -148,7 +209,8 @@ function validateCustomer(customer) {
       "Please provide a valid phone number.",
       {
         status: 400,
-        code: "INVALID_PHONE",
+        code:
+          "INVALID_PHONE",
       }
     );
   }
@@ -163,17 +225,21 @@ function validateCustomer(customer) {
       "Please provide a valid email address.",
       {
         status: 400,
-        code: "INVALID_EMAIL",
+        code:
+          "INVALID_EMAIL",
       }
     );
   }
 
-  if (address.length < 8) {
+  if (
+    address.length < 8
+  ) {
     throw new OrderPricingError(
       "Please provide your full delivery address.",
       {
         status: 400,
-        code: "INVALID_ADDRESS",
+        code:
+          "INVALID_ADDRESS",
       }
     );
   }
@@ -194,10 +260,11 @@ function createCustomerAccountLink(
     return null;
   }
 
-  const accountId = normalizeText(
-    customer._id,
-    120
-  );
+  const accountId =
+    normalizeText(
+      customer._id,
+      120
+    );
 
   const customerId =
     normalizeText(
@@ -205,7 +272,10 @@ function createCustomerAccountLink(
       120
     ) || accountId;
 
-  if (!accountId && !customerId) {
+  if (
+    !accountId &&
+    !customerId
+  ) {
     return null;
   }
 
@@ -213,38 +283,48 @@ function createCustomerAccountLink(
     accountId,
     customerId,
 
-    email: normalizeEmail(
-      customer.email ||
-        customer.emailNormalized
-    ),
+    email:
+      normalizeEmail(
+        customer.email ||
+          customer.emailNormalized
+      ),
 
-    phone: normalizePhone(
-      customer.phone
-    ),
+    phone:
+      normalizePhone(
+        customer.phone
+      ),
   };
 }
 
 function generateOrderId() {
-  const timestamp = Date.now()
-    .toString(36)
-    .toUpperCase();
+  const timestamp =
+    Date.now()
+      .toString(36)
+      .toUpperCase();
 
-  const random = crypto
-    .randomBytes(5)
-    .toString("hex")
-    .toUpperCase();
+  const random =
+    crypto
+      .randomBytes(5)
+      .toString("hex")
+      .toUpperCase();
 
   return `OBS-${timestamp}-${random}`;
 }
 
-function escapeRegex(value) {
-  return String(value || "").replace(
+function escapeRegex(
+  value
+) {
+  return String(
+    value || ""
+  ).replace(
     /[.*+?^${}()|[\]\\]/g,
     "\\$&"
   );
 }
 
-function getPublicPricing(pricing = {}) {
+function getPublicPricing(
+  pricing = {}
+) {
   return {
     ...pricing,
 
@@ -260,24 +340,33 @@ function getPublicPricing(pricing = {}) {
   };
 }
 
-function serializeOrder(order) {
+function serializeOrder(
+  order
+) {
   if (!order) {
     return null;
   }
 
   return {
     ...order,
-    id: order.orderId,
 
-    pricing: getPublicPricing(
-      order.pricing
-    ),
+    id:
+      order.orderId,
+
+    pricing:
+      getPublicPricing(
+        order.pricing
+      ),
   };
 }
 
-function getRequestOrigin(request) {
+function getRequestOrigin(
+  request
+) {
   try {
-    return new URL(request.url).origin;
+    return new URL(
+      request.url
+    ).origin;
   } catch {
     return "";
   }
@@ -289,22 +378,37 @@ async function sendNewOrderNotifications({
 }) {
   try {
     const summary =
-      await dispatchOrderPlacedNotifications({
-        order,
-        baseUrl:
-          getRequestOrigin(request),
-      });
+      await dispatchOrderPlacedNotifications(
+        {
+          order,
 
-    if (summary.failed > 0) {
+          baseUrl:
+            getRequestOrigin(
+              request
+            ),
+        }
+      );
+
+    if (
+      summary.failed > 0
+    ) {
       console.warn(
         "Order notification delivery completed with failures:",
         {
-          orderId: order.orderId,
+          orderId:
+            order.orderId,
+
           attempted:
             summary.attempted,
-          sent: summary.sent,
-          failed: summary.failed,
-          skipped: summary.skipped,
+
+          sent:
+            summary.sent,
+
+          failed:
+            summary.failed,
+
+          skipped:
+            summary.skipped,
         }
       );
     }
@@ -315,9 +419,12 @@ async function sendNewOrderNotifications({
       "Order notification dispatch error:",
       {
         orderId:
-          order?.orderId || "",
+          order?.orderId ||
+          "",
+
         message:
-          error?.message || error,
+          error?.message ||
+          error,
       }
     );
 
@@ -341,7 +448,9 @@ async function ensureOrderIndexes(
         },
         {
           unique: true,
-          name: "order_id_unique",
+
+          name:
+            "order_id_unique",
         }
       ),
 
@@ -357,7 +466,8 @@ async function ensureOrderIndexes(
 
           partialFilterExpression: {
             checkoutToken: {
-              $type: "string",
+              $type:
+                "string",
             },
           },
         }
@@ -368,7 +478,8 @@ async function ensureOrderIndexes(
           createdAt: -1,
         },
         {
-          name: "orders_created_at",
+          name:
+            "orders_created_at",
         }
       ),
 
@@ -394,7 +505,8 @@ async function ensureOrderIndexes(
 
           partialFilterExpression: {
             customerAccountId: {
-              $type: "string",
+              $type:
+                "string",
             },
           },
         }
@@ -411,7 +523,8 @@ async function ensureOrderIndexes(
 
           partialFilterExpression: {
             customerId: {
-              $type: "string",
+              $type:
+                "string",
             },
           },
         }
@@ -419,8 +532,11 @@ async function ensureOrderIndexes(
 
       ordersCollection.createIndex(
         {
-          "customer.customerId": 1,
-          createdAt: -1,
+          "customer.customerId":
+            1,
+
+          createdAt:
+            -1,
         },
         {
           name:
@@ -428,7 +544,8 @@ async function ensureOrderIndexes(
 
           partialFilterExpression: {
             "customer.customerId": {
-              $type: "string",
+              $type:
+                "string",
             },
           },
         }
@@ -436,8 +553,11 @@ async function ensureOrderIndexes(
 
       ordersCollection.createIndex(
         {
-          "customer.email": 1,
-          createdAt: -1,
+          "customer.email":
+            1,
+
+          createdAt:
+            -1,
         },
         {
           name:
@@ -447,8 +567,11 @@ async function ensureOrderIndexes(
 
       ordersCollection.createIndex(
         {
-          "customer.phone": 1,
-          createdAt: -1,
+          "customer.phone":
+            1,
+
+          createdAt:
+            -1,
         },
         {
           name:
@@ -462,17 +585,20 @@ async function ensureOrderIndexes(
         )
         .createIndex(
           {
-            normalizedCode: 1,
+            normalizedCode:
+              1,
           },
           {
-            unique: true,
+            unique:
+              true,
 
             name:
               "coupon_normalized_code_unique",
 
             partialFilterExpression: {
               normalizedCode: {
-                $type: "string",
+                $type:
+                  "string",
               },
             },
           }
@@ -481,17 +607,21 @@ async function ensureOrderIndexes(
   } catch (error) {
     console.warn(
       "Order index warning:",
-      error?.message || error
+      error?.message ||
+        error
     );
   }
 }
 
-async function readJsonBody(request) {
-  const contentLength = Number(
-    request.headers.get(
-      "content-length"
-    ) || 0
-  );
+async function readJsonBody(
+  request
+) {
+  const contentLength =
+    Number(
+      request.headers.get(
+        "content-length"
+      ) || 0
+    );
 
   if (
     Number.isFinite(
@@ -504,7 +634,8 @@ async function readJsonBody(request) {
       "Request body is too large.",
       {
         status: 413,
-        code: "REQUEST_TOO_LARGE",
+        code:
+          "REQUEST_TOO_LARGE",
       }
     );
   }
@@ -520,7 +651,8 @@ async function readJsonBody(request) {
       "Request body is too large.",
       {
         status: 413,
-        code: "REQUEST_TOO_LARGE",
+        code:
+          "REQUEST_TOO_LARGE",
       }
     );
   }
@@ -528,22 +660,31 @@ async function readJsonBody(request) {
   let body;
 
   try {
-    body = JSON.parse(rawBody);
+    body =
+      JSON.parse(
+        rawBody
+      );
   } catch {
     throw new OrderPricingError(
       "Invalid request body.",
       {
         status: 400,
-        code: "INVALID_JSON",
+        code:
+          "INVALID_JSON",
       }
     );
   }
 
-  if (!isPlainObject(body)) {
+  if (
+    !isPlainObject(
+      body
+    )
+  ) {
     throw new OrderPricingError(
       "Invalid request body.",
       {
         status: 400,
+
         code:
           "INVALID_REQUEST_BODY",
       }
@@ -553,76 +694,96 @@ async function readJsonBody(request) {
   return body;
 }
 
-export async function GET(request) {
+export async function GET(
+  request
+) {
   try {
-    if (
-      !(await isAdminAuthenticated())
-    ) {
-      return jsonResponse(
+    const authorization =
+      await requireAdminApiPermission(
+        request,
         {
-          success: false,
-          message:
-            "Admin authentication required.",
+          orders: [
+            "read",
+          ],
         },
-        401
+        {
+          path:
+            "/api/orders",
+
+          forbiddenMessage:
+            "You do not have permission to view orders.",
+        }
       );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
     }
 
     const client =
       await clientPromise;
 
-    const database = client.db(
-      process.env.MONGODB_DB ||
-        "obsidian"
-    );
+    const database =
+      client.db(
+        process.env.MONGODB_DB ||
+          "obsidian"
+      );
 
     await ensureOrderIndexes(
       database
     );
 
-    const url = new URL(
-      request.url
-    );
+    const url =
+      new URL(
+        request.url
+      );
 
-    const page = Math.max(
-      1,
-      Math.floor(
-        Number(
-          url.searchParams.get(
-            "page"
-          )
-        ) || 1
-      )
-    );
-
-    const limit = Math.min(
-      MAX_ORDER_LIMIT,
-
+    const page =
       Math.max(
         1,
+
         Math.floor(
           Number(
             url.searchParams.get(
-              "limit"
+              "page"
             )
-          ) || 100
+          ) || 1
         )
-      )
-    );
+      );
 
-    const status = normalizeText(
-      url.searchParams.get(
-        "status"
-      ),
-      50
-    ).toLowerCase();
+    const limit =
+      Math.min(
+        MAX_ORDER_LIMIT,
 
-    const search = normalizeText(
-      url.searchParams.get(
-        "search"
-      ),
-      100
-    );
+        Math.max(
+          1,
+
+          Math.floor(
+            Number(
+              url.searchParams.get(
+                "limit"
+              )
+            ) || 100
+          )
+        )
+      );
+
+    const status =
+      normalizeText(
+        url.searchParams.get(
+          "status"
+        ),
+        50
+      ).toLowerCase();
+
+    const search =
+      normalizeText(
+        url.searchParams.get(
+          "search"
+        ),
+        100
+      );
 
     const filter = {};
 
@@ -630,46 +791,64 @@ export async function GET(request) {
       status &&
       status !== "all"
     ) {
-      filter.status = status;
+      filter.status =
+        status;
     }
 
     if (search) {
       const safeSearch =
-        escapeRegex(search);
+        escapeRegex(
+          search
+        );
 
       filter.$or = [
         {
           orderId: {
-            $regex: safeSearch,
-            $options: "i",
+            $regex:
+              safeSearch,
+
+            $options:
+              "i",
           },
         },
 
         {
           customerId: {
-            $regex: safeSearch,
-            $options: "i",
+            $regex:
+              safeSearch,
+
+            $options:
+              "i",
           },
         },
 
         {
           "customer.fullName": {
-            $regex: safeSearch,
-            $options: "i",
+            $regex:
+              safeSearch,
+
+            $options:
+              "i",
           },
         },
 
         {
           "customer.phone": {
-            $regex: safeSearch,
-            $options: "i",
+            $regex:
+              safeSearch,
+
+            $options:
+              "i",
           },
         },
 
         {
           "customer.email": {
-            $regex: safeSearch,
-            $options: "i",
+            $regex:
+              safeSearch,
+
+            $options:
+              "i",
           },
         },
       ];
@@ -680,7 +859,10 @@ export async function GET(request) {
         ORDERS_COLLECTION_NAME
       );
 
-    const [orders, total] =
+    const [
+      orders,
+      total,
+    ] =
       await Promise.all([
         ordersCollection
           .find(filter)
@@ -688,7 +870,8 @@ export async function GET(request) {
             createdAt: -1,
           })
           .skip(
-            (page - 1) * limit
+            (page - 1) *
+              limit
           )
           .limit(limit)
           .toArray(),
@@ -711,10 +894,15 @@ export async function GET(request) {
         limit,
         total,
 
-        totalPages: Math.max(
-          1,
-          Math.ceil(total / limit)
-        ),
+        totalPages:
+          Math.max(
+            1,
+
+            Math.ceil(
+              total /
+                limit
+            )
+          ),
       },
     });
   } catch (error) {
@@ -726,6 +914,7 @@ export async function GET(request) {
     return jsonResponse(
       {
         success: false,
+
         message:
           "Failed to fetch orders.",
       },
@@ -734,12 +923,17 @@ export async function GET(request) {
   }
 }
 
-export async function POST(request) {
-  let checkoutTokenData = null;
+export async function POST(
+  request
+) {
+  let checkoutTokenData =
+    null;
 
   try {
     const body =
-      await readJsonBody(request);
+      await readJsonBody(
+        request
+      );
 
     checkoutTokenData =
       normalizeCheckoutToken(
@@ -762,22 +956,25 @@ export async function POST(request) {
 
     const deliveryArea =
       body.deliveryArea ||
-      body.customer?.deliveryArea;
+      body.customer
+        ?.deliveryArea;
 
     const paymentMethod =
       body.paymentMethod ||
       "cash_on_delivery";
 
     const couponCode =
-      body.couponCode || "";
+      body.couponCode ||
+      "";
 
     const client =
       await clientPromise;
 
-    const database = client.db(
-      process.env.MONGODB_DB ||
-        "obsidian"
-    );
+    const database =
+      client.db(
+        process.env.MONGODB_DB ||
+          "obsidian"
+      );
 
     await ensureOrderIndexes(
       database
@@ -789,13 +986,16 @@ export async function POST(request) {
       );
 
     if (
-      checkoutTokenData.clientProvided
+      checkoutTokenData
+        .clientProvided
     ) {
       const existingOrder =
-        await ordersCollection.findOne({
-          checkoutToken:
-            checkoutTokenData.token,
-        });
+        await ordersCollection.findOne(
+          {
+            checkoutToken:
+              checkoutTokenData.token,
+          }
+        );
 
       if (existingOrder) {
         return jsonResponse({
@@ -821,8 +1021,11 @@ export async function POST(request) {
     const session =
       client.startSession();
 
-    let savedOrder = null;
-    let duplicateOrder = null;
+    let savedOrder =
+      null;
+
+    let duplicateOrder =
+      null;
 
     try {
       await session.withTransaction(
@@ -845,28 +1048,35 @@ export async function POST(request) {
             return;
           }
 
-          const now = new Date();
+          const now =
+            new Date();
 
           const quote =
             await buildTrustedOrderQuote(
               {
                 database,
-                items: body.items,
+                items:
+                  body.items,
+
                 deliveryArea,
                 couponCode,
                 paymentMethod,
-                validatePayment: true,
+
+                validatePayment:
+                  true,
+
                 now,
                 session,
               }
             );
 
           const stockOperations =
-            quote.items.map((item) =>
-              createStockReservationOperation(
-                item,
-                now
-              )
+            quote.items.map(
+              (item) =>
+                createStockReservationOperation(
+                  item,
+                  now
+                )
             );
 
           const stockResult =
@@ -877,7 +1087,9 @@ export async function POST(request) {
               .bulkWrite(
                 stockOperations,
                 {
-                  ordered: true,
+                  ordered:
+                    true,
+
                   session,
                 }
               );
@@ -890,13 +1102,16 @@ export async function POST(request) {
               "One or more products no longer have enough stock. Please refresh your cart.",
               {
                 status: 409,
+
                 code:
                   "STOCK_CHANGED",
               }
             );
           }
 
-          if (quote.couponRecord) {
+          if (
+            quote.couponRecord
+          ) {
             const couponOperation =
               createCouponUsageOperation(
                 quote.couponRecord,
@@ -910,7 +1125,9 @@ export async function POST(request) {
                 )
                 .updateOne(
                   couponOperation.filter,
+
                   couponOperation.update,
+
                   {
                     session,
                   }
@@ -924,6 +1141,7 @@ export async function POST(request) {
                 "This coupon is no longer available.",
                 {
                   status: 409,
+
                   code:
                     "COUPON_CHANGED",
                 }
@@ -966,26 +1184,34 @@ export async function POST(request) {
             checkoutToken:
               checkoutTokenData.token,
 
-            source: "website",
+            source:
+              "website",
 
-            status: "pending",
-            paymentStatus: "unpaid",
+            status:
+              "pending",
+
+            paymentStatus:
+              "unpaid",
 
             paymentMethod:
-              publicQuote.paymentMethod
+              publicQuote
+                .paymentMethod
                 .value,
 
             paymentMethodLabel:
-              publicQuote.paymentMethod
+              publicQuote
+                .paymentMethod
                 .label,
 
             customerId:
               customerAccountLink
-                ?.customerId || null,
+                ?.customerId ||
+              null,
 
             customerAccountId:
               customerAccountLink
-                ?.accountId || null,
+                ?.accountId ||
+              null,
 
             customerLinkedAt:
               customerAccountLink
@@ -1010,30 +1236,38 @@ export async function POST(request) {
               publicQuote.pricing,
 
             subtotal:
-              publicQuote.pricing
+              publicQuote
+                .pricing
                 .subtotal,
 
             originalDeliveryCharge:
-              publicQuote.pricing
+              publicQuote
+                .pricing
                 .originalDeliveryCharge,
 
             deliveryCharge:
-              publicQuote.pricing
+              publicQuote
+                .pricing
                 .payableDeliveryCharge,
 
             discount:
-              publicQuote.pricing
+              publicQuote
+                .pricing
                 .totalDiscount,
 
             total:
-              publicQuote.pricing
+              publicQuote
+                .pricing
                 .total,
 
             coupon:
               publicQuote.coupon,
 
-            createdAt: now,
-            updatedAt: now,
+            createdAt:
+              now,
+
+            updatedAt:
+              now,
           };
 
           const result =
@@ -1046,17 +1280,20 @@ export async function POST(request) {
 
           savedOrder = {
             ...order,
+
             _id:
               result.insertedId,
           };
         },
         {
           readConcern: {
-            level: "snapshot",
+            level:
+              "snapshot",
           },
 
           writeConcern: {
-            w: "majority",
+            w:
+              "majority",
           },
 
           readPreference:
@@ -1093,10 +1330,14 @@ export async function POST(request) {
       );
     }
 
-    await sendNewOrderNotifications({
-      order: savedOrder,
-      request,
-    });
+    await sendNewOrderNotifications(
+      {
+        order:
+          savedOrder,
+
+        request,
+      }
+    );
 
     return jsonResponse(
       {
@@ -1126,8 +1367,11 @@ export async function POST(request) {
       return jsonResponse(
         {
           success: false,
-          code: error.code,
-          message: error.message,
+          code:
+            error.code,
+
+          message:
+            error.message,
 
           details:
             error.details ||
@@ -1145,10 +1389,11 @@ export async function POST(request) {
         const client =
           await clientPromise;
 
-        const database = client.db(
-          process.env.MONGODB_DB ||
-            "obsidian"
-        );
+        const database =
+          client.db(
+            process.env.MONGODB_DB ||
+              "obsidian"
+          );
 
         const existingOrder =
           await database
@@ -1179,7 +1424,9 @@ export async function POST(request) {
               ),
           });
         }
-      } catch (lookupError) {
+      } catch (
+        lookupError
+      ) {
         console.error(
           "Duplicate Order Lookup Error:",
           lookupError

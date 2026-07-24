@@ -5,6 +5,20 @@ import {
   twoFactor,
 } from "better-auth/plugins";
 import {
+  adminAccessControl,
+  adminRole,
+  catalogRole,
+  contentRole,
+  marketingRole,
+  operationsRole,
+  userRole,
+  viewerRole,
+} from "./adminPermissions";
+import {
+  adminAuthAuditAfterHook,
+  handleAdminAuthApiError,
+} from "./adminAuthAuditHooks";
+import {
   getMongoClient,
   MONGODB_DATABASE_NAME,
 } from "./mongodb";
@@ -126,6 +140,16 @@ export async function createAdminAuth(
 
     trustedOrigins:
       resolveTrustedOrigins(),
+
+    hooks: {
+      after:
+        adminAuthAuditAfterHook,
+    },
+
+    onAPIError: {
+      onError:
+        handleAdminAuthApiError,
+    },
 
     emailAndPassword: {
       enabled: true,
@@ -293,8 +317,9 @@ export async function createAdminAuth(
 
       admin({
         /*
-         * Only the local one-time bootstrap
-         * account receives the Admin role
+         * Only the controlled local
+         * bootstrap account receives the
+         * owner-level Admin role
          * automatically.
          */
         defaultRole:
@@ -302,9 +327,31 @@ export async function createAdminAuth(
             ? "admin"
             : "user",
 
-        adminRoles: [
-          "admin",
-        ],
+        ac:
+          adminAccessControl,
+
+        roles: {
+          admin:
+            adminRole,
+
+          operations:
+            operationsRole,
+
+          catalog:
+            catalogRole,
+
+          content:
+            contentRole,
+
+          marketing:
+            marketingRole,
+
+          viewer:
+            viewerRole,
+
+          user:
+            userRole,
+        },
 
         impersonationSessionDuration:
           15 * 60,

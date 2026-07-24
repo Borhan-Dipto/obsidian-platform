@@ -1,4 +1,7 @@
-import { isAdminAuthenticated } from "../../../lib/adminAuth";
+import {
+  requireAdminApiPermission,
+} from "../../../lib/adminApiAuthorization";
+
 import {
   getSettings,
   getSettingsCollection,
@@ -6,9 +9,13 @@ import {
   serializeSettings,
 } from "../../../lib/settings";
 
-export const dynamic = "force-dynamic";
+export const dynamic =
+  "force-dynamic";
 
-function createErrorResponse(message, status = 500) {
+function createErrorResponse(
+  message,
+  status = 500
+) {
   return Response.json(
     {
       success: false,
@@ -23,7 +30,8 @@ function createErrorResponse(message, status = 500) {
 function isPlainObject(value) {
   return Boolean(
     value &&
-      typeof value === "object" &&
+      typeof value ===
+        "object" &&
       !Array.isArray(value)
   );
 }
@@ -45,20 +53,35 @@ function copyAllowedFields(
 
   const result = {};
 
-  for (const field of allowedFields) {
-    if (hasOwn(source, field)) {
-      result[field] = source[field];
+  for (
+    const field
+    of allowedFields
+  ) {
+    if (
+      hasOwn(
+        source,
+        field
+      )
+    ) {
+      result[field] =
+        source[field];
     }
   }
 
   return result;
 }
 
-function sanitizeIncomingSettings(data) {
+function sanitizeIncomingSettings(
+  data
+) {
   const sanitizedSettings = {};
 
   const sections = {
-    store: ["name", "tagline", "currency"],
+    store: [
+      "name",
+      "tagline",
+      "currency",
+    ],
 
     contact: [
       "whatsappNumber",
@@ -95,21 +118,34 @@ function sanitizeIncomingSettings(data) {
     ],
   };
 
-  for (const [section, fields] of Object.entries(
-    sections
-  )) {
-    if (!hasOwn(data, section)) {
+  for (
+    const [
+      section,
+      fields,
+    ]
+    of Object.entries(
+      sections
+    )
+  ) {
+    if (
+      !hasOwn(
+        data,
+        section
+      )
+    ) {
       continue;
     }
 
-    const sanitizedSection = copyAllowedFields(
-      data[section],
-      fields
-    );
+    const sanitizedSection =
+      copyAllowedFields(
+        data[section],
+        fields
+      );
 
     if (sanitizedSection) {
-      sanitizedSettings[section] =
-        sanitizedSection;
+      sanitizedSettings[
+        section
+      ] = sanitizedSection;
     }
   }
 
@@ -131,18 +167,26 @@ function validateText(
     return null;
   }
 
-  if (typeof value !== "string") {
+  if (
+    typeof value !==
+    "string"
+  ) {
     return `${fieldName} must be text.`;
   }
 
-  const normalizedValue = value.trim();
+  const normalizedValue =
+    value.trim();
 
-  if (!allowEmpty && !normalizedValue) {
+  if (
+    !allowEmpty &&
+    !normalizedValue
+  ) {
     return `${fieldName} is required.`;
   }
 
   if (
-    normalizedValue.length > maximumLength
+    normalizedValue.length >
+    maximumLength
   ) {
     return `${fieldName} must not exceed ${maximumLength} characters.`;
   }
@@ -154,19 +198,21 @@ function validateOptionalEmail(
   value,
   fieldName
 ) {
-  const textError = validateText(
-    value,
-    fieldName,
-    254
-  );
+  const textError =
+    validateText(
+      value,
+      fieldName,
+      254
+    );
 
   if (textError) {
     return textError;
   }
 
-  const normalizedValue = String(
-    value || ""
-  ).trim();
+  const normalizedValue =
+    String(
+      value || ""
+    ).trim();
 
   if (!normalizedValue) {
     return null;
@@ -175,7 +221,11 @@ function validateOptionalEmail(
   const emailPattern =
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  if (!emailPattern.test(normalizedValue)) {
+  if (
+    !emailPattern.test(
+      normalizedValue
+    )
+  ) {
     return `${fieldName} must be a valid email address.`;
   }
 
@@ -189,19 +239,21 @@ function validateOptionalUrl(
     allowRelative = false,
   } = {}
 ) {
-  const textError = validateText(
-    value,
-    fieldName,
-    1000
-  );
+  const textError =
+    validateText(
+      value,
+      fieldName,
+      1000
+    );
 
   if (textError) {
     return textError;
   }
 
-  const normalizedValue = String(
-    value || ""
-  ).trim();
+  const normalizedValue =
+    String(
+      value || ""
+    ).trim();
 
   if (!normalizedValue) {
     return null;
@@ -209,17 +261,24 @@ function validateOptionalUrl(
 
   if (
     allowRelative &&
-    normalizedValue.startsWith("/")
+    normalizedValue.startsWith(
+      "/"
+    )
   ) {
     return null;
   }
 
   try {
-    const url = new URL(normalizedValue);
+    const url =
+      new URL(
+        normalizedValue
+      );
 
     if (
-      url.protocol !== "http:" &&
-      url.protocol !== "https:"
+      url.protocol !==
+        "http:" &&
+      url.protocol !==
+        "https:"
     ) {
       return `${fieldName} must use http or https.`;
     }
@@ -242,17 +301,27 @@ function validateDeliveryAmount(
     return null;
   }
 
-  const numericValue = Number(value);
+  const numericValue =
+    Number(value);
 
-  if (!Number.isFinite(numericValue)) {
+  if (
+    !Number.isFinite(
+      numericValue
+    )
+  ) {
     return `${fieldName} must be a valid number.`;
   }
 
-  if (numericValue < 0) {
+  if (
+    numericValue < 0
+  ) {
     return `${fieldName} cannot be negative.`;
   }
 
-  if (numericValue > 10000000) {
+  if (
+    numericValue >
+    10000000
+  ) {
     return `${fieldName} is too large.`;
   }
 
@@ -271,9 +340,12 @@ function validateBooleanLike(
   }
 
   if (
-    typeof value === "boolean" ||
-    typeof value === "number" ||
-    typeof value === "string"
+    typeof value ===
+      "boolean" ||
+    typeof value ===
+      "number" ||
+    typeof value ===
+      "string"
   ) {
     return null;
   }
@@ -281,7 +353,9 @@ function validateBooleanLike(
   return `${fieldName} must be enabled or disabled.`;
 }
 
-function validateSettingsPayload(settings) {
+function validateSettingsPayload(
+  settings
+) {
   const errors = [];
 
   if (settings.store) {
@@ -312,17 +386,23 @@ function validateSettingsPayload(settings) {
     );
 
     if (
-      settings.store.currency !== undefined
+      settings.store
+        .currency !==
+      undefined
     ) {
-      const currency = String(
-        settings.store.currency || ""
-      )
-        .trim()
-        .toUpperCase();
+      const currency =
+        String(
+          settings.store
+            .currency || ""
+        )
+          .trim()
+          .toUpperCase();
 
       if (
         currency &&
-        !/^[A-Z]{3}$/.test(currency)
+        !/^[A-Z]{3}$/.test(
+          currency
+        )
       ) {
         errors.push(
           "Currency must be a three-letter code such as BDT."
@@ -334,7 +414,8 @@ function validateSettingsPayload(settings) {
   if (settings.contact) {
     errors.push(
       validateText(
-        settings.contact.whatsappNumber,
+        settings.contact
+          .whatsappNumber,
         "WhatsApp number",
         30
       ),
@@ -345,7 +426,8 @@ function validateSettingsPayload(settings) {
       ),
 
       validateText(
-        settings.contact.location,
+        settings.contact
+          .location,
         "Store location",
         240
       ),
@@ -358,18 +440,26 @@ function validateSettingsPayload(settings) {
     );
 
     if (
-      settings.contact.whatsappNumber !==
+      settings.contact
+        .whatsappNumber !==
       undefined
     ) {
-      const whatsappDigits = String(
-        settings.contact.whatsappNumber || ""
-      ).replace(/\D/g, "");
+      const whatsappDigits =
+        String(
+          settings.contact
+            .whatsappNumber || ""
+        ).replace(
+          /\D/g,
+          ""
+        );
 
       if (
         whatsappDigits &&
         (
-          whatsappDigits.length < 8 ||
-          whatsappDigits.length > 15
+          whatsappDigits.length <
+            8 ||
+          whatsappDigits.length >
+            15
         )
       ) {
         errors.push(
@@ -382,22 +472,26 @@ function validateSettingsPayload(settings) {
   if (settings.social) {
     errors.push(
       validateOptionalUrl(
-        settings.social.facebookUrl,
+        settings.social
+          .facebookUrl,
         "Facebook URL"
       ),
 
       validateOptionalUrl(
-        settings.social.instagramUrl,
+        settings.social
+          .instagramUrl,
         "Instagram URL"
       ),
 
       validateOptionalUrl(
-        settings.social.tiktokUrl,
+        settings.social
+          .tiktokUrl,
         "TikTok URL"
       ),
 
       validateOptionalUrl(
-        settings.social.youtubeUrl,
+        settings.social
+          .youtubeUrl,
         "YouTube URL"
       )
     );
@@ -406,17 +500,20 @@ function validateSettingsPayload(settings) {
   if (settings.delivery) {
     errors.push(
       validateDeliveryAmount(
-        settings.delivery.insideDhaka,
+        settings.delivery
+          .insideDhaka,
         "Inside Dhaka delivery charge"
       ),
 
       validateDeliveryAmount(
-        settings.delivery.outsideDhaka,
+        settings.delivery
+          .outsideDhaka,
         "Outside Dhaka delivery charge"
       ),
 
       validateDeliveryAmount(
-        settings.delivery.freeShippingOver,
+        settings.delivery
+          .freeShippingOver,
         "Free-shipping threshold"
       )
     );
@@ -431,7 +528,8 @@ function validateSettingsPayload(settings) {
       ),
 
       validateText(
-        settings.seo.description,
+        settings.seo
+          .description,
         "SEO description",
         320
       ),
@@ -455,7 +553,8 @@ function validateSettingsPayload(settings) {
   if (settings.payment) {
     errors.push(
       validateBooleanLike(
-        settings.payment.cashOnDelivery,
+        settings.payment
+          .cashOnDelivery,
         "Cash on delivery"
       ),
 
@@ -476,24 +575,39 @@ function validateSettingsPayload(settings) {
     );
   }
 
-  return errors.filter(Boolean);
+  return errors.filter(
+    Boolean
+  );
 }
 
-function hasSupportedChanges(settings) {
-  return Object.keys(settings).some(
+function hasSupportedChanges(
+  settings
+) {
+  return Object.keys(
+    settings
+  ).some(
     (section) =>
-      isPlainObject(settings[section]) &&
-      Object.keys(settings[section]).length > 0
+      isPlainObject(
+        settings[section]
+      ) &&
+      Object.keys(
+        settings[section]
+      ).length > 0
   );
 }
 
 export async function GET() {
   try {
-    const settings = await getSettings();
+    const settings =
+      await getSettings();
 
     return Response.json({
       success: true,
-      settings: serializeSettings(settings),
+
+      settings:
+        serializeSettings(
+          settings
+        ),
     });
   } catch (error) {
     console.error(
@@ -507,22 +621,38 @@ export async function GET() {
   }
 }
 
-export async function PATCH(request) {
+export async function PATCH(
+  request
+) {
   try {
-    const authenticated =
-      await isAdminAuthenticated();
+    const authorization =
+      await requireAdminApiPermission(
+        request,
+        {
+          settings: [
+            "update",
+          ],
+        },
+        {
+          path:
+            "/api/settings",
 
-    if (!authenticated) {
-      return createErrorResponse(
-        "Unauthorized.",
-        401
+          forbiddenMessage:
+            "You do not have permission to update store settings.",
+        }
       );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
     }
 
     let requestBody;
 
     try {
-      requestBody = await request.json();
+      requestBody =
+        await request.json();
     } catch {
       return createErrorResponse(
         "Invalid JSON request body.",
@@ -530,7 +660,11 @@ export async function PATCH(request) {
       );
     }
 
-    if (!isPlainObject(requestBody)) {
+    if (
+      !isPlainObject(
+        requestBody
+      )
+    ) {
       return createErrorResponse(
         "Settings must be a valid object.",
         400
@@ -538,10 +672,14 @@ export async function PATCH(request) {
     }
 
     const incomingSettings =
-      sanitizeIncomingSettings(requestBody);
+      sanitizeIncomingSettings(
+        requestBody
+      );
 
     if (
-      !hasSupportedChanges(incomingSettings)
+      !hasSupportedChanges(
+        incomingSettings
+      )
     ) {
       return createErrorResponse(
         "No supported settings were provided.",
@@ -554,7 +692,10 @@ export async function PATCH(request) {
         incomingSettings
       );
 
-    if (validationErrors.length > 0) {
+    if (
+      validationErrors.length >
+      0
+    ) {
       return createErrorResponse(
         validationErrors[0],
         400
@@ -564,28 +705,44 @@ export async function PATCH(request) {
     const existingSettings =
       await getSettings();
 
-    const mergedSettings = mergeSettings(
-      existingSettings,
-      incomingSettings
-    );
+    const mergedSettings =
+      mergeSettings(
+        existingSettings,
+        incomingSettings
+      );
 
     const collection =
       await getSettingsCollection();
 
-    const now = new Date();
+    const now =
+      new Date();
 
     const settingsToSave = {
-      store: mergedSettings.store,
-      contact: mergedSettings.contact,
-      social: mergedSettings.social,
-      delivery: mergedSettings.delivery,
-      seo: mergedSettings.seo,
-      payment: mergedSettings.payment,
+      store:
+        mergedSettings.store,
+
+      contact:
+        mergedSettings.contact,
+
+      social:
+        mergedSettings.social,
+
+      delivery:
+        mergedSettings.delivery,
+
+      seo:
+        mergedSettings.seo,
+
+      payment:
+        mergedSettings.payment,
 
       createdAt:
-        existingSettings.createdAt || now,
+        existingSettings
+          .createdAt ||
+        now,
 
-      updatedAt: now,
+      updatedAt:
+        now,
     };
 
     await collection.updateOne(
@@ -593,10 +750,12 @@ export async function PATCH(request) {
         type: "store",
       },
       {
-        $set: settingsToSave,
+        $set:
+          settingsToSave,
 
         $setOnInsert: {
-          type: "store",
+          type:
+            "store",
         },
 
         $unset: {
@@ -613,8 +772,11 @@ export async function PATCH(request) {
           facebookUrl: "",
           instagramUrl: "",
 
-          deliveryChargeInsideDhaka: "",
-          deliveryChargeOutsideDhaka: "",
+          deliveryChargeInsideDhaka:
+            "",
+
+          deliveryChargeOutsideDhaka:
+            "",
 
           seoTitle: "",
           seoDescription: "",
@@ -632,11 +794,14 @@ export async function PATCH(request) {
 
     return Response.json({
       success: true,
+
       message:
         "Settings updated successfully.",
-      settings: serializeSettings(
-        updatedSettings
-      ),
+
+      settings:
+        serializeSettings(
+          updatedSettings
+        ),
     });
   } catch (error) {
     console.error(
@@ -654,5 +819,8 @@ export async function PUT(
   request,
   context
 ) {
-  return PATCH(request, context);
+  return PATCH(
+    request,
+    context
+  );
 }

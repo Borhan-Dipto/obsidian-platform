@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import clientPromise from "../../../../lib/mongodb";
-import { requireAdminAuth } from "../../../../lib/adminAuth";
+import { requireAdminPermission } from "../../../../lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -1263,7 +1263,9 @@ function EmptyState({
 export default async function AdminCustomerDetailsPage({
   params,
 }) {
-  await requireAdminAuth();
+  await requireAdminPermission({
+    customers: ["read"],
+  });
 
   const resolvedParams = await params;
   const routeKey = normalizeKey(

@@ -1,4 +1,7 @@
-import { isAdminAuthenticated } from "../../../../lib/adminAuth";
+import {
+  requireAdminApiPermission,
+} from "../../../../lib/adminApiAuthorization";
+
 import {
   PRODUCTS_COLLECTION_NAME,
   createCatalogSlug,
@@ -11,9 +14,13 @@ import {
   resolveCanonicalSeries,
 } from "../../../../lib/catalog";
 
-export const dynamic = "force-dynamic";
+export const dynamic =
+  "force-dynamic";
 
-function createErrorResponse(message, status = 500) {
+function createErrorResponse(
+  message,
+  status = 500
+) {
   return Response.json(
     {
       success: false,
@@ -28,45 +35,68 @@ function createErrorResponse(message, status = 500) {
 function isPlainObject(value) {
   return Boolean(
     value &&
-      typeof value === "object" &&
+      typeof value ===
+        "object" &&
       !Array.isArray(value)
   );
 }
 
-function serializeDocument(document) {
+function serializeDocument(
+  document
+) {
   if (!document) {
     return null;
   }
 
-  return JSON.parse(JSON.stringify(document));
+  return JSON.parse(
+    JSON.stringify(document)
+  );
 }
 
-async function resolveProductId(context) {
-  const params = await context.params;
+async function resolveProductId(
+  context
+) {
+  const params =
+    await context.params;
 
   try {
     return decodeURIComponent(
-      String(params?.id || "")
+      String(
+        params?.id || ""
+      )
     ).trim();
   } catch {
-    return String(params?.id || "").trim();
+    return String(
+      params?.id || ""
+    ).trim();
   }
 }
 
-function createProductLookup(productId) {
+function createProductLookup(
+  productId
+) {
   const normalizedProductId =
-    createCatalogSlug(productId);
+    createCatalogSlug(
+      productId
+    );
 
   const possibleIds = [
     productId,
     normalizedProductId,
   ].filter(
-    (value, index, values) =>
+    (
+      value,
+      index,
+      values
+    ) =>
       Boolean(value) &&
-      values.indexOf(value) === index
+      values.indexOf(value) ===
+        index
   );
 
-  if (possibleIds.length === 1) {
+  if (
+    possibleIds.length === 1
+  ) {
     return {
       id: possibleIds[0],
     };
@@ -88,25 +118,38 @@ async function getExistingProduct(
   }
 
   return database
-    .collection(PRODUCTS_COLLECTION_NAME)
-    .findOne(createProductLookup(productId));
+    .collection(
+      PRODUCTS_COLLECTION_NAME
+    )
+    .findOne(
+      createProductLookup(
+        productId
+      )
+    );
 }
 
 async function restoreProduct(
   database,
   existingProduct
 ) {
-  if (!existingProduct?._id) {
+  if (
+    !existingProduct?._id
+  ) {
     return;
   }
 
   await database
-    .collection(PRODUCTS_COLLECTION_NAME)
+    .collection(
+      PRODUCTS_COLLECTION_NAME
+    )
     .replaceOne(
       {
-        _id: existingProduct._id,
+        _id:
+          existingProduct._id,
       },
+
       existingProduct,
+
       {
         upsert: true,
       }
@@ -132,10 +175,15 @@ async function safelyDeactivateSeries(
   }
 }
 
-export async function GET(request, context) {
+export async function GET(
+  request,
+  context
+) {
   try {
     const productId =
-      await resolveProductId(context);
+      await resolveProductId(
+        context
+      );
 
     if (!productId) {
       return createErrorResponse(
@@ -147,12 +195,15 @@ export async function GET(request, context) {
     const database =
       await getCatalogDatabase();
 
-    await ensureCatalogIndexes(database);
-
-    const product = await getExistingProduct(
-      database,
-      productId
+    await ensureCatalogIndexes(
+      database
     );
+
+    const product =
+      await getExistingProduct(
+        database,
+        productId
+      );
 
     if (!product) {
       return createErrorResponse(
@@ -161,21 +212,56 @@ export async function GET(request, context) {
       );
     }
 
-    if (product.isActive === false) {
-      const authenticated =
-        await isAdminAuthenticated();
+    if (
+      product.isActive ===
+      false
+    ) {
+      const authorization =
+        await requireAdminApiPermission(
+          request,
+          {
+            products: [
+              "read_private",
+            ],
+          },
+          {
+            path:
+              "/api/products/[id]",
 
-      if (!authenticated) {
-        return createErrorResponse(
-          "Product not found.",
-          404
+            forbiddenMessage:
+              "You do not have permission to view private products.",
+          }
         );
+
+      /*
+       * Preserve the public-facing
+       * not-found response so private
+       * product existence is not exposed.
+       */
+      if (
+        !authorization.authorized
+      ) {
+        if (
+          authorization.response
+            ?.status === 401
+        ) {
+          return createErrorResponse(
+            "Product not found.",
+            404
+          );
+        }
+
+        return authorization.response;
       }
     }
 
     return Response.json({
       success: true,
-      product: serializeDocument(product),
+
+      product:
+        serializeDocument(
+          product
+        ),
     });
   } catch (error) {
     console.error(
@@ -194,22 +280,38 @@ export async function PATCH(
   context
 ) {
   let database = null;
-  let existingProduct = null;
+  let existingProduct =
+    null;
   let savedProduct = null;
 
   try {
-    const authenticated =
-      await isAdminAuthenticated();
+    const authorization =
+      await requireAdminApiPermission(
+        request,
+        {
+          products: [
+            "update",
+          ],
+        },
+        {
+          path:
+            "/api/products/[id]",
 
-    if (!authenticated) {
-      return createErrorResponse(
-        "Unauthorized.",
-        401
+          forbiddenMessage:
+            "You do not have permission to update products.",
+        }
       );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
     }
 
     const productId =
-      await resolveProductId(context);
+      await resolveProductId(
+        context
+      );
 
     if (!productId) {
       return createErrorResponse(
@@ -221,7 +323,8 @@ export async function PATCH(
     let requestBody;
 
     try {
-      requestBody = await request.json();
+      requestBody =
+        await request.json();
     } catch {
       return createErrorResponse(
         "Invalid JSON request body.",
@@ -229,16 +332,23 @@ export async function PATCH(
       );
     }
 
-    if (!isPlainObject(requestBody)) {
+    if (
+      !isPlainObject(
+        requestBody
+      )
+    ) {
       return createErrorResponse(
         "Product data must be a valid object.",
         400
       );
     }
 
-    database = await getCatalogDatabase();
+    database =
+      await getCatalogDatabase();
 
-    await ensureCatalogIndexes(database);
+    await ensureCatalogIndexes(
+      database
+    );
 
     const productStore =
       database.collection(
@@ -264,7 +374,9 @@ export async function PATCH(
         existingProduct
       );
 
-    if (!normalizedResult.success) {
+    if (
+      !normalizedResult.success
+    ) {
       return createErrorResponse(
         normalizedResult.message,
         400
@@ -274,20 +386,25 @@ export async function PATCH(
     const canonicalSeries =
       await resolveCanonicalSeries(
         database,
-        normalizedResult.product.series
+        normalizedResult
+          .product.series
       );
 
     const finalSeries =
       canonicalSeries ||
-      normalizedResult.product.series;
+      normalizedResult
+        .product.series;
 
     const normalizedProduct = {
       ...normalizedResult.product,
 
-      series: finalSeries,
+      series:
+        finalSeries,
 
       seriesKey:
-        normalizeSeriesKey(finalSeries),
+        normalizeSeriesKey(
+          finalSeries
+        ),
     };
 
     if (
@@ -298,10 +415,12 @@ export async function PATCH(
         await productStore.findOne(
           {
             _id: {
-              $ne: existingProduct._id,
+              $ne:
+                existingProduct._id,
             },
 
-            id: normalizedProduct.id,
+            id:
+              normalizedProduct.id,
           },
           {
             projection: {
@@ -323,7 +442,8 @@ export async function PATCH(
 
     const previousSeriesKey =
       normalizeSeriesKey(
-        existingProduct.seriesKey ||
+        existingProduct
+          .seriesKey ||
           previousSeries
       );
 
@@ -332,28 +452,38 @@ export async function PATCH(
         normalizedProduct.series
       );
 
-    const now = new Date();
+    const now =
+      new Date();
 
     const productToSave = {
       ...normalizedProduct,
+
       createdAt:
-        existingProduct.createdAt || now,
+        existingProduct
+          .createdAt ||
+        now,
+
       updatedAt: now,
     };
 
     await productStore.updateOne(
       {
-        _id: existingProduct._id,
+        _id:
+          existingProduct._id,
       },
       {
-        $set: productToSave,
+        $set:
+          productToSave,
       }
     );
 
     savedProduct =
-      await productStore.findOne({
-        _id: existingProduct._id,
-      });
+      await productStore.findOne(
+        {
+          _id:
+            existingProduct._id,
+        }
+      );
 
     if (!savedProduct) {
       throw new Error(
@@ -362,7 +492,10 @@ export async function PATCH(
     }
 
     try {
-      if (savedProduct.isActive !== false) {
+      if (
+        savedProduct.isActive !==
+        false
+      ) {
         await ensureCollectionForProduct(
           database,
           savedProduct
@@ -370,11 +503,14 @@ export async function PATCH(
       }
 
       const seriesChanged =
-        previousSeriesKey !== nextSeriesKey;
+        previousSeriesKey !==
+        nextSeriesKey;
 
       const becameInactive =
-        existingProduct.isActive !== false &&
-        savedProduct.isActive === false;
+        existingProduct
+          .isActive !== false &&
+        savedProduct.isActive ===
+          false;
 
       if (
         seriesChanged ||
@@ -387,14 +523,17 @@ export async function PATCH(
       }
 
       if (
-        savedProduct.isActive === false
+        savedProduct.isActive ===
+        false
       ) {
         await safelyDeactivateSeries(
           database,
           savedProduct.series
         );
       }
-    } catch (synchronizationError) {
+    } catch (
+      synchronizationError
+    ) {
       await restoreProduct(
         database,
         existingProduct
@@ -411,7 +550,9 @@ export async function PATCH(
             database,
             savedProduct.series
           );
-        } catch (cleanupError) {
+        } catch (
+          cleanupError
+        ) {
           console.error(
             "Rollback collection cleanup error:",
             cleanupError
@@ -426,15 +567,20 @@ export async function PATCH(
       success: true,
 
       message:
-        savedProduct.isActive === false
+        savedProduct.isActive ===
+        false
           ? "Product saved as draft successfully."
           : "Product updated successfully.",
 
       product:
-        serializeDocument(savedProduct),
+        serializeDocument(
+          savedProduct
+        ),
     });
   } catch (error) {
-    if (error?.code === 11000) {
+    if (
+      error?.code === 11000
+    ) {
       return createErrorResponse(
         "Another product already uses this ID.",
         409
@@ -457,21 +603,37 @@ export async function DELETE(
   context
 ) {
   let database = null;
-  let existingProduct = null;
+  let existingProduct =
+    null;
 
   try {
-    const authenticated =
-      await isAdminAuthenticated();
+    const authorization =
+      await requireAdminApiPermission(
+        request,
+        {
+          products: [
+            "delete",
+          ],
+        },
+        {
+          path:
+            "/api/products/[id]",
 
-    if (!authenticated) {
-      return createErrorResponse(
-        "Unauthorized.",
-        401
+          forbiddenMessage:
+            "You do not have permission to delete products.",
+        }
       );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
     }
 
     const productId =
-      await resolveProductId(context);
+      await resolveProductId(
+        context
+      );
 
     if (!productId) {
       return createErrorResponse(
@@ -480,9 +642,12 @@ export async function DELETE(
       );
     }
 
-    database = await getCatalogDatabase();
+    database =
+      await getCatalogDatabase();
 
-    await ensureCatalogIndexes(database);
+    await ensureCatalogIndexes(
+      database
+    );
 
     const productStore =
       database.collection(
@@ -503,12 +668,16 @@ export async function DELETE(
     }
 
     const deletionResult =
-      await productStore.deleteOne({
-        _id: existingProduct._id,
-      });
+      await productStore.deleteOne(
+        {
+          _id:
+            existingProduct._id,
+        }
+      );
 
     if (
-      deletionResult.deletedCount === 0
+      deletionResult.deletedCount ===
+      0
     ) {
       return createErrorResponse(
         "Product not found.",
@@ -521,12 +690,16 @@ export async function DELETE(
         database,
         existingProduct.series
       );
-    } catch (synchronizationError) {
+    } catch (
+      synchronizationError
+    ) {
       try {
         await productStore.insertOne(
           existingProduct
         );
-      } catch (rollbackError) {
+      } catch (
+        rollbackError
+      ) {
         console.error(
           "Product deletion rollback error:",
           rollbackError
@@ -538,14 +711,21 @@ export async function DELETE(
 
     return Response.json({
       success: true,
+
       message:
         "Product deleted successfully.",
 
-      product: serializeDocument({
-        id: existingProduct.id,
-        name: existingProduct.name,
-        series: existingProduct.series,
-      }),
+      product:
+        serializeDocument({
+          id:
+            existingProduct.id,
+
+          name:
+            existingProduct.name,
+
+          series:
+            existingProduct.series,
+        }),
     });
   } catch (error) {
     console.error(
@@ -563,5 +743,8 @@ export async function PUT(
   request,
   context
 ) {
-  return PATCH(request, context);
+  return PATCH(
+    request,
+    context
+  );
 }
