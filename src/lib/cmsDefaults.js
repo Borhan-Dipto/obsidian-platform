@@ -186,6 +186,15 @@ const DEFAULT_FOOTER = {
     showYouTube: true,
   },
 
+  developer: {
+    isEnabled: true,
+    label: "Developed by",
+    name: "Borhan Dipto",
+    linkedinUrl:
+      "https://www.linkedin.com/in/borhandipto",
+    openInNewTab: true,
+  },
+
   legal: {
     copyrightText: "OBSIDIAN. All rights reserved.",
     showCurrentYear: true,

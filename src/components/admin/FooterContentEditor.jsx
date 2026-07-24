@@ -56,6 +56,17 @@ function normalizeFooterContent(content = {}) {
       showYouTube: content.social?.showYouTube !== false,
     },
 
+    developer: {
+      isEnabled: content.developer?.isEnabled !== false,
+      label: content.developer?.label || "Developed by",
+      name: content.developer?.name || "Borhan Dipto",
+      linkedinUrl:
+        content.developer?.linkedinUrl ||
+        "https://www.linkedin.com/in/borhandipto",
+      openInNewTab:
+        content.developer?.openInNewTab !== false,
+    },
+
     legal: {
       copyrightText:
         content.legal?.copyrightText ||
@@ -143,9 +154,7 @@ function CheckboxInput({
       <input
         type="checkbox"
         checked={Boolean(checked)}
-        onChange={(event) =>
-          onChange(event.target.checked)
-        }
+        onChange={(event) => onChange(event.target.checked)}
         className="mt-1 h-4 w-4 shrink-0"
       />
     </label>
@@ -171,9 +180,7 @@ function Panel({
         ) : null}
       </div>
 
-      <div className="space-y-6">
-        {children}
-      </div>
+      <div className="space-y-6">{children}</div>
     </section>
   );
 }
@@ -251,6 +258,18 @@ export default function FooterContentEditor({
       ...current,
       social: {
         ...current.social,
+        [field]: value,
+      },
+    }));
+  }
+
+  function updateDeveloper(field, value) {
+    clearMessage();
+
+    setFooter((current) => ({
+      ...current,
+      developer: {
+        ...current.developer,
         [field]: value,
       },
     }));
@@ -478,15 +497,11 @@ export default function FooterContentEditor({
         return;
       }
 
-      setFooter(
-        normalizeFooterContent(data.content)
-      );
+      setFooter(normalizeFooterContent(data.content));
 
       setMessageType("success");
       setMessage("Footer saved successfully.");
-      setLastSavedAt(
-        new Date().toLocaleTimeString()
-      );
+      setLastSavedAt(new Date().toLocaleTimeString());
     } catch (error) {
       console.error("Footer CMS save error:", error);
 
@@ -871,10 +886,7 @@ export default function FooterContentEditor({
             label="Success Message"
             value={footer.newsletter.successMessage}
             onChange={(value) =>
-              updateNewsletter(
-                "successMessage",
-                value
-              )
+              updateNewsletter("successMessage", value)
             }
           />
         </div>
@@ -925,6 +937,74 @@ export default function FooterContentEditor({
               updateSocial("showYouTube", value)
             }
           />
+        </div>
+      </Panel>
+
+      <Panel
+        title="Developer Credit"
+        description="Manage the developer attribution displayed in the public footer."
+      >
+        <CheckboxInput
+          label="Show Developer Credit"
+          description="Display the developer name and LinkedIn profile in the footer copyright area."
+          checked={footer.developer.isEnabled}
+          onChange={(value) =>
+            updateDeveloper("isEnabled", value)
+          }
+        />
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <TextInput
+            label="Credit Label"
+            value={footer.developer.label}
+            placeholder="Developed by"
+            onChange={(value) =>
+              updateDeveloper("label", value)
+            }
+          />
+
+          <TextInput
+            label="Developer Name"
+            value={footer.developer.name}
+            placeholder="Borhan Dipto"
+            onChange={(value) =>
+              updateDeveloper("name", value)
+            }
+          />
+
+          <div className="md:col-span-2">
+            <TextInput
+              label="LinkedIn URL"
+              type="url"
+              value={footer.developer.linkedinUrl}
+              placeholder="https://www.linkedin.com/in/borhandipto"
+              onChange={(value) =>
+                updateDeveloper("linkedinUrl", value)
+              }
+            />
+          </div>
+
+          <CheckboxInput
+            label="Open In New Tab"
+            description="Open the LinkedIn profile in a separate browser tab."
+            checked={footer.developer.openInNewTab}
+            onChange={(value) =>
+              updateDeveloper("openInNewTab", value)
+            }
+          />
+        </div>
+
+        <div className="border border-white/10 bg-white/[0.03] p-5">
+          <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-600">
+            Footer Preview
+          </p>
+
+          <p className="mt-3 text-sm text-neutral-300">
+            {footer.developer.label || "Developed by"}{" "}
+            <span className="text-[#f1ece4] underline decoration-white/25 underline-offset-4">
+              {footer.developer.name || "Borhan Dipto"}
+            </span>
+          </p>
         </div>
       </Panel>
 
@@ -1072,8 +1152,7 @@ export default function FooterContentEditor({
         >
           <span>{message}</span>
 
-          {lastSavedAt &&
-          messageType === "success" ? (
+          {lastSavedAt && messageType === "success" ? (
             <span className="ml-2 opacity-70">
               Last saved at {lastSavedAt}
             </span>
