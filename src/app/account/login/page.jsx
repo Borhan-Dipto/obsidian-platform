@@ -453,21 +453,32 @@ function LoginPageContent() {
       : "/account";
 
   useEffect(() => {
-    const registeredEmail =
-      window.sessionStorage.getItem(
-        "obsidian-registered-email"
-      );
+    const frameId =
+      window.requestAnimationFrame(() => {
+        const registeredEmail =
+          window.sessionStorage.getItem(
+            "obsidian-registered-email"
+          );
 
-    if (registeredEmail) {
-      setFormData((current) => ({
-        ...current,
-        email: registeredEmail,
-      }));
+        if (!registeredEmail) {
+          return;
+        }
 
-      window.sessionStorage.removeItem(
-        "obsidian-registered-email"
+        setFormData((current) => ({
+          ...current,
+          email: registeredEmail,
+        }));
+
+        window.sessionStorage.removeItem(
+          "obsidian-registered-email"
+        );
+      });
+
+    return () => {
+      window.cancelAnimationFrame(
+        frameId
       );
-    }
+    };
   }, []);
 
   function handleChange(event) {

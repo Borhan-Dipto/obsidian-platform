@@ -7,6 +7,9 @@ import {
   getNotificationProviderStatus,
   getNotificationSettings,
 } from "./notificationSettings";
+import {
+  sendTransactionalEmail,
+} from "./transactionalEmail";
 
 export const NOTIFICATION_DELIVERIES_COLLECTION_NAME =
   "notification_deliveries";
@@ -665,92 +668,6 @@ async function providerFetch(
 
     cache: "no-store",
   });
-}
-
-async function sendResendEmail({
-  to,
-  subject,
-  html,
-  text,
-  replyTo,
-}) {
-  const apiKey =
-    normalizeText(
-      process.env.RESEND_API_KEY,
-      500
-    );
-
-  const from =
-    normalizeText(
-      process.env
-        .NOTIFICATION_EMAIL_FROM,
-      500
-    );
-
-  if (!apiKey || !from) {
-    throw new Error(
-      "Resend email provider is not configured."
-    );
-  }
-
-  const requestBody = {
-    from,
-    to: [to],
-    subject,
-    html,
-    text,
-  };
-
-  if (replyTo) {
-    requestBody.reply_to =
-      replyTo;
-  }
-
-  const response =
-    await providerFetch(
-      "https://api.resend.com/emails",
-      {
-        method: "POST",
-
-        headers: {
-          Authorization:
-            `Bearer ${apiKey}`,
-
-          "Content-Type":
-            "application/json",
-        },
-
-        body: JSON.stringify(
-          requestBody
-        ),
-      }
-    );
-
-  const data =
-    await readResponseData(
-      response
-    );
-
-  if (!response.ok) {
-    throw createProviderError(
-      "Resend",
-      response.status,
-      data
-    );
-  }
-
-  return {
-    provider: "resend",
-
-    providerMessageId:
-      normalizeText(
-        data?.id,
-        500
-      ),
-
-    responseStatus:
-      response.status,
-  };
 }
 
 async function sendTwilioSms({
@@ -1504,7 +1421,7 @@ function createEmailDelivery({
     recipient,
 
     send: () =>
-      sendResendEmail({
+      sendTransactionalEmail({
         to: recipient,
         subject,
 
@@ -1530,6 +1447,17 @@ function createEmailDelivery({
         }),
 
         replyTo,
+
+        idempotencyKey:
+          createDedupeKey({
+            eventType,
+            orderId:
+              values.orderId,
+            eventStatus,
+            channel: "email",
+            audience,
+            recipient,
+          }),
       }),
   });
 }

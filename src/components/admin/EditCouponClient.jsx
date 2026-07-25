@@ -207,183 +207,190 @@ export default function EditCouponClient() {
     formData.type === "percentage";
 
   useEffect(() => {
-    if (!couponId) {
-      setCouponNotFound(true);
-      setErrorMessage(
-        "Coupon identifier could not be found."
-      );
-      setIsLoading(false);
-      return;
-    }
-
     let isCancelled = false;
 
-    async function fetchCoupon() {
-      setIsLoading(true);
-      setErrorMessage("");
-      setCouponNotFound(false);
-
-      try {
-        const response = await fetch(
-          `/api/coupons/${encodeURIComponent(
-            couponId
-          )}`,
-          {
-            method: "GET",
-            cache: "no-store",
-          }
-        );
-
-        const data = await response
-          .json()
-          .catch(() => null);
-
-        if (isCancelled) {
-          return;
-        }
-
-        if (
-          !response.ok ||
-          !data?.success
-        ) {
-          if (response.status === 404) {
-            setCouponNotFound(true);
-          }
-
+    const frameId =
+      window.requestAnimationFrame(() => {
+        if (!couponId) {
+          setCouponNotFound(true);
           setErrorMessage(
-            getErrorMessage(
-              data,
-              "Coupon could not be loaded."
-            )
+            "Coupon identifier could not be found."
           );
-
           setIsLoading(false);
           return;
         }
 
-        const coupon = data.coupon;
+        async function fetchCoupon() {
+          setIsLoading(true);
+          setErrorMessage("");
+          setCouponNotFound(false);
 
-        const type =
-          normalizeCouponType(
-            coupon.type ??
-              coupon.discountType
-          );
+          try {
+            const response = await fetch(
+              `/api/coupons/${encodeURIComponent(
+                couponId
+              )}`,
+              {
+                method: "GET",
+                cache: "no-store",
+              }
+            );
 
-        const isPublic =
-          coupon.isPublic === true;
+            const data = await response
+              .json()
+              .catch(() => null);
 
-        setFormData({
-          code: normalizeCouponCode(
-            coupon.code
-          ),
+            if (isCancelled) {
+              return;
+            }
 
-          name: String(
-            coupon.name || ""
-          ),
+            if (
+              !response.ok ||
+              !data?.success
+            ) {
+              if (response.status === 404) {
+                setCouponNotFound(true);
+              }
 
-          description: String(
-            coupon.description || ""
-          ),
+              setErrorMessage(
+                getErrorMessage(
+                  data,
+                  "Coupon could not be loaded."
+                )
+              );
 
-          type,
+              setIsLoading(false);
+              return;
+            }
 
-          value:
-            type === "free_shipping"
-              ? ""
-              : String(
-                  coupon.value ??
-                    coupon.discountValue ??
-                    coupon.amount ??
-                    ""
+            const coupon = data.coupon;
+
+            const type =
+              normalizeCouponType(
+                coupon.type ??
+                  coupon.discountType
+              );
+
+            const isPublic =
+              coupon.isPublic === true;
+
+            setFormData({
+              code: normalizeCouponCode(
+                coupon.code
+              ),
+
+              name: String(
+                coupon.name || ""
+              ),
+
+              description: String(
+                coupon.description || ""
+              ),
+
+              type,
+
+              value:
+                type === "free_shipping"
+                  ? ""
+                  : String(
+                      coupon.value ??
+                        coupon.discountValue ??
+                        coupon.amount ??
+                        ""
+                    ),
+
+              minimumOrder: String(
+                coupon.minimumOrder ??
+                  coupon.minimumSpend ??
+                  coupon.minOrderAmount ??
+                  ""
+              ),
+
+              maximumDiscount:
+                type === "percentage"
+                  ? String(
+                      coupon.maximumDiscount ??
+                        coupon.maxDiscount ??
+                        ""
+                    )
+                  : "",
+
+              startsAt:
+                convertDateToLocalInput(
+                  coupon.startsAt ??
+                    coupon.startDate
                 ),
 
-          minimumOrder: String(
-            coupon.minimumOrder ??
-              coupon.minimumSpend ??
-              coupon.minOrderAmount ??
-              ""
-          ),
+              expiresAt:
+                convertDateToLocalInput(
+                  coupon.expiresAt ??
+                    coupon.expiryDate
+                ),
 
-          maximumDiscount:
-            type === "percentage"
-              ? String(
-                  coupon.maximumDiscount ??
-                    coupon.maxDiscount ??
-                    ""
-                )
-              : "",
+              usageLimit: String(
+                coupon.usageLimit ??
+                  coupon.maxUses ??
+                  ""
+              ),
 
-          startsAt:
-            convertDateToLocalInput(
-              coupon.startsAt ??
-                coupon.startDate
-            ),
+              usageCount:
+                normalizeInteger(
+                  coupon.usageCount ??
+                    coupon.usedCount
+                ),
 
-          expiresAt:
-            convertDateToLocalInput(
-              coupon.expiresAt ??
-                coupon.expiryDate
-            ),
+              active:
+                getCouponActiveState(
+                  coupon
+                ),
 
-          usageLimit: String(
-            coupon.usageLimit ??
-              coupon.maxUses ??
-              ""
-          ),
+              isPublic,
 
-          usageCount:
-            normalizeInteger(
-              coupon.usageCount ??
-                coupon.usedCount
-            ),
+              promoted:
+                isPublic &&
+                coupon.promoted === true,
 
-          active:
-            getCouponActiveState(
-              coupon
-            ),
+              publicTitle: String(
+                coupon.publicTitle || ""
+              ),
 
-          isPublic,
+              publicDescription: String(
+                coupon.publicDescription || ""
+              ),
 
-          promoted:
-            isPublic &&
-            coupon.promoted === true,
+              displayOrder: String(
+                coupon.displayOrder ?? 0
+              ),
+            });
 
-          publicTitle: String(
-            coupon.publicTitle || ""
-          ),
+            setIsLoading(false);
+          } catch (error) {
+            if (isCancelled) {
+              return;
+            }
 
-          publicDescription: String(
-            coupon.publicDescription || ""
-          ),
+            console.error(
+              "Coupon fetch error:",
+              error
+            );
 
-          displayOrder: String(
-            coupon.displayOrder ?? 0
-          ),
-        });
+            setErrorMessage(
+              "Something went wrong while loading the coupon."
+            );
 
-        setIsLoading(false);
-      } catch (error) {
-        if (isCancelled) {
-          return;
+            setIsLoading(false);
+          }
         }
 
-        console.error(
-          "Coupon fetch error:",
-          error
-        );
-
-        setErrorMessage(
-          "Something went wrong while loading the coupon."
-        );
-
-        setIsLoading(false);
-      }
-    }
-
-    fetchCoupon();
+        void fetchCoupon();
+      });
 
     return () => {
       isCancelled = true;
+
+      window.cancelAnimationFrame(
+        frameId
+      );
     };
   }, [couponId]);
 

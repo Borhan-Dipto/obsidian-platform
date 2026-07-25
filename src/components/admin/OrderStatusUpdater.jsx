@@ -300,8 +300,17 @@ export default function OrderStatusUpdater({
   const [message, setMessage] = useState(null);
 
   useEffect(() => {
-    setForm(initialForm);
-    setSavedForm(initialForm);
+    const frameId =
+      window.requestAnimationFrame(() => {
+        setForm(initialForm);
+        setSavedForm(initialForm);
+      });
+
+    return () => {
+      window.cancelAnimationFrame(
+        frameId
+      );
+    };
   }, [initialForm]);
 
   const hasChanges =

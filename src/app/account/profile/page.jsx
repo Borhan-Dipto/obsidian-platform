@@ -482,7 +482,16 @@ export default function ProfilePage() {
   );
 
   useEffect(() => {
-    loadProfile();
+    const frameId =
+      window.requestAnimationFrame(() => {
+        void loadProfile();
+      });
+
+    return () => {
+      window.cancelAnimationFrame(
+        frameId
+      );
+    };
   }, [loadProfile]);
 
   function handleProfileChange(event) {

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -543,15 +544,34 @@ function BrandLockup({
           }px`,
         }}
       >
-        <img
+        <Image
           src={logoSource}
           alt={
             showTextLogo
               ? ""
               : logoAlt
           }
+          width={
+            uploadedLockup
+              ? uploadedWidth
+              : markSize
+          }
+          height={
+            uploadedLockup
+              ? 36
+              : markSize
+          }
+          sizes={`${
+            uploadedLockup
+              ? uploadedWidth
+              : markSize
+          }px`}
+          loading="eager"
           decoding="async"
           fetchPriority="high"
+          unoptimized={
+            uploadedLockup
+          }
           className={
             uploadedLockup
               ? "relative z-[1] h-auto max-h-9 w-full object-contain"
@@ -1188,8 +1208,17 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    setIsOpen(false);
-    setIsSearchOpen(false);
+    const frameId =
+      window.requestAnimationFrame(() => {
+        setIsOpen(false);
+        setIsSearchOpen(false);
+      });
+
+    return () => {
+      window.cancelAnimationFrame(
+        frameId
+      );
+    };
   }, [currentPath]);
 
   useEffect(() => {

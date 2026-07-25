@@ -282,51 +282,70 @@ export default function TrackOrderClient({
   );
 
   useEffect(() => {
-    setRecentOrders(getRecentOrders());
-
-    try {
-      const lastOrderValue =
-        sessionStorage.getItem(
-          LAST_ORDER_KEY
-        );
-
-      if (!lastOrderValue) {
-        return;
-      }
-
-      const parsedValue =
-        JSON.parse(lastOrderValue);
-
-      const savedOrder =
-        parsedValue?.order ||
-        parsedValue;
-
-      const savedOrderId = cleanText(
-        savedOrder?.orderId ||
-          savedOrder?.id
-      ).toUpperCase();
-
-      const savedPhone = cleanText(
-        savedOrder?.customer?.phone
-      );
-
-      if (savedOrderId) {
-        setOrderId(savedOrderId);
-      }
-
-      if (savedPhone) {
-        setPhone(savedPhone);
-      }
-
-      if (savedOrderId) {
-        saveRecentOrder(savedOrder);
+    const frameId =
+      window.requestAnimationFrame(() => {
         setRecentOrders(
           getRecentOrders()
         );
-      }
-    } catch {
-      // Ignore invalid saved order data.
-    }
+
+        try {
+          const lastOrderValue =
+            window.sessionStorage.getItem(
+              LAST_ORDER_KEY
+            );
+
+          if (!lastOrderValue) {
+            return;
+          }
+
+          const parsedValue =
+            JSON.parse(lastOrderValue);
+
+          const savedOrder =
+            parsedValue?.order ||
+            parsedValue;
+
+          const savedOrderId =
+            cleanText(
+              savedOrder?.orderId ||
+                savedOrder?.id
+            ).toUpperCase();
+
+          const savedPhone =
+            cleanText(
+              savedOrder?.customer
+                ?.phone
+            );
+
+          if (savedOrderId) {
+            setOrderId(
+              savedOrderId
+            );
+          }
+
+          if (savedPhone) {
+            setPhone(savedPhone);
+          }
+
+          if (savedOrderId) {
+            saveRecentOrder(
+              savedOrder
+            );
+
+            setRecentOrders(
+              getRecentOrders()
+            );
+          }
+        } catch {
+          // Ignore invalid saved order data.
+        }
+      });
+
+    return () => {
+      window.cancelAnimationFrame(
+        frameId
+      );
+    };
   }, []);
 
   async function sendTrackingRequest({

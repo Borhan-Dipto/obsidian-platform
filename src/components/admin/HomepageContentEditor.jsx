@@ -275,28 +275,6 @@ export default function HomepageContentEditor({ initialContent }) {
     }));
   }
 
-  function updateDeepContentField(
-    sectionId,
-    parentField,
-    childField,
-    nestedField,
-    value
-  ) {
-    updateSection(sectionId, (section) => ({
-      ...section,
-      content: {
-        ...(section.content || {}),
-        [parentField]: {
-          ...(section.content?.[parentField] || {}),
-          [childField]: {
-            ...(section.content?.[parentField]?.[childField] || {}),
-            [nestedField]: value,
-          },
-        },
-      },
-    }));
-  }
-
   function updateArrayItem(
     sectionId,
     field,

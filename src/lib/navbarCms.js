@@ -50,15 +50,6 @@ function normalizeText(
   return normalizedValue || fallback;
 }
 
-function normalizeBoolean(
-  value,
-  fallback = false
-) {
-  return typeof value === "boolean"
-    ? value
-    : fallback;
-}
-
 function normalizeNumber(
   value,
   fallback,

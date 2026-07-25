@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- Printable documents require direct native image rendering for predictable output. */
 import { notFound } from "next/navigation";
 import clientPromise from "../../../../../../lib/mongodb";
 import { requireAdminPermission } from "../../../../../../lib/adminAuth";

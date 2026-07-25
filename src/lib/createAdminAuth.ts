@@ -27,12 +27,17 @@ type CreateAdminAuthOptions = {
   bootstrapMode?: boolean;
 };
 
+function normalizeEnvironmentValue(
+  value: string | undefined
+): string {
+  return String(value || "").trim();
+}
+
 function normalizeOrigin(
   value: string | undefined
 ): string {
-  const candidate = String(
-    value || ""
-  ).trim();
+  const candidate =
+    normalizeEnvironmentValue(value);
 
   if (!candidate) {
     return "";
@@ -49,16 +54,32 @@ function normalizeOrigin(
   }
 }
 
-function resolveBaseUrl(): string {
-  const candidates = [
+function getCanonicalUrlCandidates(): Array<
+  string | undefined
+> {
+  return [
     process.env.BETTER_AUTH_URL,
     process.env.NEXT_PUBLIC_SITE_URL,
     process.env.SITE_URL,
     process.env.APP_URL,
+    process.env
+      .VERCEL_PROJECT_PRODUCTION_URL,
+  ];
+}
+
+function getTrustedOriginCandidates(): Array<
+  string | undefined
+> {
+  return [
+    ...getCanonicalUrlCandidates(),
     process.env.VERCEL_URL,
   ];
+}
 
-  for (const candidate of candidates) {
+function resolveBaseUrl(
+  isProduction: boolean
+): string {
+  for (const candidate of getCanonicalUrlCandidates()) {
     const origin =
       normalizeOrigin(candidate);
 
@@ -67,24 +88,31 @@ function resolveBaseUrl(): string {
     }
   }
 
+  if (isProduction) {
+    throw new Error(
+      "Admin authentication requires a valid production URL. Configure BETTER_AUTH_URL with the canonical HTTPS website URL."
+    );
+  }
+
   return "http://localhost:3000";
 }
 
-function resolveTrustedOrigins(): string[] {
-  const origins = new Set<string>([
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-  ]);
+function resolveTrustedOrigins(
+  isProduction: boolean
+): string[] {
+  const origins = new Set<string>();
 
-  const candidates = [
-    process.env.BETTER_AUTH_URL,
-    process.env.NEXT_PUBLIC_SITE_URL,
-    process.env.SITE_URL,
-    process.env.APP_URL,
-    process.env.VERCEL_URL,
-  ];
+  if (!isProduction) {
+    origins.add(
+      "http://localhost:3000"
+    );
 
-  for (const candidate of candidates) {
+    origins.add(
+      "http://127.0.0.1:3000"
+    );
+  }
+
+  for (const candidate of getTrustedOriginCandidates()) {
     const origin =
       normalizeOrigin(candidate);
 
@@ -94,6 +122,26 @@ function resolveTrustedOrigins(): string[] {
   }
 
   return Array.from(origins);
+}
+
+function resolveAuthSecret(
+  isProduction: boolean
+): string {
+  const secret =
+    normalizeEnvironmentValue(
+      process.env.BETTER_AUTH_SECRET
+    );
+
+  if (
+    isProduction &&
+    secret.length < 32
+  ) {
+    throw new Error(
+      "BETTER_AUTH_SECRET must be configured with at least 32 characters in production."
+    );
+  }
+
+  return secret;
 }
 
 export async function createAdminAuth(
@@ -115,6 +163,21 @@ export async function createAdminAuth(
     );
   }
 
+  const baseURL =
+    resolveBaseUrl(
+      isProduction
+    );
+
+  const trustedOrigins =
+    resolveTrustedOrigins(
+      isProduction
+    );
+
+  const authSecret =
+    resolveAuthSecret(
+      isProduction
+    );
+
   const mongoClient =
     await getMongoClient();
 
@@ -126,7 +189,14 @@ export async function createAdminAuth(
   return betterAuth({
     appName: "OBSIDIAN Admin",
 
-    baseURL: resolveBaseUrl(),
+    ...(authSecret
+      ? {
+          secret:
+            authSecret,
+        }
+      : {}),
+
+    baseURL,
 
     basePath:
       "/api/admin/auth",
@@ -138,8 +208,7 @@ export async function createAdminAuth(
       }
     ),
 
-    trustedOrigins:
-      resolveTrustedOrigins(),
+    trustedOrigins,
 
     hooks: {
       after:

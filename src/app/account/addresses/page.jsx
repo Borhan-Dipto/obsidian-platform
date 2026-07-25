@@ -696,7 +696,16 @@ export default function AccountAddressesPage() {
     }, []);
 
   useEffect(() => {
-    loadAddresses();
+    const frameId =
+      window.requestAnimationFrame(() => {
+        void loadAddresses();
+      });
+
+    return () => {
+      window.cancelAnimationFrame(
+        frameId
+      );
+    };
   }, [loadAddresses]);
 
   useEffect(() => {

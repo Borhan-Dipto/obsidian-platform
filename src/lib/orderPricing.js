@@ -1608,10 +1608,15 @@ export function createPublicOrderQuote(
   return {
     items: Array.isArray(quote?.items)
       ? quote.items.map(
-          ({
-            inventory,
-            ...item
-          }) => item
+          (item) => {
+            const publicItem = {
+              ...item,
+            };
+
+            delete publicItem.inventory;
+
+            return publicItem;
+          }
         )
       : [],
 

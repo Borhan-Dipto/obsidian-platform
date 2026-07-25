@@ -100,14 +100,15 @@ function removeProtectedFields(
     return {};
   }
 
-  const {
-    _id,
-    key,
-    schemaVersion,
-    createdAt,
-    updatedAt,
-    ...safeDocument
-  } = document;
+  const safeDocument = {
+    ...document,
+  };
+
+  delete safeDocument._id;
+  delete safeDocument.key;
+  delete safeDocument.schemaVersion;
+  delete safeDocument.createdAt;
+  delete safeDocument.updatedAt;
 
   return safeDocument;
 }
@@ -643,12 +644,13 @@ export async function PATCH(
       );
     }
 
-    const {
-      _id,
-      createdAt,
-      updatedAt,
-      ...contentToSave
-    } = normalizedDocument;
+    const contentToSave = {
+      ...normalizedDocument,
+    };
+
+    delete contentToSave._id;
+    delete contentToSave.createdAt;
+    delete contentToSave.updatedAt;
 
     const now =
       new Date();

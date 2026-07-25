@@ -463,10 +463,19 @@ export default function ShopFilters({
           initialMaximumPrice,
       });
 
-    filtersRef.current =
-      nextFilters;
+    const frameId =
+      window.requestAnimationFrame(() => {
+        filtersRef.current =
+          nextFilters;
 
-    setFilters(nextFilters);
+        setFilters(nextFilters);
+      });
+
+    return () => {
+      window.cancelAnimationFrame(
+        frameId
+      );
+    };
   }, [
     initialSeries,
     initialSearchQuery,

@@ -55,31 +55,61 @@ export default function RecentlyViewedProducts({ product }) {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (!product?.id) {
-      setIsReady(true);
-      return;
-    }
+    const frameId =
+      window.requestAnimationFrame(() => {
+        if (!product?.id) {
+          setRecentItems([]);
+          setIsReady(true);
+          return;
+        }
 
-    const currentProduct = normalizeProduct(product);
-    const savedItems = readRecentlyViewed();
+        const currentProduct =
+          normalizeProduct(product);
 
-    const previousProducts = savedItems.filter(
-      (item) => item.id !== currentProduct.id
-    );
+        const savedItems =
+          readRecentlyViewed();
 
-    const updatedItems = [currentProduct, ...previousProducts].slice(
-      0,
-      MAX_RECENT_ITEMS
-    );
+        const previousProducts =
+          savedItems.filter(
+            (item) =>
+              item.id !==
+              currentProduct.id
+          );
 
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedItems));
-    } catch {
-      // Recently viewed will continue working for the current session.
-    }
+        const updatedItems = [
+          currentProduct,
+          ...previousProducts,
+        ].slice(
+          0,
+          MAX_RECENT_ITEMS
+        );
 
-    setRecentItems(previousProducts.slice(0, MAX_RECENT_ITEMS));
-    setIsReady(true);
+        try {
+          window.localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(
+              updatedItems
+            )
+          );
+        } catch {
+          // Recently viewed will continue working for the current session.
+        }
+
+        setRecentItems(
+          previousProducts.slice(
+            0,
+            MAX_RECENT_ITEMS
+          )
+        );
+
+        setIsReady(true);
+      });
+
+    return () => {
+      window.cancelAnimationFrame(
+        frameId
+      );
+    };
   }, [product]);
 
   if (!isReady || recentItems.length === 0) {

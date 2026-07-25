@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import clientPromise from "../../../../lib/mongodb";
 import {
@@ -91,10 +92,13 @@ export default async function ProductDetailsPage({
 
         <div className="grid gap-14 lg:grid-cols-2">
           <div className="overflow-hidden border border-white/10 bg-white/5">
-            <img
+            <Image
               src={product.image}
               alt={product.name}
-              className="w-full object-cover"
+              width={1200}
+              height={1500}
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              className="h-auto w-full object-cover"
             />
           </div>
 

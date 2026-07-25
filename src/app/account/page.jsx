@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -896,7 +897,7 @@ function RecentOrderCard({ order }) {
     <article className="group grid overflow-hidden border border-black/10 bg-[#f4f0e8] transition-all duration-500 hover:border-black/20 hover:shadow-[0_22px_60px_rgba(25,22,17,0.08)] md:grid-cols-[148px_minmax(0,1fr)_190px]">
       <div className="relative flex h-64 items-center justify-center overflow-hidden border-b border-black/10 bg-[#e5ded2] p-4 sm:h-72 md:h-auto md:min-h-[210px] md:border-b-0 md:border-r md:p-3">
         {primaryItem?.image ? (
-          <img
+          <Image
             src={primaryItem.image}
             alt={
               normalizeText(primaryItem?.name) ||
@@ -904,6 +905,9 @@ function RecentOrderCard({ order }) {
             }
             loading="lazy"
             decoding="async"
+            width={592}
+            height={840}
+            sizes="(min-width: 768px) 148px, 100vw"
             className="h-full w-full object-contain object-center transition-transform duration-700 group-hover:scale-[1.02]"
           />
         ) : (

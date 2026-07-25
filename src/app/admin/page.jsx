@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import clientPromise from "../../lib/mongodb";
 import {
@@ -2258,13 +2259,16 @@ function InventoryPanel({
               >
                 <div className="h-14 w-12 shrink-0 overflow-hidden bg-white/[0.04]">
                   {product.image ? (
-                    <img
+                    <Image
                       src={
                         product.image
                       }
                       alt={
                         product.name
                       }
+                      width={192}
+                      height={224}
+                      sizes="48px"
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (

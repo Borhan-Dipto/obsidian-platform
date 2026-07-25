@@ -755,7 +755,16 @@ export default function AccountOrderDetailsPage() {
   );
 
   useEffect(() => {
-    loadOrder();
+    const frameId =
+      window.requestAnimationFrame(() => {
+        void loadOrder();
+      });
+
+    return () => {
+      window.cancelAnimationFrame(
+        frameId
+      );
+    };
   }, [loadOrder]);
 
   if (loading) {

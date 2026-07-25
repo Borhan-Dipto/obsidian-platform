@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   useEffect,
@@ -274,8 +275,25 @@ export default function CheckoutPage() {
     [settings.payment]
   );
 
+  const selectedPaymentMethod =
+    enabledPaymentMethods.some(
+      (method) =>
+        method.value === paymentMethod
+    )
+      ? paymentMethod
+      : enabledPaymentMethods[0]
+          ?.value || "";
+
+  const quoteIsAvailable =
+    settingsLoaded &&
+    cartItems.length > 0 &&
+    Boolean(selectedPaymentMethod);
+
+  const activeQuote =
+    quoteIsAvailable ? quote : null;
+
   const currency =
-    quote?.pricing?.currency ||
+    activeQuote?.pricing?.currency ||
     settings.store?.currency ||
     "BDT";
 
@@ -283,11 +301,12 @@ export default function CheckoutPage() {
     getCurrencySymbol(currency);
 
   const displayItems =
-    quote?.items?.length > 0
-      ? quote.items
+    activeQuote?.items?.length > 0
+      ? activeQuote.items
       : cartItems;
 
-  const pricing = quote?.pricing || {
+  const pricing =
+    activeQuote?.pricing || {
     subtotal: cartItems.reduce(
       (total, item) =>
         total +
@@ -311,20 +330,30 @@ export default function CheckoutPage() {
   );
 
   useEffect(() => {
-    const existingToken =
-      sessionStorage.getItem(
-        CHECKOUT_TOKEN_KEY
+    const frameId =
+      window.requestAnimationFrame(() => {
+        const existingToken =
+          window.sessionStorage.getItem(
+            CHECKOUT_TOKEN_KEY
+          );
+
+        const token =
+          existingToken ||
+          createCheckoutToken();
+
+        window.sessionStorage.setItem(
+          CHECKOUT_TOKEN_KEY,
+          token
+        );
+
+        setCheckoutToken(token);
+      });
+
+    return () => {
+      window.cancelAnimationFrame(
+        frameId
       );
-
-    const token =
-      existingToken || createCheckoutToken();
-
-    sessionStorage.setItem(
-      CHECKOUT_TOKEN_KEY,
-      token
-    );
-
-    setCheckoutToken(token);
+    };
   }, []);
 
   useEffect(() => {
@@ -412,37 +441,7 @@ export default function CheckoutPage() {
   }, []);
 
   useEffect(() => {
-    if (
-      !settingsLoaded ||
-      enabledPaymentMethods.length === 0
-    ) {
-      return;
-    }
-
-    const selectedMethodAvailable =
-      enabledPaymentMethods.some(
-        (method) =>
-          method.value === paymentMethod
-      );
-
-    if (!selectedMethodAvailable) {
-      setPaymentMethod(
-        enabledPaymentMethods[0].value
-      );
-    }
-  }, [
-    settingsLoaded,
-    enabledPaymentMethods,
-    paymentMethod,
-  ]);
-
-  useEffect(() => {
-    if (
-      !settingsLoaded ||
-      cartItems.length === 0 ||
-      enabledPaymentMethods.length === 0
-    ) {
-      setQuote(null);
+    if (!quoteIsAvailable) {
       return;
     }
 
@@ -474,7 +473,8 @@ export default function CheckoutPage() {
             body: JSON.stringify({
               items: getCartPayload(cartItems),
               deliveryArea,
-              paymentMethod,
+              paymentMethod:
+                selectedPaymentMethod,
 
               couponCode:
                 appliedCoupon?.code || "",
@@ -556,9 +556,9 @@ export default function CheckoutPage() {
     settingsLoaded,
     cartItems,
     deliveryArea,
-    paymentMethod,
+    selectedPaymentMethod,
     appliedCoupon,
-    enabledPaymentMethods.length,
+    quoteIsAvailable,
   ]);
 
   function handleChange(event) {
@@ -783,7 +783,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!quote || quoteError) {
+    if (!activeQuote || quoteError) {
       setSubmitError(
         quoteError ||
           "Please wait for the order total to update."
@@ -820,7 +820,8 @@ export default function CheckoutPage() {
             },
 
             deliveryArea,
-            paymentMethod,
+            paymentMethod:
+              selectedPaymentMethod,
 
             couponCode:
               appliedCoupon?.code || "",
@@ -1148,7 +1149,7 @@ export default function CheckoutPage() {
                           <label
                             key={method.value}
                             className={`flex cursor-pointer items-center gap-3 border px-5 py-4 text-xs uppercase tracking-[0.2em] transition ${
-                              paymentMethod ===
+                              selectedPaymentMethod ===
                               method.value
                                 ? "border-black bg-black text-[#f1ece4]"
                                 : "border-black/20 hover:border-black"
@@ -1161,7 +1162,7 @@ export default function CheckoutPage() {
                                 method.value
                               }
                               checked={
-                                paymentMethod ===
+                                selectedPaymentMethod ===
                                 method.value
                               }
                               onChange={() =>
@@ -1199,7 +1200,7 @@ export default function CheckoutPage() {
                       isSubmitting ||
                       isQuoteLoading ||
                       isApplyingCoupon ||
-                      !quote ||
+                      !activeQuote ||
                       enabledPaymentMethods.length ===
                         0
                     }
@@ -1244,9 +1245,12 @@ export default function CheckoutPage() {
                       className="flex gap-4"
                     >
                       {item.image ? (
-                        <img
+                        <Image
                           src={item.image}
                           alt={item.name}
+                          width={160}
+                          height={192}
+                          sizes="80px"
                           className="h-24 w-20 shrink-0 object-cover"
                         />
                       ) : (

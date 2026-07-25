@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ImageUploader from "./ImageUploader";
@@ -307,11 +308,29 @@ export default function CollectionsManager({
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    setCollections(initialCollections);
-    setSeriesOptions(
-      buildSeriesOptions(initialCollections, initialSeriesOptions)
-    );
-  }, [initialCollections, initialSeriesOptions]);
+    const frameId =
+      window.requestAnimationFrame(() => {
+        setCollections(
+          initialCollections
+        );
+
+        setSeriesOptions(
+          buildSeriesOptions(
+            initialCollections,
+            initialSeriesOptions
+          )
+        );
+      });
+
+    return () => {
+      window.cancelAnimationFrame(
+        frameId
+      );
+    };
+  }, [
+    initialCollections,
+    initialSeriesOptions,
+  ]);
 
   const isDirty = useMemo(() => {
     return (
@@ -1337,10 +1356,13 @@ export default function CollectionsManager({
                     <div className="grid gap-5 md:grid-cols-[150px_minmax(0,1fr)] 2xl:grid-cols-[170px_minmax(0,1fr)_auto]">
                       <div className="overflow-hidden border border-white/10 bg-black">
                         {collection.coverImage ? (
-                          <img
+                          <Image
                             src={collection.coverImage}
                             alt={`${collection.title || "Collection"} cover`}
                             loading="lazy"
+                            width={680}
+                            height={576}
+                            sizes="(min-width: 1536px) 170px, (min-width: 768px) 150px, 100vw"
                             className="h-48 w-full object-cover md:h-44"
                           />
                         ) : (

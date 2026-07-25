@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   Suspense,
@@ -827,38 +828,47 @@ function SuccessContent() {
   });
 
   useEffect(() => {
-    try {
-      const savedValue =
-        sessionStorage.getItem(
-          LAST_ORDER_KEY
-        );
+    const frameId =
+      window.requestAnimationFrame(() => {
+        try {
+          const savedValue =
+            window.sessionStorage.getItem(
+              LAST_ORDER_KEY
+            );
 
-      if (!savedValue) {
-        return;
-      }
+          if (!savedValue) {
+            return;
+          }
 
-      const parsedValue =
-        JSON.parse(savedValue);
+          const parsedValue =
+            JSON.parse(savedValue);
 
-      const storedOrder =
-        parsedValue?.order || null;
+          const storedOrder =
+            parsedValue?.order || null;
 
-      if (
-        storedOrder &&
-        (!orderId ||
-          storedOrder.id === orderId ||
-          storedOrder.orderId === orderId)
-      ) {
-        setSavedOrder({
-          ...parsedValue,
-          order: storedOrder,
-        });
-      }
-    } catch {
-      sessionStorage.removeItem(
-        LAST_ORDER_KEY
+          if (
+            storedOrder &&
+            (!orderId ||
+              storedOrder.id === orderId ||
+              storedOrder.orderId === orderId)
+          ) {
+            setSavedOrder({
+              ...parsedValue,
+              order: storedOrder,
+            });
+          }
+        } catch {
+          window.sessionStorage.removeItem(
+            LAST_ORDER_KEY
+          );
+        }
+      });
+
+    return () => {
+      window.cancelAnimationFrame(
+        frameId
       );
-    }
+    };
   }, [orderId]);
 
   useEffect(() => {
@@ -897,10 +907,16 @@ function SuccessContent() {
 
   const order = savedOrder?.order || null;
 
-  const pricing =
-    savedOrder?.pricing ||
-    order?.pricing ||
-    {};
+  const pricing = useMemo(
+    () =>
+      savedOrder?.pricing ||
+      order?.pricing ||
+      {},
+    [
+      savedOrder?.pricing,
+      order?.pricing,
+    ]
+  );
 
   const currency =
     pricing.currency ||
@@ -1160,11 +1176,14 @@ function SuccessContent() {
                             className="flex gap-4 border-b border-black/10 pb-5"
                           >
                             {item.image ? (
-                              <img
+                              <Image
                                 src={item.image}
                                 alt={
                                   item.name
                                 }
+                                width={160}
+                                height={192}
+                                sizes="80px"
                                 className="h-24 w-20 shrink-0 object-cover"
                               />
                             ) : (

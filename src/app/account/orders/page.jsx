@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -541,12 +542,15 @@ export default function CustomerOrdersPage() {
                       <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
                         <div className="relative h-36 w-full overflow-hidden rounded-[22px] bg-[#eee9df] sm:h-32 sm:w-28 sm:shrink-0">
                           {primaryItem?.image ? (
-                            <img
+                            <Image
                               src={primaryItem.image}
                               alt={
                                 primaryItem.name ||
                                 "Ordered product"
                               }
+                              width={448}
+                              height={576}
+                              sizes="(min-width: 640px) 112px, 100vw"
                               className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
                             />
                           ) : (

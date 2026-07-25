@@ -3,7 +3,6 @@
 import Link from "next/link";
 import {
   Suspense,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -210,12 +209,14 @@ function PasswordField({
                 strokeWidth="1.4"
                 strokeLinecap="round"
               />
+
               <path
                 d="M10.6 10.7A2 2 0 0013.3 13.4"
                 stroke="currentColor"
                 strokeWidth="1.4"
                 strokeLinecap="round"
               />
+
               <path
                 d="M9.5 4.5A10.6 10.6 0 0112 4.2C17.8 4.2 21 12 21 12a17.7 17.7 0 01-2.3 3.7M6.2 6.3C4.1 8 3 12 3 12s3.2 7.8 9 7.8a9.7 9.7 0 004.1-.9"
                 stroke="currentColor"
@@ -238,6 +239,7 @@ function PasswordField({
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
+
               <circle
                 cx="12"
                 cy="12"
@@ -328,13 +330,12 @@ function ResetPasswordContent() {
   ] = useState(false);
 
   const [
-    tokenUnavailable,
-    setTokenUnavailable,
+    tokenInvalidated,
+    setTokenInvalidated,
   ] = useState(false);
 
-  useEffect(() => {
-    setTokenUnavailable(!token);
-  }, [token]);
+  const tokenUnavailable =
+    !token || tokenInvalidated;
 
   const passwordStrength =
     useMemo(
@@ -349,10 +350,13 @@ function ResetPasswordContent() {
     length:
       password.length >=
       MIN_PASSWORD_LENGTH,
+
     lowercase:
       /[a-z]/.test(password),
+
     uppercase:
       /[A-Z]/.test(password),
+
     number:
       /[0-9]/.test(password),
   };
@@ -404,10 +408,12 @@ function ResetPasswordContent() {
     setSuccessMessage("");
 
     if (!token) {
-      setTokenUnavailable(true);
+      setTokenInvalidated(true);
+
       setGeneralError(
         "This password reset link is missing or invalid."
       );
+
       return;
     }
 
@@ -420,6 +426,7 @@ function ResetPasswordContent() {
       setPasswordError(
         passwordValidationMessage
       );
+
       return;
     }
 
@@ -427,6 +434,7 @@ function ResetPasswordContent() {
       setConfirmPasswordError(
         "Please confirm your new password."
       );
+
       return;
     }
 
@@ -437,6 +445,7 @@ function ResetPasswordContent() {
       setConfirmPasswordError(
         "Passwords do not match."
       );
+
       return;
     }
 
@@ -447,10 +456,12 @@ function ResetPasswordContent() {
         "/api/account/reset-password",
         {
           method: "POST",
+
           headers: {
             "Content-Type":
               "application/json",
           },
+
           body: JSON.stringify({
             token,
             password,
@@ -480,6 +491,7 @@ function ResetPasswordContent() {
           setPasswordError(
             message
           );
+
           return;
         }
 
@@ -490,6 +502,7 @@ function ResetPasswordContent() {
           setConfirmPasswordError(
             message
           );
+
           return;
         }
 
@@ -501,7 +514,7 @@ function ResetPasswordContent() {
           result?.code ===
             "INVALID_OR_EXPIRED_TOKEN"
         ) {
-          setTokenUnavailable(
+          setTokenInvalidated(
             true
           );
         }
@@ -521,6 +534,7 @@ function ResetPasswordContent() {
 
       window.setTimeout(() => {
         setIsComplete(true);
+
         setShowSuccessOverlay(
           false
         );
@@ -598,6 +612,7 @@ function ResetPasswordContent() {
 
               <h1 className="max-w-lg font-serif text-5xl font-light leading-[1.03] tracking-[-0.035em] xl:text-7xl">
                 Define your
+
                 <span className="block italic text-[#c8b79f]">
                   new access.
                 </span>
@@ -698,6 +713,7 @@ function ResetPasswordContent() {
 
                       <h2 className="mt-5 font-serif text-4xl font-light leading-tight tracking-[-0.03em] sm:text-5xl">
                         Create a new
+
                         <span className="block italic text-[#7c6851]">
                           password.
                         </span>
@@ -977,6 +993,7 @@ function ResetPasswordContent() {
 
                     <h2 className="mt-5 font-serif text-4xl font-light leading-tight tracking-[-0.03em] sm:text-5xl">
                       Your access is
+
                       <span className="block italic text-[#7c6851]">
                         restored.
                       </span>

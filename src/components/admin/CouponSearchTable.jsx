@@ -395,7 +395,16 @@ export default function CouponSearchTable({
   });
 
   useEffect(() => {
-    setCouponItems(coupons);
+    const frameId =
+      window.requestAnimationFrame(() => {
+        setCouponItems(coupons);
+      });
+
+    return () => {
+      window.cancelAnimationFrame(
+        frameId
+      );
+    };
   }, [coupons]);
 
   const filteredCoupons =

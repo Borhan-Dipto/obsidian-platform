@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import clientPromise from "../../../../lib/mongodb";
 import {
@@ -1026,7 +1027,7 @@ export default async function OrderDetailsPage({
                           <div className="flex flex-col gap-6 sm:flex-row">
                             <div className="h-36 w-full shrink-0 overflow-hidden border border-white/10 bg-white/[0.03] sm:h-36 sm:w-32">
                               {productImage ? (
-                                <img
+                                <Image
                                   src={
                                     productImage
                                   }
@@ -1035,6 +1036,9 @@ export default async function OrderDetailsPage({
                                     "Ordered product"
                                   }
                                   loading="lazy"
+                                  width={512}
+                                  height={576}
+                                  sizes="(min-width: 640px) 128px, 100vw"
                                   className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]"
                                 />
                               ) : (

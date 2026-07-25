@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect } from "react";
 import { useQuickView } from "../../context/QuickViewContext";
@@ -51,9 +52,12 @@ export default function QuickViewModal() {
 
         <div className="grid md:grid-cols-2">
           <div className="bg-[#0b0b0b]">
-            <img
+            <Image
               src={selectedProduct.image}
               alt={selectedProduct.name}
+              width={1200}
+              height={1500}
+              sizes="(min-width: 768px) 50vw, 94vw"
               className="aspect-[4/5] h-full w-full object-cover"
             />
           </div>

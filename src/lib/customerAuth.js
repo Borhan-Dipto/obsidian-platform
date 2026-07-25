@@ -6,42 +6,50 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import clientPromise from "./mongodb";
 
-const CUSTOMER_COOKIE_NAME =
-  "obsidian-customer";
-
-const CUSTOMER_SESSION_DURATION_SECONDS =
-  60 * 60 * 24 * 30;
-
+const CUSTOMER_COOKIE_NAME = "obsidian-customer";
+const CUSTOMER_SESSION_DURATION_SECONDS = 60 * 60 * 24 * 30;
 const MINIMUM_SECRET_LENGTH = 32;
 
+const SENSITIVE_CUSTOMER_FIELDS = [
+  "password",
+  "passwordHash",
+  "resetPasswordToken",
+  "resetPasswordExpiresAt",
+  "verificationToken",
+  "verificationTokenExpiresAt",
+];
+
 function normalizeText(value) {
-  return String(
-    value ?? ""
-  ).trim();
+  return String(value ?? "").trim();
 }
 
 function normalizeEmail(value) {
-  return normalizeText(
-    value
-  ).toLowerCase();
+  return normalizeText(value).toLowerCase();
+}
+
+function normalizeDateValue(value) {
+  if (!value) {
+    return "";
+  }
+
+  const timestamp =
+    value instanceof Date ? value.getTime() : new Date(value).getTime();
+
+  if (!Number.isFinite(timestamp)) {
+    return "";
+  }
+
+  return new Date(timestamp).toISOString();
 }
 
 function getCustomerAuthSecret() {
-  const secret = normalizeText(
-    process.env
-      .CUSTOMER_AUTH_SECRET
-  );
+  const secret = normalizeText(process.env.CUSTOMER_AUTH_SECRET);
 
   if (!secret) {
-    throw new Error(
-      "CUSTOMER_AUTH_SECRET is missing."
-    );
+    throw new Error("CUSTOMER_AUTH_SECRET is missing.");
   }
 
-  if (
-    secret.length <
-    MINIMUM_SECRET_LENGTH
-  ) {
+  if (secret.length < MINIMUM_SECRET_LENGTH) {
     throw new Error(
       `CUSTOMER_AUTH_SECRET must contain at least ${MINIMUM_SECRET_LENGTH} characters.`
     );
@@ -51,86 +59,47 @@ function getCustomerAuthSecret() {
 }
 
 function getMongoDatabaseName() {
-  return (
-    normalizeText(
-      process.env.MONGODB_DB
-    ) || "obsidian"
-  );
+  return normalizeText(process.env.MONGODB_DB) || "obsidian";
 }
 
 async function resolveMongoClient() {
-  const importedValue =
-    await clientPromise;
+  const importedValue = await clientPromise;
 
-  if (
-    importedValue &&
-    typeof importedValue.db ===
-      "function"
-  ) {
+  if (importedValue && typeof importedValue.db === "function") {
     return importedValue;
   }
 
-  if (
-    importedValue?.default
-  ) {
-    const defaultValue =
-      await importedValue.default;
+  if (importedValue?.default) {
+    const defaultValue = await importedValue.default;
 
-    if (
-      defaultValue &&
-      typeof defaultValue.db ===
-        "function"
-    ) {
+    if (defaultValue && typeof defaultValue.db === "function") {
       return defaultValue;
     }
   }
 
   if (importedValue?.client) {
-    const clientValue =
-      await importedValue.client;
+    const clientValue = await importedValue.client;
 
-    if (
-      clientValue &&
-      typeof clientValue.db ===
-        "function"
-    ) {
+    if (clientValue && typeof clientValue.db === "function") {
       return clientValue;
     }
   }
 
-  if (
-    importedValue
-      ?.clientPromise
-  ) {
-    const promisedClient =
-      await importedValue
-        .clientPromise;
+  if (importedValue?.clientPromise) {
+    const promisedClient = await importedValue.clientPromise;
 
-    if (
-      promisedClient &&
-      typeof promisedClient.db ===
-        "function"
-    ) {
+    if (promisedClient && typeof promisedClient.db === "function") {
       return promisedClient;
     }
   }
 
-  console.error(
-    "MongoDB client resolution failed:",
-    {
-      valueType:
-        typeof importedValue,
-
-      availableKeys:
-        importedValue &&
-        typeof importedValue ===
-          "object"
-          ? Object.keys(
-              importedValue
-            )
-          : [],
-    }
-  );
+  console.error("MongoDB client resolution failed:", {
+    valueType: typeof importedValue,
+    availableKeys:
+      importedValue && typeof importedValue === "object"
+        ? Object.keys(importedValue)
+        : [],
+  });
 
   throw new TypeError(
     "MongoDB connection did not return a valid MongoClient."
@@ -138,260 +107,127 @@ async function resolveMongoClient() {
 }
 
 async function getCustomerCollection() {
-  const client =
-    await resolveMongoClient();
+  const client = await resolveMongoClient();
 
-  return client
-    .db(
-      getMongoDatabaseName()
-    )
-    .collection("customers");
+  return client.db(getMongoDatabaseName()).collection("customers");
 }
 
-function encodeBase64Url(
-  value
-) {
-  return Buffer.from(
-    value,
-    "utf8"
-  ).toString("base64url");
+function encodeBase64Url(value) {
+  return Buffer.from(value, "utf8").toString("base64url");
 }
 
-function decodeBase64Url(
-  value
-) {
-  return Buffer.from(
-    value,
-    "base64url"
-  ).toString("utf8");
+function decodeBase64Url(value) {
+  return Buffer.from(value, "base64url").toString("utf8");
 }
 
-function createSignature(
-  encodedPayload
-) {
+function createSignature(encodedPayload) {
   return crypto
-    .createHmac(
-      "sha256",
-      getCustomerAuthSecret()
-    )
+    .createHmac("sha256", getCustomerAuthSecret())
     .update(encodedPayload)
     .digest("base64url");
 }
 
-function safeCompareValues(
-  receivedValue,
-  expectedValue
-) {
+function safeCompareValues(receivedValue, expectedValue) {
   if (
-    typeof receivedValue !==
-      "string" ||
-    typeof expectedValue !==
-      "string"
+    typeof receivedValue !== "string" ||
+    typeof expectedValue !== "string"
   ) {
     return false;
   }
 
-  const receivedBuffer =
-    Buffer.from(
-      receivedValue,
-      "utf8"
-    );
+  const receivedBuffer = Buffer.from(receivedValue, "utf8");
+  const expectedBuffer = Buffer.from(expectedValue, "utf8");
 
-  const expectedBuffer =
-    Buffer.from(
-      expectedValue,
-      "utf8"
-    );
-
-  if (
-    receivedBuffer.length !==
-    expectedBuffer.length
-  ) {
+  if (receivedBuffer.length !== expectedBuffer.length) {
     return false;
   }
 
-  return crypto.timingSafeEqual(
-    receivedBuffer,
-    expectedBuffer
-  );
+  return crypto.timingSafeEqual(receivedBuffer, expectedBuffer);
 }
 
-function createSessionPayload(
-  customer
-) {
-  const now = Math.floor(
-    Date.now() / 1000
-  );
+function createSessionPayload(customer) {
+  const now = Math.floor(Date.now() / 1000);
 
   return {
     version: 1,
-
-    customerId:
-      normalizeText(
-        customer?._id ||
-          customer?.customerId
-      ),
-
-    email:
-      normalizeEmail(
-        customer?.email
-      ),
-
+    customerId: normalizeText(customer?._id || customer?.customerId),
+    email: normalizeEmail(customer?.email),
+    passwordChangedAt: normalizeDateValue(customer?.passwordChangedAt),
     issuedAt: now,
-
-    expiresAt:
-      now +
-      CUSTOMER_SESSION_DURATION_SECONDS,
-
-    sessionId:
-      crypto.randomUUID(),
+    expiresAt: now + CUSTOMER_SESSION_DURATION_SECONDS,
+    sessionId: crypto.randomUUID(),
   };
 }
 
-function createCustomerSessionToken(
-  customer
-) {
-  const payload =
-    createSessionPayload(
-      customer
-    );
+function createCustomerSessionToken(customer) {
+  const payload = createSessionPayload(customer);
 
   if (!payload.customerId) {
-    throw new Error(
-      "Customer ID is required to create a session."
-    );
+    throw new Error("Customer ID is required to create a session.");
   }
 
-  const encodedPayload =
-    encodeBase64Url(
-      JSON.stringify(
-        payload
-      )
-    );
-
-  const signature =
-    createSignature(
-      encodedPayload
-    );
+  const encodedPayload = encodeBase64Url(JSON.stringify(payload));
+  const signature = createSignature(encodedPayload);
 
   return `${encodedPayload}.${signature}`;
 }
 
-function verifyCustomerSessionToken(
-  token
-) {
+function verifyCustomerSessionToken(token) {
   try {
-    const normalizedToken =
-      normalizeText(token);
+    const normalizedToken = normalizeText(token);
 
     if (!normalizedToken) {
       return null;
     }
 
-    const tokenParts =
-      normalizedToken.split(".");
+    const tokenParts = normalizedToken.split(".");
 
-    if (
-      tokenParts.length !== 2
-    ) {
+    if (tokenParts.length !== 2) {
       return null;
     }
 
-    const [
-      encodedPayload,
-      receivedSignature,
-    ] = tokenParts;
+    const [encodedPayload, receivedSignature] = tokenParts;
+    const expectedSignature = createSignature(encodedPayload);
 
-    const expectedSignature =
-      createSignature(
-        encodedPayload
-      );
-
-    if (
-      !safeCompareValues(
-        receivedSignature,
-        expectedSignature
-      )
-    ) {
+    if (!safeCompareValues(receivedSignature, expectedSignature)) {
       return null;
     }
 
-    const payload =
-      JSON.parse(
-        decodeBase64Url(
-          encodedPayload
-        )
-      );
+    const payload = JSON.parse(decodeBase64Url(encodedPayload));
 
     if (
       payload?.version !== 1 ||
-      !normalizeText(
-        payload?.customerId
-      ) ||
-      !Number.isFinite(
-        payload?.issuedAt
-      ) ||
-      !Number.isFinite(
-        payload?.expiresAt
-      )
+      !normalizeText(payload?.customerId) ||
+      !Number.isFinite(payload?.issuedAt) ||
+      !Number.isFinite(payload?.expiresAt)
     ) {
       return null;
     }
 
-    const now = Math.floor(
-      Date.now() / 1000
-    );
+    const now = Math.floor(Date.now() / 1000);
 
-    if (
-      payload.expiresAt <=
-        now ||
-      payload.issuedAt >
-        now + 60
-    ) {
+    if (payload.expiresAt <= now || payload.issuedAt > now + 60) {
       return null;
     }
 
     return {
-      version:
-        payload.version,
-
-      customerId:
-        normalizeText(
-          payload.customerId
-        ),
-
-      email:
-        normalizeEmail(
-          payload.email
-        ),
-
-      issuedAt:
-        payload.issuedAt,
-
-      expiresAt:
-        payload.expiresAt,
-
-      sessionId:
-        normalizeText(
-          payload.sessionId
-        ),
+      version: payload.version,
+      customerId: normalizeText(payload.customerId),
+      email: normalizeEmail(payload.email),
+      passwordChangedAt: normalizeDateValue(payload.passwordChangedAt),
+      issuedAt: payload.issuedAt,
+      expiresAt: payload.expiresAt,
+      sessionId: normalizeText(payload.sessionId),
     };
   } catch {
     return null;
   }
 }
 
-function createCustomerQuery(
-  customerId
-) {
-  const normalizedCustomerId =
-    normalizeText(
-      customerId
-    );
+function createCustomerQuery(customerId) {
+  const normalizedCustomerId = normalizeText(customerId);
 
-  if (
-    !normalizedCustomerId
-  ) {
+  if (!normalizedCustomerId) {
     return {
       _id: null,
     };
@@ -399,20 +235,13 @@ function createCustomerQuery(
 
   const queryOptions = [
     {
-      customerId:
-        normalizedCustomerId,
+      customerId: normalizedCustomerId,
     },
   ];
 
-  if (
-    ObjectId.isValid(
-      normalizedCustomerId
-    )
-  ) {
+  if (ObjectId.isValid(normalizedCustomerId)) {
     queryOptions.unshift({
-      _id: new ObjectId(
-        normalizedCustomerId
-      ),
+      _id: new ObjectId(normalizedCustomerId),
     });
   }
 
@@ -421,185 +250,140 @@ function createCustomerQuery(
   };
 }
 
-function sanitizeCustomer(
-  customer
-) {
+function sanitizeCustomer(customer) {
   if (!customer) {
     return null;
   }
 
-  const {
-    password,
-    passwordHash,
-    resetPasswordToken,
-    resetPasswordExpiresAt,
-    verificationToken,
-    verificationTokenExpiresAt,
-    ...safeCustomer
-  } = customer;
+  const safeCustomer = {
+    ...customer,
+  };
+
+  for (
+    const fieldName
+    of SENSITIVE_CUSTOMER_FIELDS
+  ) {
+    delete safeCustomer[
+      fieldName
+    ];
+  }
 
   return JSON.parse(
     JSON.stringify({
       ...safeCustomer,
 
-      _id: String(
-        customer._id || ""
-      ),
+      _id:
+        String(
+          customer._id || ""
+        ),
 
-      customerId: String(
-        customer.customerId ||
-          customer._id ||
-          ""
-      ),
+      customerId:
+        String(
+          customer.customerId ||
+            customer._id ||
+            ""
+        ),
     })
   );
+}
+
+function hasMatchingPasswordVersion(session, customer) {
+  const sessionPasswordChangedAt = normalizeDateValue(
+    session?.passwordChangedAt
+  );
+
+  const customerPasswordChangedAt = normalizeDateValue(
+    customer?.passwordChangedAt
+  );
+
+  return sessionPasswordChangedAt === customerPasswordChangedAt;
 }
 
 export function getCustomerCookieName() {
   return CUSTOMER_COOKIE_NAME;
 }
 
-export function generateCustomerSessionToken(
-  customer
-) {
-  return createCustomerSessionToken(
-    customer
-  );
+export function generateCustomerSessionToken(customer) {
+  return createCustomerSessionToken(customer);
 }
 
-export function validateCustomerSessionToken(
-  token
-) {
-  return verifyCustomerSessionToken(
-    token
-  );
+export function validateCustomerSessionToken(token) {
+  return verifyCustomerSessionToken(token);
 }
 
-export async function setCustomerSession(
-  customer
-) {
-  const token =
-    createCustomerSessionToken(
-      customer
-    );
+export async function setCustomerSession(customer) {
+  const token = createCustomerSessionToken(customer);
+  const cookieStore = await cookies();
 
-  const cookieStore =
-    await cookies();
-
-  cookieStore.set(
-    CUSTOMER_COOKIE_NAME,
-    token,
-    {
-      httpOnly: true,
-
-      secure:
-        process.env.NODE_ENV ===
-        "production",
-
-      sameSite: "lax",
-      path: "/",
-
-      maxAge:
-        CUSTOMER_SESSION_DURATION_SECONDS,
-
-      priority: "high",
-    }
-  );
+  cookieStore.set(CUSTOMER_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: CUSTOMER_SESSION_DURATION_SECONDS,
+    priority: "high",
+  });
 
   return true;
 }
 
 export async function clearCustomerSession() {
-  const cookieStore =
-    await cookies();
+  const cookieStore = await cookies();
 
-  cookieStore.set(
-    CUSTOMER_COOKIE_NAME,
-    "",
-    {
-      httpOnly: true,
-
-      secure:
-        process.env.NODE_ENV ===
-        "production",
-
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-      expires: new Date(0),
-      priority: "high",
-    }
-  );
+  cookieStore.set(CUSTOMER_COOKIE_NAME, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
+    priority: "high",
+  });
 
   return true;
 }
 
 export async function getCustomerSession() {
-  const cookieStore =
-    await cookies();
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get(CUSTOMER_COOKIE_NAME);
 
-  const sessionCookie =
-    cookieStore.get(
-      CUSTOMER_COOKIE_NAME
-    );
-
-  if (
-    !sessionCookie?.value
-  ) {
+  if (!sessionCookie?.value) {
     return null;
   }
 
-  return verifyCustomerSessionToken(
-    sessionCookie.value
-  );
+  return verifyCustomerSessionToken(sessionCookie.value);
 }
 
 export async function isCustomerAuthenticated() {
-  const session =
-    await getCustomerSession();
+  const customer = await getCurrentCustomer();
 
-  return Boolean(session);
+  return Boolean(customer);
 }
 
 export async function getCurrentCustomer() {
-  const session =
-    await getCustomerSession();
+  const session = await getCustomerSession();
 
-  if (
-    !session?.customerId
-  ) {
+  if (!session?.customerId) {
     return null;
   }
 
   try {
-    const customers =
-      await getCustomerCollection();
+    const customers = await getCustomerCollection();
 
-    const customer =
-      await customers.findOne(
-        createCustomerQuery(
-          session.customerId
-        )
-      );
+    const customer = await customers.findOne(
+      createCustomerQuery(session.customerId)
+    );
 
     if (!customer) {
       return null;
     }
 
-    const accountStatus =
-      normalizeText(
-        customer.status ||
-          customer.accountStatus ||
-          "active"
-      ).toLowerCase();
+    const accountStatus = normalizeText(
+      customer.status || customer.accountStatus || "active"
+    ).toLowerCase();
 
     if (
-      [
-        "disabled",
-        "suspended",
-        "blocked",
-        "deleted",
-      ].includes(
+      ["disabled", "suspended", "blocked", "deleted", "inactive"].includes(
         accountStatus
       )
     ) {
@@ -609,53 +393,42 @@ export async function getCurrentCustomer() {
     if (
       session.email &&
       customer.email &&
-      normalizeEmail(
-        customer.email
-      ) !== session.email
+      normalizeEmail(customer.email) !== session.email
     ) {
       return null;
     }
 
-    return sanitizeCustomer(
-      customer
-    );
+    if (!hasMatchingPasswordVersion(session, customer)) {
+      return null;
+    }
+
+    return sanitizeCustomer(customer);
   } catch (error) {
-    console.error(
-      "Get Current Customer Error:",
-      error
-    );
+    console.error("Get Current Customer Error:", error);
 
     return null;
   }
 }
 
 export async function requireCustomerAuth(
-  redirectPath =
-    "/account/login"
+  redirectPath = "/account/login"
 ) {
-  const customer =
-    await getCurrentCustomer();
+  const customer = await getCurrentCustomer();
 
   if (!customer) {
-    redirect(
-      redirectPath
-    );
+    redirect(redirectPath);
   }
 
   return customer;
 }
 
 export async function redirectAuthenticatedCustomer(
-  redirectPath =
-    "/account"
+  redirectPath = "/account"
 ) {
-  const customer =
-    await getCurrentCustomer();
+  const customer = await getCurrentCustomer();
 
   if (customer) {
-    redirect(
-      redirectPath
-    );
+    redirect(redirectPath);
   }
 
   return null;

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- The authenticator QR code is a generated data URL and must render directly. */
 "use client";
 
 import {

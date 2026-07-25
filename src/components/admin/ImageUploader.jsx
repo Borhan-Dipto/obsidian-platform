@@ -1,6 +1,12 @@
+/* eslint-disable @next/next/no-img-element -- Local blob previews need their original browser-managed dimensions. */
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 
 const DEFAULT_ACCEPTED_TYPES = [
   "image/jpeg",
@@ -13,20 +19,32 @@ const DEFAULT_ACCEPT =
   ".jpg,.jpeg,.png,.webp,.avif,image/jpeg,image/png,image/webp,image/avif";
 
 function formatFileSize(bytes) {
-  const size = Number(bytes || 0);
+  const size = Number(
+    bytes || 0
+  );
 
   if (size < 1024) {
     return `${size} B`;
   }
 
-  if (size < 1024 * 1024) {
-    return `${(size / 1024).toFixed(1)} KB`;
+  if (
+    size <
+    1024 * 1024
+  ) {
+    return `${(
+      size / 1024
+    ).toFixed(1)} KB`;
   }
 
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(
+    size /
+    (1024 * 1024)
+  ).toFixed(1)} MB`;
 }
 
-async function readJsonResponse(response) {
+async function readJsonResponse(
+  response
+) {
   try {
     return await response.json();
   } catch {
@@ -38,109 +56,219 @@ export default function ImageUploader({
   value = "",
   onChange,
   label = "Product Image",
-  helperText = "JPEG, PNG, WebP or AVIF. Maximum file size: 10 MB.",
-  previewAlt = "Uploaded image preview",
-  previewClassName = "max-h-80 w-full object-contain",
+  helperText =
+    "JPEG, PNG, WebP or AVIF. Maximum file size: 10 MB.",
+  previewAlt =
+    "Uploaded image preview",
+  previewClassName =
+    "max-h-80 w-full object-contain",
   required = false,
   disabled = false,
   maxSizeMB = 10,
-  acceptedTypes = DEFAULT_ACCEPTED_TYPES,
+  acceptedTypes =
+    DEFAULT_ACCEPTED_TYPES,
   accept = DEFAULT_ACCEPT,
   allowRemove = true,
   onUploadingChange,
   onError,
 }) {
-  const generatedId = useId();
-  const inputId = `image-upload-${generatedId.replace(/:/g, "")}`;
+  const generatedId =
+    useId();
 
-  const fileInputRef = useRef(null);
-  const objectUrlRef = useRef("");
-  const abortControllerRef = useRef(null);
-  const mountedRef = useRef(true);
+  const inputId =
+    `image-upload-${generatedId.replace(
+      /:/g,
+      ""
+    )}`;
 
-  const [previewUrl, setPreviewUrl] = useState(value || "");
-  const [isUploading, setIsUploading] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [status, setStatus] = useState({
+  const fileInputRef =
+    useRef(null);
+
+  const objectUrlRef =
+    useRef("");
+
+  const abortControllerRef =
+    useRef(null);
+
+  const mountedRef =
+    useRef(true);
+
+  const [
+    previewUrl,
+    setPreviewUrl,
+  ] = useState(value || "");
+
+  const [
+    isUploading,
+    setIsUploading,
+  ] = useState(false);
+
+  const [
+    isDragging,
+    setIsDragging,
+  ] = useState(false);
+
+  const [
+    status,
+    setStatus,
+  ] = useState({
     type: "",
     message: "",
   });
 
   useEffect(() => {
-    mountedRef.current = true;
+    mountedRef.current =
+      true;
 
     return () => {
-      mountedRef.current = false;
+      mountedRef.current =
+        false;
 
-      if (abortControllerRef.current) {
+      if (
+        abortControllerRef.current
+      ) {
         abortControllerRef.current.abort();
       }
 
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-        objectUrlRef.current = "";
+      if (
+        objectUrlRef.current
+      ) {
+        URL.revokeObjectURL(
+          objectUrlRef.current
+        );
+
+        objectUrlRef.current =
+          "";
       }
     };
   }, []);
 
   useEffect(() => {
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current);
-      objectUrlRef.current = "";
-    }
+    const frameId =
+      window.requestAnimationFrame(
+        () => {
+          if (
+            objectUrlRef.current
+          ) {
+            URL.revokeObjectURL(
+              objectUrlRef.current
+            );
 
-    setPreviewUrl(value || "");
+            objectUrlRef.current =
+              "";
+          }
+
+          setPreviewUrl(
+            value || ""
+          );
+        }
+      );
+
+    return () => {
+      window.cancelAnimationFrame(
+        frameId
+      );
+    };
   }, [value]);
 
-  function updateUploadingState(nextState) {
-    if (mountedRef.current) {
-      setIsUploading(nextState);
+  function updateUploadingState(
+    nextState
+  ) {
+    if (
+      mountedRef.current
+    ) {
+      setIsUploading(
+        nextState
+      );
     }
 
-    if (typeof onUploadingChange === "function") {
-      onUploadingChange(nextState);
+    if (
+      typeof onUploadingChange ===
+      "function"
+    ) {
+      onUploadingChange(
+        nextState
+      );
     }
   }
 
-  function reportError(message) {
+  function reportError(
+    message
+  ) {
     const errorMessage =
-      String(message || "").trim() || "Image upload failed.";
+      String(
+        message || ""
+      ).trim() ||
+      "Image upload failed.";
 
-    if (mountedRef.current) {
+    if (
+      mountedRef.current
+    ) {
       setStatus({
         type: "error",
-        message: errorMessage,
+        message:
+          errorMessage,
       });
     }
 
-    if (typeof onError === "function") {
-      onError(errorMessage);
+    if (
+      typeof onError ===
+      "function"
+    ) {
+      onError(
+        errorMessage
+      );
     }
   }
 
   function clearTemporaryPreview() {
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current);
-      objectUrlRef.current = "";
+    if (
+      objectUrlRef.current
+    ) {
+      URL.revokeObjectURL(
+        objectUrlRef.current
+      );
+
+      objectUrlRef.current =
+        "";
     }
   }
 
-  function validateFile(file) {
+  function validateFile(
+    file
+  ) {
     if (!file) {
       return "Please select an image.";
     }
 
-    if (!acceptedTypes.includes(file.type)) {
+    if (
+      !acceptedTypes.includes(
+        file.type
+      )
+    ) {
       return "Unsupported image format. Use JPEG, PNG, WebP or AVIF.";
     }
 
-    const maximumBytes = Number(maxSizeMB) * 1024 * 1024;
+    const maximumBytes =
+      Number(
+        maxSizeMB
+      ) *
+      1024 *
+      1024;
 
-    if (!Number.isFinite(maximumBytes) || maximumBytes <= 0) {
+    if (
+      !Number.isFinite(
+        maximumBytes
+      ) ||
+      maximumBytes <= 0
+    ) {
       return "Invalid upload size configuration.";
     }
 
-    if (file.size > maximumBytes) {
+    if (
+      file.size >
+      maximumBytes
+    ) {
       return `The selected image is ${formatFileSize(
         file.size
       )}. Maximum allowed size is ${maxSizeMB} MB.`;
@@ -149,165 +277,293 @@ export default function ImageUploader({
     return "";
   }
 
-  async function uploadImage(file) {
-    if (disabled || isUploading) {
+  async function uploadImage(
+    file
+  ) {
+    if (
+      disabled ||
+      isUploading
+    ) {
       return;
     }
 
-    const validationError = validateFile(file);
+    const validationError =
+      validateFile(file);
 
-    if (validationError) {
-      reportError(validationError);
+    if (
+      validationError
+    ) {
+      reportError(
+        validationError
+      );
+
       return;
     }
 
-    if (abortControllerRef.current) {
+    if (
+      abortControllerRef.current
+    ) {
       abortControllerRef.current.abort();
     }
 
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
+    const controller =
+      new AbortController();
+
+    abortControllerRef.current =
+      controller;
 
     clearTemporaryPreview();
 
-    const localPreviewUrl = URL.createObjectURL(file);
-    objectUrlRef.current = localPreviewUrl;
+    const localPreviewUrl =
+      URL.createObjectURL(
+        file
+      );
 
-    setPreviewUrl(localPreviewUrl);
+    objectUrlRef.current =
+      localPreviewUrl;
+
+    setPreviewUrl(
+      localPreviewUrl
+    );
+
     setStatus({
       type: "info",
-      message: `Uploading ${file.name}...`,
+
+      message:
+        `Uploading ${file.name}...`,
     });
 
-    updateUploadingState(true);
+    updateUploadingState(
+      true
+    );
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      const formData =
+        new FormData();
 
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-        signal: controller.signal,
-      });
+      formData.append(
+        "file",
+        file
+      );
 
-      const data = await readJsonResponse(response);
+      const response =
+        await fetch(
+          "/api/upload",
+          {
+            method: "POST",
+            body: formData,
 
-      if (!response.ok || !data?.success || !data?.imageUrl) {
-        if (response.status === 401) {
+            signal:
+              controller.signal,
+          }
+        );
+
+      const data =
+        await readJsonResponse(
+          response
+        );
+
+      if (
+        !response.ok ||
+        !data?.success ||
+        !data?.imageUrl
+      ) {
+        if (
+          response.status ===
+          401
+        ) {
           throw new Error(
             "Your admin session has expired. Sign in again and retry."
           );
         }
 
-        if (response.status === 413) {
+        if (
+          response.status ===
+          413
+        ) {
           throw new Error(
             `The image is too large. Maximum allowed size is ${maxSizeMB} MB.`
           );
         }
 
-        throw new Error(data?.message || "Image upload failed.");
+        throw new Error(
+          data?.message ||
+            "Image upload failed."
+        );
       }
 
       clearTemporaryPreview();
 
-      if (!mountedRef.current) {
+      if (
+        !mountedRef.current
+      ) {
         return;
       }
 
-      setPreviewUrl(data.imageUrl);
+      setPreviewUrl(
+        data.imageUrl
+      );
 
-      if (typeof onChange === "function") {
-        onChange(data.imageUrl);
+      if (
+        typeof onChange ===
+        "function"
+      ) {
+        onChange(
+          data.imageUrl
+        );
       }
 
       setStatus({
         type: "success",
-        message: "Image uploaded successfully.",
+
+        message:
+          "Image uploaded successfully.",
       });
 
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+      if (
+        fileInputRef.current
+      ) {
+        fileInputRef.current.value =
+          "";
       }
     } catch (error) {
-      if (error?.name === "AbortError") {
+      if (
+        error?.name ===
+        "AbortError"
+      ) {
         return;
       }
 
       clearTemporaryPreview();
 
-      if (mountedRef.current) {
-        setPreviewUrl(value || "");
+      if (
+        mountedRef.current
+      ) {
+        setPreviewUrl(
+          value || ""
+        );
       }
 
       reportError(
-        error?.message || "Something went wrong while uploading the image."
+        error?.message ||
+          "Something went wrong while uploading the image."
       );
     } finally {
-      if (abortControllerRef.current === controller) {
-        abortControllerRef.current = null;
-        updateUploadingState(false);
+      if (
+        abortControllerRef.current ===
+        controller
+      ) {
+        abortControllerRef.current =
+          null;
+
+        updateUploadingState(
+          false
+        );
       }
     }
   }
 
-  function handleFileChange(event) {
-    const file = event.target.files?.[0];
+  function handleFileChange(
+    event
+  ) {
+    const file =
+      event.target
+        .files?.[0];
 
     if (!file) {
       return;
     }
 
-    uploadImage(file);
+    void uploadImage(
+      file
+    );
   }
 
-  function handleDragEnter(event) {
+  function handleDragEnter(
+    event
+  ) {
     event.preventDefault();
     event.stopPropagation();
 
-    if (!disabled && !isUploading) {
-      setIsDragging(true);
+    if (
+      !disabled &&
+      !isUploading
+    ) {
+      setIsDragging(
+        true
+      );
     }
   }
 
-  function handleDragOver(event) {
+  function handleDragOver(
+    event
+  ) {
     event.preventDefault();
     event.stopPropagation();
 
-    if (!disabled && !isUploading) {
-      event.dataTransfer.dropEffect = "copy";
-      setIsDragging(true);
+    if (
+      !disabled &&
+      !isUploading
+    ) {
+      event.dataTransfer.dropEffect =
+        "copy";
+
+      setIsDragging(
+        true
+      );
     }
   }
 
-  function handleDragLeave(event) {
+  function handleDragLeave(
+    event
+  ) {
     event.preventDefault();
     event.stopPropagation();
 
-    if (!event.currentTarget.contains(event.relatedTarget)) {
-      setIsDragging(false);
+    if (
+      !event.currentTarget.contains(
+        event.relatedTarget
+      )
+    ) {
+      setIsDragging(
+        false
+      );
     }
   }
 
-  function handleDrop(event) {
+  function handleDrop(
+    event
+  ) {
     event.preventDefault();
     event.stopPropagation();
 
-    setIsDragging(false);
+    setIsDragging(
+      false
+    );
 
-    if (disabled || isUploading) {
+    if (
+      disabled ||
+      isUploading
+    ) {
       return;
     }
 
-    const file = event.dataTransfer.files?.[0];
+    const file =
+      event.dataTransfer
+        .files?.[0];
 
     if (file) {
-      uploadImage(file);
+      void uploadImage(
+        file
+      );
     }
   }
 
   function openFilePicker() {
-    if (disabled || isUploading) {
+    if (
+      disabled ||
+      isUploading
+    ) {
       return;
     }
 
@@ -315,28 +571,41 @@ export default function ImageUploader({
   }
 
   function removeImage() {
-    if (disabled || isUploading) {
+    if (
+      disabled ||
+      isUploading
+    ) {
       return;
     }
 
     clearTemporaryPreview();
+
     setPreviewUrl("");
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    if (
+      fileInputRef.current
+    ) {
+      fileInputRef.current.value =
+        "";
     }
 
-    if (typeof onChange === "function") {
+    if (
+      typeof onChange ===
+      "function"
+    ) {
       onChange("");
     }
 
     setStatus({
       type: "success",
-      message: "Image removed.",
+      message:
+        "Image removed.",
     });
   }
 
-  const isUnavailable = disabled || isUploading;
+  const isUnavailable =
+    disabled ||
+    isUploading;
 
   return (
     <div className="space-y-4">
@@ -346,8 +615,12 @@ export default function ImageUploader({
           className="block text-xs uppercase tracking-[0.25em] text-neutral-500"
         >
           {label}
+
           {required ? (
-            <span className="ml-1 text-red-400" aria-hidden="true">
+            <span
+              className="ml-1 text-red-400"
+              aria-hidden="true"
+            >
               *
             </span>
           ) : null}
@@ -366,15 +639,21 @@ export default function ImageUploader({
             <img
               src={previewUrl}
               alt={previewAlt}
-              className={previewClassName}
+              className={
+                previewClassName
+              }
             />
           </div>
 
           {allowRemove ? (
             <button
               type="button"
-              onClick={removeImage}
-              disabled={isUnavailable}
+              onClick={
+                removeImage
+              }
+              disabled={
+                isUnavailable
+              }
               className="absolute right-3 top-3 border border-white/20 bg-black/80 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-white backdrop-blur transition hover:border-red-400 hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label={`Remove ${label.toLowerCase()}`}
             >
@@ -385,10 +664,18 @@ export default function ImageUploader({
       ) : null}
 
       <div
-        onDragEnter={handleDragEnter}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
+        onDragEnter={
+          handleDragEnter
+        }
+        onDragOver={
+          handleDragOver
+        }
+        onDragLeave={
+          handleDragLeave
+        }
+        onDrop={
+          handleDrop
+        }
         className={`border border-dashed p-6 text-center transition sm:p-8 ${
           isDragging
             ? "border-[#f1ece4] bg-white/10"
@@ -404,15 +691,23 @@ export default function ImageUploader({
           id={inputId}
           type="file"
           accept={accept}
-          onChange={handleFileChange}
-          disabled={isUnavailable}
+          onChange={
+            handleFileChange
+          }
+          disabled={
+            isUnavailable
+          }
           className="sr-only"
         />
 
         <button
           type="button"
-          onClick={openFilePicker}
-          disabled={isUnavailable}
+          onClick={
+            openFilePicker
+          }
+          disabled={
+            isUnavailable
+          }
           className="w-full disabled:cursor-not-allowed"
         >
           <span className="block text-sm text-[#f1ece4]">
@@ -437,9 +732,11 @@ export default function ImageUploader({
         {status.message ? (
           <p
             className={`text-xs leading-5 ${
-              status.type === "error"
+              status.type ===
+              "error"
                 ? "text-red-300"
-                : status.type === "success"
+                : status.type ===
+                    "success"
                   ? "text-emerald-300"
                   : "text-yellow-300"
             }`}

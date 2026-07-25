@@ -416,7 +416,16 @@ export default function AdminShell({
     ]);
 
   useEffect(() => {
-    setIsMobileMenuOpen(false);
+    const frameId =
+      window.requestAnimationFrame(() => {
+        setIsMobileMenuOpen(false);
+      });
+
+    return () => {
+      window.cancelAnimationFrame(
+        frameId
+      );
+    };
   }, [pathname]);
 
   useEffect(() => {

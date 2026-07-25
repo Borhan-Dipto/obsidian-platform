@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   useMemo,
@@ -202,7 +203,7 @@ export default function ProductSearchTable({
                 >
                   <div className="h-16 w-16 overflow-hidden border border-white/10 bg-white/5">
                     {product.image ? (
-                      <img
+                      <Image
                         src={
                           product.image
                         }
@@ -210,6 +211,9 @@ export default function ProductSearchTable({
                           product.name ||
                           "Product"
                         }
+                        width={256}
+                        height={256}
+                        sizes="64px"
                         className="h-full w-full object-cover"
                       />
                     ) : (

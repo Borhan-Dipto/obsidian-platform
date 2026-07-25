@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   useEffect,
@@ -1543,10 +1544,14 @@ export default function Footer() {
                   {brand.showLogo &&
                   logoUrl ? (
                     <span className="relative block max-w-[230px] overflow-hidden">
-                      <img
+                      <Image
                         src={logoUrl}
                         alt={logoAlt}
-                        className="max-h-[58px] max-w-[230px] object-contain object-left"
+                        width={460}
+                        height={116}
+                        sizes="230px"
+                        unoptimized
+                        className="h-auto max-h-[58px] w-auto max-w-[230px] object-contain object-left"
                       />
 
                       <span
@@ -1557,9 +1562,12 @@ export default function Footer() {
                   ) : (
                     <>
                       <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden">
-                        <img
+                        <Image
                           src="/images/obsidian-logo-ivory.png"
                           alt=""
+                          width={80}
+                          height={80}
+                          sizes="40px"
                           className="relative z-[1] h-full w-full object-contain"
                         />
 
