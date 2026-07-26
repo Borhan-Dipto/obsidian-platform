@@ -122,7 +122,7 @@ export default async function TrackOrderPage() {
           <p className="mt-7 max-w-2xl text-base leading-8 text-neutral-600">
             {cleanText(
               content.description,
-              "Enter your OBSIDIAN tracking ID to check your order status."
+              "Enter your tracking ID and checkout phone number to securely check your order status."
             )}
           </p>
 

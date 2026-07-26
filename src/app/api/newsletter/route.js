@@ -1,15 +1,27 @@
 import clientPromise from "../../../lib/mongodb";
 
-export const dynamic = "force-dynamic";
+import {
+  createLegalConsentRecord,
+  LegalConsentError,
+} from "../../../lib/legalConsent";
+
+import {
+  createPublicApiResponse,
+  enforcePublicJsonRequest,
+} from "../../../lib/publicApiSecurity";
+
+export const dynamic =
+  "force-dynamic";
 
 const NEWSLETTER_COLLECTION =
   "newsletterSubscribers";
 
-const PUBLIC_NEWSLETTER_SOURCES = new Set([
-  "footer",
-  "popup",
-  "checkout",
-]);
+const PUBLIC_NEWSLETTER_SOURCES =
+  new Set([
+    "footer",
+    "popup",
+    "checkout",
+  ]);
 
 function normalizeEmail(value) {
   return String(value || "")
@@ -23,12 +35,19 @@ function isValidEmail(email) {
   );
 }
 
-function normalizePublicSource(value) {
-  const source = String(value || "footer")
-    .trim()
-    .toLowerCase();
+function normalizePublicSource(
+  value
+) {
+  const source =
+    String(
+      value || "footer"
+    )
+      .trim()
+      .toLowerCase();
 
-  return PUBLIC_NEWSLETTER_SOURCES.has(source)
+  return PUBLIC_NEWSLETTER_SOURCES.has(
+    source
+  )
     ? source
     : "footer";
 }
@@ -37,43 +56,29 @@ function createErrorResponse(
   message,
   status = 500
 ) {
-  return Response.json(
+  return createPublicApiResponse(
     {
       success: false,
       message,
     },
-    {
-      status,
-    }
+    status
   );
-}
-
-function getRequestIpAddress(request) {
-  const forwardedFor =
-    request.headers.get("x-forwarded-for");
-
-  if (forwardedFor) {
-    return forwardedFor
-      .split(",")[0]
-      .trim()
-      .slice(0, 100);
-  }
-
-  return String(
-    request.headers.get("x-real-ip") || ""
-  ).slice(0, 100);
 }
 
 async function getNewsletterCollection() {
-  const client = await clientPromise;
+  const client =
+    await clientPromise;
 
-  const database = client.db(
-    process.env.MONGODB_DB || "obsidian"
-  );
+  const database =
+    client.db(
+      process.env.MONGODB_DB ||
+        "obsidian"
+    );
 
-  const collection = database.collection(
-    NEWSLETTER_COLLECTION
-  );
+  const collection =
+    database.collection(
+      NEWSLETTER_COLLECTION
+    );
 
   await collection.createIndex(
     {
@@ -81,32 +86,119 @@ async function getNewsletterCollection() {
     },
     {
       unique: true,
+
+      name:
+        "newsletter_unique_email",
     }
   );
 
   return collection;
 }
 
-export async function POST(request) {
-  try {
-    let requestBody;
+function createConsentUpdate({
+  source,
+  legalConsent,
+  now,
+}) {
+  return {
+    $set: {
+      status: "active",
+      source,
 
-    try {
-      requestBody = await request.json();
-    } catch {
+      consentStatus:
+        "granted",
+
+      consentMethod:
+        "explicit_form_submission",
+
+      legalConsent,
+
+      consentUpdatedAt:
+        now,
+
+      updatedAt:
+        now,
+    },
+
+    $push: {
+      consentHistory: {
+        $each: [
+          legalConsent,
+        ],
+
+        $slice: -20,
+      },
+    },
+  };
+}
+
+export async function POST(
+  request
+) {
+  try {
+    const security =
+      await enforcePublicJsonRequest(
+        request,
+        {
+          action:
+            "newsletter-subscribe",
+
+          maxBodyBytes:
+            16 * 1024,
+
+          rateLimits: [
+            {
+              scope: "ip",
+              limit: 30,
+
+              windowMs:
+                60 * 60 * 1000,
+            },
+
+            {
+              scope: "email",
+              limit: 5,
+
+              windowMs:
+                24 * 60 * 60 * 1000,
+
+              identifier: (body) =>
+                normalizeEmail(
+                  body?.email
+                ),
+            },
+          ],
+        }
+      );
+
+    if (!security.success) {
+      return security.response;
+    }
+
+    const requestBody =
+      security.body;
+
+    const email =
+      normalizeEmail(
+        requestBody?.email
+      );
+
+    const source =
+      normalizePublicSource(
+        requestBody?.source
+      );
+
+    const marketingConsent =
+      requestBody
+        ?.marketingConsent ===
+      true;
+
+    if (!marketingConsent) {
       return createErrorResponse(
-        "Invalid request body.",
+        "Marketing consent is required to join the newsletter.",
         400
       );
     }
-
-    const email = normalizeEmail(
-      requestBody?.email
-    );
-
-    const source = normalizePublicSource(
-      requestBody?.source
-    );
 
     if (!email) {
       return createErrorResponse(
@@ -129,6 +221,23 @@ export async function POST(request) {
       );
     }
 
+    const now =
+      new Date();
+
+    const legalConsent =
+      await createLegalConsentRecord({
+        group:
+          "newsletter",
+
+        purpose:
+          "marketing_email_subscription",
+
+        source:
+          `newsletter_${source}`,
+
+        acceptedAt: now,
+      });
+
     const collection =
       await getNewsletterCollection();
 
@@ -137,80 +246,112 @@ export async function POST(request) {
         email,
       });
 
-    const now = new Date();
-
     if (existingSubscriber) {
-      const existingStatus = String(
-        existingSubscriber.status || "active"
-      )
-        .trim()
-        .toLowerCase();
+      const existingStatus =
+        String(
+          existingSubscriber.status ||
+            "active"
+        )
+          .trim()
+          .toLowerCase();
 
-      if (existingStatus === "unsubscribed") {
+      const consentUpdate =
+        createConsentUpdate({
+          source,
+          legalConsent,
+          now,
+        });
+
+      if (
+        existingStatus ===
+        "unsubscribed"
+      ) {
+        consentUpdate.$set
+          .resubscribedAt = now;
+
+        consentUpdate.$unset = {
+          unsubscribedAt: "",
+        };
+
         await collection.updateOne(
           {
-            _id: existingSubscriber._id,
+            _id:
+              existingSubscriber._id,
           },
-          {
-            $set: {
-              status: "active",
-              source,
-              resubscribedAt: now,
-              updatedAt: now,
-            },
-
-            $unset: {
-              unsubscribedAt: "",
-            },
-          }
+          consentUpdate
         );
 
-        return Response.json({
+        return createPublicApiResponse({
           success: true,
+
           message:
             "Welcome back. Your subscription is active again.",
         });
       }
 
-      return Response.json({
+      await collection.updateOne(
+        {
+          _id:
+            existingSubscriber._id,
+        },
+        consentUpdate
+      );
+
+      return createPublicApiResponse({
         success: true,
+
         message:
           "You are already subscribed to OBSIDIAN updates.",
       });
     }
 
-    const ipAddress =
-      getRequestIpAddress(request);
-
-    const userAgent = String(
-      request.headers.get("user-agent") || ""
-    ).slice(0, 1000);
-
     await collection.insertOne({
       email,
       source,
       status: "active",
-      ipAddress,
-      userAgent,
+
+      consentStatus:
+        "granted",
+
+      consentMethod:
+        "explicit_form_submission",
+
+      legalConsent,
+
+      consentHistory: [
+        legalConsent,
+      ],
+
       subscribedAt: now,
+      consentUpdatedAt: now,
       createdAt: now,
       updatedAt: now,
     });
 
-    return Response.json(
+    return createPublicApiResponse(
       {
         success: true,
+
         message:
           "Thank you for joining OBSIDIAN.",
       },
-      {
-        status: 201,
-      }
+      201
     );
   } catch (error) {
+    if (
+      error instanceof
+      LegalConsentError
+    ) {
+      return createErrorResponse(
+        "The current Privacy Policy could not be verified. Please try again later.",
+        error.status || 503
+      );
+    }
+
     if (error?.code === 11000) {
-      return Response.json({
+      return createPublicApiResponse({
         success: true,
+
         message:
           "You are already subscribed to OBSIDIAN updates.",
       });

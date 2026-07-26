@@ -1,4 +1,10 @@
 import type { MetadataRoute } from "next";
+
+import {
+  PRODUCTS_COLLECTION_NAME,
+  getPublicProductQuery,
+} from "../lib/catalog";
+
 import clientPromise from "../lib/mongodb";
 
 const SITE_URL =
@@ -74,6 +80,42 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly",
       priority: 0.5,
     },
+    {
+      url: `${SITE_URL}/privacy`,
+      lastModified: generatedAt,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${SITE_URL}/terms`,
+      lastModified: generatedAt,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${SITE_URL}/terms-of-sale`,
+      lastModified: generatedAt,
+      changeFrequency: "yearly",
+      priority: 0.4,
+    },
+    {
+      url: `${SITE_URL}/delivery-policy`,
+      lastModified: generatedAt,
+      changeFrequency: "yearly",
+      priority: 0.4,
+    },
+    {
+      url: `${SITE_URL}/exchange-return-policy`,
+      lastModified: generatedAt,
+      changeFrequency: "yearly",
+      priority: 0.4,
+    },
+    {
+      url: `${SITE_URL}/refund-policy`,
+      lastModified: generatedAt,
+      changeFrequency: "yearly",
+      priority: 0.4,
+    },
   ];
 
   try {
@@ -81,14 +123,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const db = client.db(process.env.MONGODB_DB || "obsidian");
 
     const products = await db
-      .collection("products")
-      .find<ProductSitemapRecord>(
-        {
+      .collection<ProductSitemapRecord>(
+        PRODUCTS_COLLECTION_NAME
+      )
+      .find(
+        getPublicProductQuery({
           id: {
             $type: "string",
             $ne: "",
           },
-        },
+        }),
         {
           projection: {
             _id: 0,

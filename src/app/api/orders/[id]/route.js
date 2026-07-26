@@ -1,10 +1,14 @@
-import crypto from "crypto";
-
 import {
   requireAdminApiPermission,
 } from "../../../../lib/adminApiAuthorization";
 
 import clientPromise from "../../../../lib/mongodb";
+
+import {
+  OrderLifecycleError,
+  isAllowedOrderStatusTransition,
+  releaseCancelledOrderReservations,
+} from "../../../../lib/orderLifecycle";
 
 import {
   dispatchOrderStatusNotifications,
@@ -50,21 +54,6 @@ const EDITABLE_DATE_FIELDS = [
   "courierBookingDate",
   "estimatedDelivery",
 ];
-
-const TRACKING_WINDOW_MS =
-  15 * 60 * 1000;
-
-const TRACKING_MAX_ATTEMPTS =
-  20;
-
-const trackingAttempts =
-  globalThis
-    .__obsidianTrackingAttempts ||
-  new Map();
-
-globalThis
-  .__obsidianTrackingAttempts =
-  trackingAttempts;
 
 function jsonResponse(
   body,
@@ -114,17 +103,6 @@ function normalizeOrderId(
     .trim()
     .toUpperCase()
     .slice(0, 120);
-}
-
-function normalizePhone(
-  value
-) {
-  return String(
-    value ?? ""
-  ).replace(
-    /\D/g,
-    ""
-  );
 }
 
 function normalizeText(
@@ -245,356 +223,6 @@ function normalizeUrl(
   }
 
   return normalizedValue;
-}
-
-function safeCompare(
-  firstValue,
-  secondValue
-) {
-  const firstBuffer =
-    Buffer.from(
-      String(
-        firstValue || ""
-      ),
-      "utf8"
-    );
-
-  const secondBuffer =
-    Buffer.from(
-      String(
-        secondValue || ""
-      ),
-      "utf8"
-    );
-
-  if (
-    firstBuffer.length !==
-    secondBuffer.length
-  ) {
-    return false;
-  }
-
-  return crypto.timingSafeEqual(
-    firstBuffer,
-    secondBuffer
-  );
-}
-
-function maskPhone(
-  phone
-) {
-  const normalizedPhone =
-    normalizePhone(phone);
-
-  if (
-    normalizedPhone.length <=
-    4
-  ) {
-    return normalizedPhone;
-  }
-
-  return `${"*".repeat(
-    Math.max(
-      4,
-      normalizedPhone.length -
-        4
-    )
-  )}${normalizedPhone.slice(
-    -4
-  )}`;
-}
-
-function getClientKey(
-  request
-) {
-  const forwardedFor =
-    request.headers.get(
-      "x-forwarded-for"
-    );
-
-  const ipAddress =
-    forwardedFor
-      ?.split(",")[0]
-      ?.trim() ||
-    request.headers.get(
-      "x-real-ip"
-    ) ||
-    "unknown";
-
-  return `track:${ipAddress}`;
-}
-
-function consumeTrackingAttempt(
-  request
-) {
-  const now =
-    Date.now();
-
-  const key =
-    getClientKey(
-      request
-    );
-
-  if (
-    trackingAttempts.size >
-    5000
-  ) {
-    for (
-      const [
-        attemptKey,
-        attempt,
-      ]
-      of trackingAttempts.entries()
-    ) {
-      if (
-        now -
-          attempt.startedAt >
-        TRACKING_WINDOW_MS
-      ) {
-        trackingAttempts.delete(
-          attemptKey
-        );
-      }
-    }
-  }
-
-  const existingAttempt =
-    trackingAttempts.get(
-      key
-    );
-
-  if (
-    !existingAttempt ||
-    now -
-      existingAttempt.startedAt >
-      TRACKING_WINDOW_MS
-  ) {
-    trackingAttempts.set(
-      key,
-      {
-        count: 1,
-        startedAt: now,
-      }
-    );
-
-    return true;
-  }
-
-  if (
-    existingAttempt.count >=
-    TRACKING_MAX_ATTEMPTS
-  ) {
-    return false;
-  }
-
-  existingAttempt.count +=
-    1;
-
-  trackingAttempts.set(
-    key,
-    existingAttempt
-  );
-
-  return true;
-}
-
-function serializePublicOrder(
-  order
-) {
-  const pricing =
-    order?.pricing || {};
-
-  const statusHistory =
-    Array.isArray(
-      order?.statusHistory
-    )
-      ? order.statusHistory.map(
-          (entry) => ({
-            status:
-              normalizeStatus(
-                entry?.status ||
-                  entry?.to
-              ) ||
-              "pending",
-
-            changedAt:
-              entry?.changedAt ||
-              null,
-          })
-        )
-      : [];
-
-  return {
-    orderId:
-      order.orderId,
-
-    id:
-      order.orderId,
-
-    status:
-      normalizeStatus(
-        order.status
-      ) || "pending",
-
-    paymentStatus:
-      normalizeStatus(
-        order.paymentStatus
-      ) || "unpaid",
-
-    paymentMethod:
-      order.paymentMethod ||
-      "",
-
-    paymentMethodLabel:
-      order.paymentMethodLabel ||
-      "",
-
-    customer: {
-      fullName:
-        order.customer
-          ?.fullName ||
-        "",
-
-      phone:
-        maskPhone(
-          order.customer?.phone
-        ),
-
-      address:
-        order.customer
-          ?.address ||
-        "",
-
-      deliveryArea:
-        order.customer
-          ?.deliveryArea ||
-        order.deliveryArea ||
-        "",
-    },
-
-    items:
-      Array.isArray(
-        order.items
-      )
-        ? order.items
-        : [],
-
-    pricing: {
-      currency:
-        pricing.currency ||
-        "BDT",
-
-      subtotal:
-        Number(
-          pricing.subtotal ??
-            order.subtotal ??
-            0
-        ) || 0,
-
-      originalDeliveryCharge:
-        Number(
-          pricing.originalDeliveryCharge ??
-            order.originalDeliveryCharge ??
-            order.deliveryCharge ??
-            0
-        ) || 0,
-
-      productDiscount:
-        Number(
-          pricing.productDiscount ??
-            0
-        ) || 0,
-
-      deliveryDiscount:
-        Number(
-          pricing.deliveryDiscount ??
-            0
-        ) || 0,
-
-      totalDiscount:
-        Number(
-          pricing.totalDiscount ??
-            order.discount ??
-            0
-        ) || 0,
-
-      payableDeliveryCharge:
-        Number(
-          pricing.payableDeliveryCharge ??
-            order.deliveryCharge ??
-            0
-        ) || 0,
-
-      total:
-        Number(
-          pricing.total ??
-            order.total ??
-            0
-        ) || 0,
-    },
-
-    coupon:
-      order.coupon
-        ? {
-            code:
-              order.coupon
-                .code ||
-              "",
-          }
-        : null,
-
-    courier: {
-      name:
-        order.courierName ||
-        "",
-
-      trackingNumber:
-        order.trackingNumber ||
-        "",
-
-      trackingUrl:
-        order.trackingUrl ||
-        "",
-    },
-
-    estimatedDelivery:
-      order.estimatedDelivery ||
-      null,
-
-    statusHistory,
-
-    createdAt:
-      order.createdAt ||
-      null,
-
-    updatedAt:
-      order.updatedAt ||
-      null,
-
-    confirmedAt:
-      order.confirmedAt ||
-      null,
-
-    processingAt:
-      order.processingAt ||
-      null,
-
-    packedAt:
-      order.packedAt ||
-      null,
-
-    shippedAt:
-      order.shippedAt ||
-      null,
-
-    deliveredAt:
-      order.deliveredAt ||
-      null,
-
-    cancelledAt:
-      order.cancelledAt ||
-      null,
-  };
 }
 
 function normalizeComparableValue(
@@ -800,6 +428,29 @@ export async function GET(
   context
 ) {
   try {
+    const authorization =
+      await requireAdminApiPermission(
+        request,
+        {
+          orders: [
+            "read",
+          ],
+        },
+        {
+          path:
+            "/api/orders/[id]",
+
+          forbiddenMessage:
+            "You do not have permission to view order details.",
+        }
+      );
+
+    if (
+      !authorization.authorized
+    ) {
+      return authorization.response;
+    }
+
     const { id } =
       await context.params;
 
@@ -810,7 +461,7 @@ export async function GET(
 
     if (!orderId) {
       return createValidationResponse(
-        "Tracking ID is required."
+        "Order ID is required."
       );
     }
 
@@ -832,107 +483,7 @@ export async function GET(
           success: false,
 
           message:
-            "Order not found. Check your tracking ID and phone number.",
-        },
-        404
-      );
-    }
-
-    const authorization =
-      await requireAdminApiPermission(
-        request,
-        {
-          orders: [
-            "read",
-          ],
-        },
-        {
-          path:
-            "/api/orders/[id]",
-
-          forbiddenMessage:
-            "You do not have permission to view order details.",
-        }
-      );
-
-    if (
-      authorization.authorized
-    ) {
-      return jsonResponse({
-        success: true,
-        order,
-      });
-    }
-
-    /*
-     * An unauthenticated visitor may
-     * continue through public tracking.
-     *
-     * An authenticated Admin Workspace
-     * account without orders.read must
-     * receive the permission response.
-     */
-    if (
-      authorization.response
-        ?.status !== 401
-    ) {
-      return authorization.response;
-    }
-
-    if (
-      !consumeTrackingAttempt(
-        request
-      )
-    ) {
-      return jsonResponse(
-        {
-          success: false,
-
-          message:
-            "Too many tracking attempts. Please try again later.",
-        },
-        429
-      );
-    }
-
-    const requestUrl =
-      new URL(
-        request.url
-      );
-
-    const phone =
-      normalizePhone(
-        requestUrl.searchParams.get(
-          "phone"
-        )
-      );
-
-    if (
-      phone.length < 10 ||
-      phone.length > 14
-    ) {
-      return createValidationResponse(
-        "Enter the phone number used when placing the order."
-      );
-    }
-
-    const orderPhone =
-      normalizePhone(
-        order.customer?.phone
-      );
-
-    if (
-      !safeCompare(
-        phone,
-        orderPhone
-      )
-    ) {
-      return jsonResponse(
-        {
-          success: false,
-
-          message:
-            "Order not found. Check your tracking ID and phone number.",
+            "Order not found.",
         },
         404
       );
@@ -940,11 +491,7 @@ export async function GET(
 
     return jsonResponse({
       success: true,
-
-      order:
-        serializePublicOrder(
-          order
-        ),
+      order,
     });
   } catch (error) {
     console.error(
@@ -1102,6 +649,27 @@ export async function PATCH(
       statusChanged =
         previousStatus !==
         nextStatus;
+
+      if (
+        statusChanged &&
+        !isAllowedOrderStatusTransition(
+          previousStatus,
+          nextStatus
+        )
+      ) {
+        return jsonResponse(
+          {
+            success: false,
+
+            code:
+              "INVALID_STATUS_TRANSITION",
+
+            message:
+              `Order status cannot move from ${previousStatus} to ${nextStatus}.`,
+          },
+          409
+        );
+      }
 
       normalizedUpdates.status =
         nextStatus;
@@ -1462,89 +1030,284 @@ export async function PATCH(
     fieldsToSet.lastUpdatedBy =
       "admin";
 
-    const updateOperation = {
-      $set:
-        fieldsToSet,
+    const client =
+      await clientPromise;
 
-      $push: {
-        activityHistory: {
-          type:
-            "order-management-update",
+    const session =
+      client.startSession();
 
-          changedFields,
-          changedAt,
+    let updatedOrder =
+      null;
 
-          actor:
-            "admin",
+    let finalChangedFields =
+      [...changedFields];
+
+    try {
+      await session.withTransaction(
+        async () => {
+          const transactionOrder =
+            await ordersCollection.findOne(
+              {
+                _id:
+                  existingOrder._id,
+
+                orderId,
+              },
+              {
+                session,
+              }
+            );
+
+          if (!transactionOrder) {
+            throw new OrderLifecycleError(
+              "Order not found during update.",
+              {
+                status: 404,
+
+                code:
+                  "ORDER_NOT_FOUND",
+              }
+            );
+          }
+
+          if (
+            !valuesAreEqual(
+              transactionOrder.updatedAt,
+              existingOrder.updatedAt
+            )
+          ) {
+            throw new OrderLifecycleError(
+              "This order was updated by another request. Refresh the page and try again.",
+              {
+                code:
+                  "ORDER_UPDATE_CONFLICT",
+              }
+            );
+          }
+
+          const transactionStatus =
+            normalizeStatus(
+              transactionOrder.status
+            ) || "pending";
+
+          if (
+            transactionStatus !==
+            previousStatus
+          ) {
+            throw new OrderLifecycleError(
+              "This order was updated by another request. Refresh the page and try again.",
+              {
+                code:
+                  "ORDER_UPDATE_CONFLICT",
+              }
+            );
+          }
+
+          if (
+            statusChanged &&
+            !isAllowedOrderStatusTransition(
+              transactionStatus,
+              nextStatus
+            )
+          ) {
+            throw new OrderLifecycleError(
+              `Order status cannot move from ${transactionStatus} to ${nextStatus}.`,
+              {
+                code:
+                  "INVALID_STATUS_TRANSITION",
+              }
+            );
+          }
+
+          const transactionFieldsToSet = {
+            ...fieldsToSet,
+          };
+
+          const transactionChangedFields =
+            [...changedFields];
+
+          let commerceRelease = {
+            inventoryReleased:
+              false,
+
+            couponUsageReleased:
+              false,
+          };
+
+          if (
+            statusChanged &&
+            nextStatus ===
+              "cancelled"
+          ) {
+            const releaseResult =
+              await releaseCancelledOrderReservations(
+                {
+                  database,
+
+                  order:
+                    transactionOrder,
+
+                  session,
+                  changedAt,
+
+                  reason:
+                    effectiveCancellationReason ||
+                    "Order cancelled",
+                }
+              );
+
+            Object.assign(
+              transactionFieldsToSet,
+              releaseResult
+                .fieldsToSet
+            );
+
+            transactionChangedFields.push(
+              ...releaseResult
+                .changedFields
+            );
+
+            commerceRelease = {
+              inventoryReleased:
+                releaseResult
+                  .inventoryReleased,
+
+              couponUsageReleased:
+                releaseResult
+                  .couponUsageReleased,
+            };
+          }
+
+          transactionFieldsToSet
+            .updatedAt =
+            changedAt;
+
+          transactionFieldsToSet
+            .lastUpdatedBy =
+            "admin";
+
+          const uniqueChangedFields =
+            Array.from(
+              new Set(
+                transactionChangedFields
+              )
+            );
+
+          const updateOperation = {
+            $set:
+              transactionFieldsToSet,
+
+            $push: {
+              activityHistory: {
+                type:
+                  "order-management-update",
+
+                changedFields:
+                  uniqueChangedFields,
+
+                changedAt,
+
+                actor:
+                  "admin",
+
+                commerceRelease,
+              },
+            },
+          };
+
+          if (statusChanged) {
+            updateOperation
+              .$push
+              .statusHistory = {
+              from:
+                transactionStatus,
+
+              to:
+                nextStatus,
+
+              status:
+                nextStatus,
+
+              note:
+                statusNote,
+
+              changedAt,
+
+              actor:
+                "admin",
+            };
+          }
+
+          const updateFilter = {
+            _id:
+              transactionOrder._id,
+
+            orderId,
+          };
+
+          if (
+            transactionOrder
+              .updatedAt
+          ) {
+            updateFilter.updatedAt =
+              transactionOrder
+                .updatedAt;
+          }
+
+          const result =
+            await ordersCollection.updateOne(
+              updateFilter,
+              updateOperation,
+              {
+                session,
+              }
+            );
+
+          if (
+            result.matchedCount ===
+            0
+          ) {
+            throw new OrderLifecycleError(
+              "This order was updated by another request. Refresh the page and try again.",
+              {
+                code:
+                  "ORDER_UPDATE_CONFLICT",
+              }
+            );
+          }
+
+          finalChangedFields =
+            uniqueChangedFields;
+
+          updatedOrder =
+            await ordersCollection.findOne(
+              {
+                _id:
+                  transactionOrder._id,
+              },
+              {
+                session,
+              }
+            );
         },
-      },
-    };
-
-    if (statusChanged) {
-      updateOperation
-        .$push
-        .statusHistory = {
-        from:
-          previousStatus,
-
-        to:
-          nextStatus,
-
-        status:
-          nextStatus,
-
-        note:
-          statusNote,
-
-        changedAt,
-
-        actor:
-          "admin",
-      };
-    }
-
-    const updateFilter = {
-      _id:
-        existingOrder._id,
-
-      orderId,
-    };
-
-    if (
-      existingOrder.updatedAt
-    ) {
-      updateFilter.updatedAt =
-        existingOrder.updatedAt;
-    }
-
-    const result =
-      await ordersCollection.updateOne(
-        updateFilter,
-        updateOperation
-      );
-
-    if (
-      result.matchedCount ===
-      0
-    ) {
-      return jsonResponse(
         {
-          success: false,
+          readConcern: {
+            level:
+              "snapshot",
+          },
 
-          message:
-            "This order was updated by another request. Refresh the page and try again.",
-        },
-        409
-      );
-    }
+          writeConcern: {
+            w:
+              "majority",
+          },
 
-    const updatedOrder =
-      await ordersCollection.findOne(
-        {
-          _id:
-            existingOrder._id,
+          readPreference:
+            "primary",
         }
       );
+    } finally {
+      await session.endSession();
+    }
 
     if (
       statusChanged &&
@@ -1572,7 +1335,9 @@ export async function PATCH(
       changed:
         true,
 
-      changedFields,
+      changedFields:
+        finalChangedFields,
+
       previousStatus,
 
       status:
@@ -1585,6 +1350,20 @@ export async function PATCH(
         updatedOrder,
     });
   } catch (error) {
+    if (
+      error instanceof
+      OrderLifecycleError
+    ) {
+      return jsonResponse(
+        {
+          success: false,
+          code: error.code,
+          message: error.message,
+        },
+        error.status
+      );
+    }
+
     console.error(
       "Order Management Update Error:",
       error

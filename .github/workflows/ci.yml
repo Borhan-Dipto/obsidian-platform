@@ -1,0 +1,94 @@
+name: OBSIDIAN Critical CI
+
+on:
+  push:
+    branches:
+      - main
+      - frontend-v2
+  pull_request:
+    branches:
+      - main
+      - frontend-v2
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: obsidian-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint, Test, Build, Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+      BETTER_AUTH_URL: http://127.0.0.1:3000
+      MONGODB_URI: mongodb://127.0.0.1:27017/obsidian_ci?replicaSet=rs0&directConnection=true
+      MONGODB_INTEGRATION_URI: mongodb://127.0.0.1:27017/obsidian_ci?replicaSet=rs0&directConnection=true
+      MONGODB_DB: obsidian_ci
+      BETTER_AUTH_SECRET: ci-only-better-auth-secret-not-for-production-2026
+      CUSTOMER_AUTH_SECRET: ci-only-customer-auth-secret-not-for-production-2026
+      PUBLIC_API_SECURITY_SECRET: ci-only-public-api-security-secret-not-for-production
+      CRON_SECRET: ci-only-notification-cron-secret-not-for-production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+
+      - name: Start MongoDB replica set
+        shell: bash
+        run: |
+          docker run             --detach             --name obsidian-mongodb             --publish 27017:27017             mongo:7.0             --replSet rs0             --bind_ip_all             --port 27017
+
+          for attempt in {1..60}; do
+            if docker exec               obsidian-mongodb               mongosh               --quiet               --eval 'db.adminCommand({ ping: 1 }).ok'               | grep -q '1'; then
+              break
+            fi
+
+            if [[ "$attempt" -eq 60 ]]; then
+              docker logs obsidian-mongodb
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          docker exec             obsidian-mongodb             mongosh             --quiet             --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})'
+
+          for attempt in {1..60}; do
+            if docker exec               obsidian-mongodb               mongosh               --quiet               --eval 'db.hello().isWritablePrimary'               | grep -q 'true'; then
+              break
+            fi
+
+            if [[ "$attempt" -eq 60 ]]; then
+              docker logs obsidian-mongodb
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Run critical verification
+        run: npm run ci:verify
+
+      - name: Show MongoDB logs on failure
+        if: failure()
+        run: docker logs obsidian-mongodb
+
+      - name: Stop MongoDB
+        if: always()
+        run: docker rm --force obsidian-mongodb || true

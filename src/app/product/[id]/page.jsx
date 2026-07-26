@@ -1,6 +1,13 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { cache } from "react";
 import clientPromise from "../../../lib/mongodb";
+
+import {
+  PRODUCTS_COLLECTION_NAME,
+  getPublicProductQuery,
+} from "../../../lib/catalog";
+
 import { getProductContent } from "../../../lib/getCmsContent";
 import { normalizeActiveItems } from "../../../lib/cmsDefaults";
 import ProductActions from "../../../components/product/ProductActions";
@@ -77,9 +84,15 @@ const getProduct = cache(async (id) => {
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB || "obsidian");
 
-    const product = await db.collection("products").findOne({
-      id: productId,
-    });
+    const product = await db
+      .collection(
+        PRODUCTS_COLLECTION_NAME
+      )
+      .findOne(
+        getPublicProductQuery({
+          id: productId,
+        })
+      );
 
     if (!product) {
       return null;
@@ -278,53 +291,7 @@ export default async function ProductDetailsPage({ params }) {
   );
 
   if (!product) {
-    const notFoundButtonHref = cleanText(
-      content.notFoundButtonHref,
-      "/shop"
-    );
-
-    return (
-      <main className="min-h-screen bg-[#f1ece4] text-[#0b0b0b]">
-        <Navbar />
-
-        <section className="flex min-h-[70vh] items-center justify-center px-6 pt-32 pb-20">
-          <div className="max-w-2xl text-center">
-            <p className="mb-5 text-xs uppercase tracking-[0.45em] text-neutral-500">
-              {cleanText(
-                content.notFoundEyebrow,
-                "Product"
-              )}
-            </p>
-
-            <h1 className="font-heading text-5xl font-light leading-none md:text-7xl">
-              {cleanText(
-                content.notFoundTitle,
-                "Product not found."
-              )}
-            </h1>
-
-            <p className="mx-auto mt-6 max-w-xl text-base leading-8 text-neutral-600">
-              {cleanText(
-                content.notFoundDescription,
-                "This piece may have been removed, renamed, or is no longer available in the current collection."
-              )}
-            </p>
-
-            <Link
-              href={notFoundButtonHref}
-              className="mt-10 inline-flex border border-[#0b0b0b] px-8 py-4 text-xs uppercase tracking-[0.3em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
-            >
-              {cleanText(
-                content.notFoundButtonText,
-                "Back To Shop"
-              )}
-            </Link>
-          </div>
-        </section>
-
-        <Footer />
-      </main>
-    );
+    notFound();
   }
 
   const productName = cleanText(

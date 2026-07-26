@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { enforcePublicRequestEnvelope } from "@/lib/publicApiSecurity";
 import { getNotificationSettings } from "@/lib/notificationSettings";
 import { getSettings } from "@/lib/settings";
 import {
@@ -194,35 +195,6 @@ function getClientIp(request) {
   }
 
   return "unknown";
-}
-
-function isSameOriginRequest(
-  request
-) {
-  const originHeader =
-    normalizeText(
-      request.headers.get(
-        "origin"
-      ),
-      2000
-    );
-
-  if (!originHeader) {
-    return true;
-  }
-
-  try {
-    return (
-      new URL(
-        originHeader
-      ).origin ===
-      new URL(
-        request.url
-      ).origin
-    );
-  } catch {
-    return false;
-  }
 }
 
 async function readRequestBody(
@@ -837,15 +809,22 @@ export async function POST(
   request
 ) {
   try {
-    if (
-      !isSameOriginRequest(
-        request
-      )
-    ) {
-      return createErrorResponse(
-        "The password reset request could not be verified.",
-        403
+    const securityEnvelope =
+      await enforcePublicRequestEnvelope(
+        request,
+        {
+          action:
+            "account-forgot-password",
+
+          maxBodyBytes:
+            MAX_REQUEST_BODY_BYTES,
+        }
       );
+
+    if (
+      !securityEnvelope.success
+    ) {
+      return securityEnvelope.response;
     }
 
     const parsedRequest =

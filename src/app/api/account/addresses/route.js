@@ -2,6 +2,7 @@ import { ObjectId } from "mongodb";
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getCustomerSession } from "@/lib/customerAuth";
+import { enforcePublicJsonRequest } from "@/lib/publicApiSecurity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -805,17 +806,49 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    let requestBody;
+    const security =
+      await enforcePublicJsonRequest(
+        request,
+        {
+          action:
+            "account-address-create",
 
-    try {
-      requestBody =
-        await request.json();
-    } catch {
-      return createErrorResponse(
-        "Invalid request data.",
-        400
+          maxBodyBytes:
+            32 * 1024,
+
+          rateLimits: [
+            {
+              scope: "ip",
+              limit: 120,
+              windowMs:
+                60 * 60 * 1000,
+            },
+
+            {
+              scope: "session",
+              limit: 60,
+              windowMs:
+                60 * 60 * 1000,
+
+              identifier:
+                (
+                  _body,
+                  currentRequest
+                ) =>
+                  currentRequest.headers.get(
+                    "cookie"
+                  ) || "",
+            },
+          ],
+        }
       );
+
+    if (!security.success) {
+      return security.response;
     }
+
+    const requestBody =
+      security.body;
 
     const {
       session,

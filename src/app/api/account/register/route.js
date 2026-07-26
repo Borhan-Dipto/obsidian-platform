@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import clientPromise from "@/lib/mongodb";
 import { setCustomerSession } from "@/lib/customerAuth";
-import { ORDERS_COLLECTION_NAME } from "@/lib/orderPricing";
+import { enforcePublicJsonRequest } from "@/lib/publicApiSecurity";
+
+import {
+  createLegalConsentRecord,
+  LegalConsentError,
+} from "@/lib/legalConsent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,18 +17,6 @@ const MAX_PASSWORD_LENGTH = 128;
 const MAX_NAME_LENGTH = 80;
 const MAX_EMAIL_LENGTH = 254;
 const MAX_PHONE_LENGTH = 14;
-
-const COMPLETED_ORDER_STATUSES = new Set([
-  "completed",
-  "delivered",
-]);
-
-const CANCELLED_ORDER_STATUSES = new Set([
-  "cancelled",
-  "canceled",
-  "refunded",
-  "returned",
-]);
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -43,23 +36,6 @@ function normalizeName(value) {
   return normalizeText(value)
     .replace(/\s+/g, " ")
     .slice(0, MAX_NAME_LENGTH);
-}
-
-function normalizeNumber(value) {
-  const number = Number(value);
-
-  if (!Number.isFinite(number) || number < 0) {
-    return 0;
-  }
-
-  return number;
-}
-
-function escapeRegExp(value) {
-  return String(value || "").replace(
-    /[.*+?^${}()|[\]\\]/g,
-    "\\$&"
-  );
 }
 
 function isValidEmail(email) {
@@ -205,71 +181,18 @@ function serializeCustomer(customer) {
 }
 
 async function ensureRegistrationIndexes(
-  customersCollection,
-  ordersCollection
+  customersCollection
 ) {
   try {
-    await Promise.all([
-      customersCollection.createIndex(
-        {
-          email: 1,
-        },
-        {
-          unique: true,
-          name: "unique_customer_email",
-        }
-      ),
-
-      ordersCollection.createIndex(
-        {
-          customerId: 1,
-          createdAt: -1,
-        },
-        {
-          name: "orders_customer_id",
-          partialFilterExpression: {
-            customerId: {
-              $type: "string",
-            },
-          },
-        }
-      ),
-
-      ordersCollection.createIndex(
-        {
-          customerAccountId: 1,
-          createdAt: -1,
-        },
-        {
-          name: "orders_customer_account",
-          partialFilterExpression: {
-            customerAccountId: {
-              $type: "string",
-            },
-          },
-        }
-      ),
-
-      ordersCollection.createIndex(
-        {
-          "customer.email": 1,
-          createdAt: -1,
-        },
-        {
-          name: "orders_customer_email",
-        }
-      ),
-
-      ordersCollection.createIndex(
-        {
-          "customer.phone": 1,
-          createdAt: -1,
-        },
-        {
-          name: "orders_customer_phone",
-        }
-      ),
-    ]);
+    await customersCollection.createIndex(
+      {
+        email: 1,
+      },
+      {
+        unique: true,
+        name: "unique_customer_email",
+      }
+    );
   } catch (indexError) {
     console.warn(
       "Customer registration index warning:",
@@ -278,236 +201,47 @@ async function ensureRegistrationIndexes(
   }
 }
 
-function createUnlinkedOrderFilter() {
-  return {
-    $and: [
-      {
-        $or: [
-          {
-            customerId: {
-              $exists: false,
-            },
-          },
-          {
-            customerId: null,
-          },
-          {
-            customerId: "",
-          },
-        ],
-      },
-      {
-        $or: [
-          {
-            customerAccountId: {
-              $exists: false,
-            },
-          },
-          {
-            customerAccountId: null,
-          },
-          {
-            customerAccountId: "",
-          },
-        ],
-      },
-    ],
-  };
-}
-
-function createGuestOrderIdentityFilter({
-  email,
-  phone,
-  fullName,
-}) {
-  const identityFilters = [];
-
-  if (email) {
-    identityFilters.push({
-      "customer.email": {
-        $regex: `^${escapeRegExp(email)}$`,
-        $options: "i",
-      },
-    });
-  }
-
-  if (phone && fullName) {
-    identityFilters.push({
-      $and: [
-        {
-          "customer.phone": phone,
-        },
-        {
-          "customer.fullName": {
-            $regex: `^${escapeRegExp(fullName)}$`,
-            $options: "i",
-          },
-        },
-        {
-          $or: [
-            {
-              "customer.email": {
-                $exists: false,
-              },
-            },
-            {
-              "customer.email": null,
-            },
-            {
-              "customer.email": "",
-            },
-            {
-              "customer.email": {
-                $regex: `^${escapeRegExp(email)}$`,
-                $options: "i",
-              },
-            },
-          ],
-        },
-      ],
-    });
-  }
-
-  if (identityFilters.length === 0) {
-    return null;
-  }
-
-  return {
-    $or: identityFilters,
-  };
-}
-
-async function linkGuestOrders({
-  ordersCollection,
-  customer,
-  now,
-}) {
-  const identityFilter =
-    createGuestOrderIdentityFilter({
-      email: customer.email,
-      phone: customer.phoneNormalized,
-      fullName: customer.fullName,
-    });
-
-  if (!identityFilter) {
-    return 0;
-  }
-
-  const unlinkedFilter =
-    createUnlinkedOrderFilter();
-
-  const result = await ordersCollection.updateMany(
-    {
-      $and: [
-        ...unlinkedFilter.$and,
-        identityFilter,
-      ],
-    },
-    {
-      $set: {
-        customerId: customer.customerId,
-        customerAccountId: String(customer._id),
-
-        customerLinkedAt: now,
-        customerLinkSource:
-          "account_registration",
-
-        "customer.customerId":
-          customer.customerId,
-
-        "customer.accountId":
-          String(customer._id),
-
-        "customer.accountEmail":
-          customer.email,
-
-        "customer.accountPhone":
-          customer.phoneNormalized,
-
-        updatedAt: now,
-      },
-    }
-  );
-
-  return result.modifiedCount;
-}
-
-async function calculateCustomerOrderStats({
-  ordersCollection,
-  customer,
-}) {
-  const orders = await ordersCollection
-    .find(
-      {
-        $or: [
-          {
-            customerId: customer.customerId,
-          },
-          {
-            customerAccountId: String(
-              customer._id
-            ),
-          },
-        ],
-      },
-      {
-        projection: {
-          status: 1,
-          total: 1,
-          pricing: 1,
-        },
-      }
-    )
-    .toArray();
-
-  let completedOrders = 0;
-  let cancelledOrders = 0;
-  let totalSpent = 0;
-
-  for (const order of orders) {
-    const status = normalizeText(
-      order.status
-    ).toLowerCase();
-
-    if (
-      COMPLETED_ORDER_STATUSES.has(status)
-    ) {
-      completedOrders += 1;
-
-      totalSpent += normalizeNumber(
-        order?.pricing?.total ??
-          order?.total
-      );
-    }
-
-    if (
-      CANCELLED_ORDER_STATUSES.has(status)
-    ) {
-      cancelledOrders += 1;
-    }
-  }
-
-  return {
-    totalOrders: orders.length,
-    completedOrders,
-    cancelledOrders,
-    totalSpent:
-      Math.round(totalSpent * 100) / 100,
-  };
-}
-
 export async function POST(request) {
   try {
-    let requestBody;
+    const security =
+      await enforcePublicJsonRequest(
+        request,
+        {
+          action:
+            "account-register",
 
-    try {
-      requestBody = await request.json();
-    } catch {
-      return createErrorResponse(
-        "Invalid request data.",
-        400
+          maxBodyBytes:
+            32 * 1024,
+
+          rateLimits: [
+            {
+              scope: "ip",
+              limit: 20,
+              windowMs:
+                60 * 60 * 1000,
+            },
+
+            {
+              scope: "email",
+              limit: 8,
+              windowMs:
+                24 * 60 * 60 * 1000,
+
+              identifier: (body) =>
+                normalizeEmail(
+                  body?.email
+                ),
+            },
+          ],
+        }
       );
+
+    if (!security.success) {
+      return security.response;
     }
+
+    const requestBody =
+      security.body;
 
     const suppliedFullName = normalizeName(
       requestBody?.fullName ||
@@ -644,14 +378,8 @@ export async function POST(request) {
     const customersCollection =
       db.collection("customers");
 
-    const ordersCollection =
-      db.collection(
-        ORDERS_COLLECTION_NAME
-      );
-
     await ensureRegistrationIndexes(
-      customersCollection,
-      ordersCollection
+      customersCollection
     );
 
     const existingCustomer =
@@ -684,6 +412,41 @@ export async function POST(request) {
     } = splitFullName(fullName);
 
     const now = new Date();
+
+    const [
+      accountLegalConsent,
+      marketingLegalConsent,
+    ] = await Promise.all([
+      createLegalConsentRecord({
+        group:
+          "accountRegistration",
+
+        purpose:
+          "account_terms_and_privacy_acceptance",
+
+        source:
+          "account_registration_form",
+
+        acceptedAt: now,
+      }),
+
+      marketingConsent
+        ? createLegalConsentRecord({
+            group:
+              "newsletter",
+
+            purpose:
+              "marketing_email_subscription",
+
+            source:
+              "account_registration_form",
+
+            acceptedAt: now,
+          })
+        : Promise.resolve(
+            null
+          ),
+    ]);
 
     const customerDocument = {
       customerId: createCustomerId(),
@@ -718,6 +481,12 @@ export async function POST(request) {
 
       termsAccepted: true,
       termsAcceptedAt: now,
+
+      legalConsent:
+        accountLegalConsent,
+
+      marketingConsentRecord:
+        marketingLegalConsent,
 
       registrationSource: "website",
       authProvider: "credentials",
@@ -770,57 +539,10 @@ export async function POST(request) {
       throw insertError;
     }
 
-    let createdCustomer = {
+    const createdCustomer = {
       ...customerDocument,
       _id: insertResult.insertedId,
     };
-
-    let linkedOrdersCount = 0;
-
-    try {
-      linkedOrdersCount =
-        await linkGuestOrders({
-          ordersCollection,
-          customer: createdCustomer,
-          now,
-        });
-
-      const orderStats =
-        await calculateCustomerOrderStats({
-          ordersCollection,
-          customer: createdCustomer,
-        });
-
-      await customersCollection.updateOne(
-        {
-          _id: insertResult.insertedId,
-        },
-        {
-          $set: {
-            ...orderStats,
-            guestOrdersLinkedAt:
-              linkedOrdersCount > 0
-                ? now
-                : null,
-            updatedAt: now,
-          },
-        }
-      );
-
-      createdCustomer = {
-        ...createdCustomer,
-        ...orderStats,
-        guestOrdersLinkedAt:
-          linkedOrdersCount > 0
-            ? now
-            : null,
-      };
-    } catch (linkError) {
-      console.error(
-        "Guest order linking warning:",
-        linkError
-      );
-    }
 
     await setCustomerSession(
       createdCustomer
@@ -831,15 +553,9 @@ export async function POST(request) {
         success: true,
 
         message:
-          linkedOrdersCount > 0
-            ? `Your OBSIDIAN account has been created and ${linkedOrdersCount} previous ${
-                linkedOrdersCount === 1
-                  ? "order has"
-                  : "orders have"
-              } been linked.`
-            : "Your OBSIDIAN account has been created.",
+          "Your OBSIDIAN account has been created.",
 
-        linkedOrdersCount,
+        linkedOrdersCount: 0,
 
         customer:
           serializeCustomer(
@@ -854,6 +570,16 @@ export async function POST(request) {
       }
     );
   } catch (error) {
+    if (
+      error instanceof
+      LegalConsentError
+    ) {
+      return createErrorResponse(
+        "The current legal policies could not be verified. Please try again later.",
+        error.status || 503
+      );
+    }
+
     console.error(
       "Customer Registration Error:",
       error

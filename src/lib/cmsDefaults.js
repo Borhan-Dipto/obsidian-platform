@@ -1,4 +1,13 @@
+import {
+  createLegalCmsDefaults,
+} from "./legalDefaults";
+
 const CMS_SCHEMA_VERSION = 1;
+
+const LEGAL_CMS_DEFAULTS =
+  createLegalCmsDefaults(
+    CMS_SCHEMA_VERSION
+  );
 
 const DEFAULT_NAVBAR = {
   key: "navbar",
@@ -198,7 +207,57 @@ const DEFAULT_FOOTER = {
   legal: {
     copyrightText: "OBSIDIAN. All rights reserved.",
     showCurrentYear: true,
-    links: [],
+
+    links: [
+      {
+        id: "footer-privacy",
+        label: "Privacy",
+        href: "/privacy",
+        order: 1,
+        isActive: true,
+        openInNewTab: false,
+      },
+      {
+        id: "footer-terms",
+        label: "Terms",
+        href: "/terms",
+        order: 2,
+        isActive: true,
+        openInNewTab: false,
+      },
+      {
+        id: "footer-terms-of-sale",
+        label: "Terms of Sale",
+        href: "/terms-of-sale",
+        order: 3,
+        isActive: true,
+        openInNewTab: false,
+      },
+      {
+        id: "footer-delivery-policy",
+        label: "Delivery",
+        href: "/delivery-policy",
+        order: 4,
+        isActive: true,
+        openInNewTab: false,
+      },
+      {
+        id: "footer-exchange-return-policy",
+        label: "Exchange & Return",
+        href: "/exchange-return-policy",
+        order: 5,
+        isActive: true,
+        openInNewTab: false,
+      },
+      {
+        id: "footer-refund-policy",
+        label: "Refund",
+        href: "/refund-policy",
+        order: 6,
+        isActive: true,
+        openInNewTab: false,
+      },
+    ],
   },
 };
 
@@ -933,7 +992,7 @@ const DEFAULT_TRACK_ORDER_PAGE = {
   seo: {
     title: "Track Order",
     description:
-      "Track your OBSIDIAN order using your unique tracking ID and view the latest order status, customer information, and ordered items.",
+      "Track your OBSIDIAN order securely using your tracking ID and checkout phone number to view the latest status and order details.",
     keywords:
       "OBSIDIAN order tracking, track order Bangladesh, order status",
     ogImage: "/images/collection-artifact.jpeg",
@@ -945,7 +1004,7 @@ const DEFAULT_TRACK_ORDER_PAGE = {
     eyebrow: "Order Tracking",
     title: "Track Order",
     description:
-      "Enter your OBSIDIAN tracking ID to check your order status.",
+      "Enter your tracking ID and checkout phone number to securely check your order status.",
 
     trackingIdLabel: "Tracking ID",
     trackingIdPlaceholder: "Example: OBS-123456789",
@@ -1040,6 +1099,8 @@ const CMS_DEFAULTS = {
   "size-guide": DEFAULT_SIZE_GUIDE_PAGE,
   "track-order": DEFAULT_TRACK_ORDER_PAGE,
   success: DEFAULT_SUCCESS_PAGE,
+
+  ...LEGAL_CMS_DEFAULTS,
 };
 
 const PUBLIC_CMS_KEYS = Object.freeze(
@@ -1157,6 +1218,84 @@ function getCmsDefault(key) {
   );
 }
 
+function mergeRequiredFooterLegalLinks(
+  storedLinks = []
+) {
+  const savedLinks =
+    Array.isArray(storedLinks)
+      ? storedLinks
+      : [];
+
+  const requiredLinks =
+    DEFAULT_FOOTER.legal.links;
+
+  const requiredIds =
+    new Set(
+      requiredLinks.map(
+        (link) => link.id
+      )
+    );
+
+  const requiredHrefs =
+    new Set(
+      requiredLinks.map(
+        (link) => link.href
+      )
+    );
+
+  const mergedRequiredLinks =
+    requiredLinks.map(
+      (requiredLink) => {
+        const savedLink =
+          savedLinks.find(
+            (link) =>
+              link &&
+              (
+                link.id ===
+                  requiredLink.id ||
+                link.href ===
+                  requiredLink.href
+              )
+          ) || {};
+
+        return {
+          ...requiredLink,
+          ...savedLink,
+
+          id:
+            requiredLink.id,
+
+          href:
+            requiredLink.href,
+
+          isActive: true,
+
+          openInNewTab:
+            false,
+        };
+      }
+    );
+
+  const additionalLinks =
+    savedLinks
+      .filter(
+        (link) =>
+          link &&
+          !requiredIds.has(
+            link.id
+          ) &&
+          !requiredHrefs.has(
+            link.href
+          )
+      )
+      .map(cloneValue);
+
+  return [
+    ...mergedRequiredLinks,
+    ...additionalLinks,
+  ];
+}
+
 function mergeCmsContent(
   key,
   storedContent = {}
@@ -1176,6 +1315,22 @@ function mergeCmsContent(
     defaultContent,
     storedContent
   );
+
+  if (
+    normalizedKey ===
+    "footer"
+  ) {
+    mergedContent.legal = {
+      ...(mergedContent.legal ||
+        {}),
+
+      links:
+        mergeRequiredFooterLegalLinks(
+          storedContent?.legal
+            ?.links
+        ),
+    };
+  }
 
   return {
     ...mergedContent,
@@ -1238,6 +1393,7 @@ export {
   DEFAULT_SIZE_GUIDE_PAGE,
   DEFAULT_TRACK_ORDER_PAGE,
   DEFAULT_SUCCESS_PAGE,
+  LEGAL_CMS_DEFAULTS,
   cloneValue,
   deepMerge,
   normalizeActiveItems,

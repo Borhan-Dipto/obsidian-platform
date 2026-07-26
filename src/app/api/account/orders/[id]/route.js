@@ -527,15 +527,51 @@ function createNotFoundResponse() {
 
 function createOrderQuery(
   orderId,
-  customerEmail
+  customer
 ) {
-  const escapedEmail =
-    escapeRegExp(customerEmail);
+  const accountId = normalizeText(
+    customer?._id
+  );
+
+  const customerId = normalizeText(
+    customer?.customerId
+  );
 
   const escapedOrderId =
     escapeRegExp(orderId);
 
-  return {
+  const ownershipFilters = [];
+
+  if (customerId) {
+    ownershipFilters.push(
+      {
+        customerId,
+      },
+      {
+        "customer.customerId":
+          customerId,
+      }
+    );
+  }
+
+  if (accountId) {
+    ownershipFilters.push(
+      {
+        customerAccountId:
+          accountId,
+      },
+      {
+        "customer.accountId":
+          accountId,
+      }
+    );
+  }
+
+  if (ownershipFilters.length === 0) {
+    return null;
+  }
+
+  const query = {
     $and: [
       {
         $or: [
@@ -554,29 +590,20 @@ function createOrderQuery(
         ],
       },
       {
-        $or: [
-          {
-            "customer.email": {
-              $regex: `^${escapedEmail}$`,
-              $options: "i",
-            },
-          },
-          {
-            customerEmail: {
-              $regex: `^${escapedEmail}$`,
-              $options: "i",
-            },
-          },
-          {
-            email: {
-              $regex: `^${escapedEmail}$`,
-              $options: "i",
-            },
-          },
-        ],
+        $or: ownershipFilters,
       },
     ],
   };
+
+  if (customer?.emailVerified !== true) {
+    query.$and.push({
+      customerLinkSource: {
+        $ne: "account_registration",
+      },
+    });
+  }
+
+  return query;
 }
 
 export async function GET(
@@ -589,23 +616,6 @@ export async function GET(
 
     if (!customer) {
       return createUnauthorizedResponse();
-    }
-
-    const customerEmail = normalizeEmail(
-      customer?.email ||
-        customer?.emailNormalized
-    );
-
-    if (!customerEmail) {
-      return createJsonResponse(
-        {
-          success: false,
-          code: "INVALID_CUSTOMER_EMAIL",
-          message:
-            "Your customer account does not have a valid email address.",
-        },
-        400
-      );
     }
 
     const params = await context.params;
@@ -629,11 +639,26 @@ export async function GET(
     const orders =
       await getOrdersCollection();
 
-    const order = await orders.findOne(
+    const orderQuery =
       createOrderQuery(
         orderId,
-        customerEmail
-      )
+        customer
+      );
+
+    if (!orderQuery) {
+      return createJsonResponse(
+        {
+          success: false,
+          code: "INVALID_CUSTOMER_IDENTITY",
+          message:
+            "Your customer account does not contain a valid order identity.",
+        },
+        400
+      );
+    }
+
+    const order = await orders.findOne(
+      orderQuery
     );
 
     if (!order) {

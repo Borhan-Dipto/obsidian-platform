@@ -253,6 +253,11 @@ export default function CheckoutPage() {
   const [submitError, setSubmitError] =
     useState("");
 
+  const [
+    acceptedPolicies,
+    setAcceptedPolicies,
+  ] = useState(false);
+
   const [fieldErrors, setFieldErrors] =
     useState({});
 
@@ -792,6 +797,20 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (!acceptedPolicies) {
+      setSubmitError(
+        "Please agree to the order and privacy policies before placing your order."
+      );
+
+      document
+        .querySelector(
+          "#acceptedPolicies"
+        )
+        ?.focus();
+
+      return;
+    }
+
     const customer = validateForm();
 
     if (!customer) {
@@ -813,6 +832,9 @@ export default function CheckoutPage() {
 
           body: JSON.stringify({
             checkoutToken,
+
+            acceptedPolicies:
+              true,
 
             customer: {
               ...customer,
@@ -1184,6 +1206,73 @@ export default function CheckoutPage() {
                       currently available.
                     </p>
                   )}
+
+                  <label className="mt-7 flex cursor-pointer items-start gap-4 border border-black/15 p-5 text-xs leading-6 text-neutral-600">
+                    <input
+                      id="acceptedPolicies"
+                      name="acceptedPolicies"
+                      type="checkbox"
+                      checked={
+                        acceptedPolicies
+                      }
+                      onChange={(
+                        event
+                      ) => {
+                        setAcceptedPolicies(
+                          event.target
+                            .checked
+                        );
+
+                        if (
+                          submitError
+                        ) {
+                          setSubmitError(
+                            ""
+                          );
+                        }
+                      }}
+                      className="mt-1 h-4 w-4 shrink-0 accent-black"
+                    />
+
+                    <span>
+                      I agree to the{" "}
+                      <Link
+                        href="/terms-of-sale"
+                        className="border-b border-black/30 text-black"
+                      >
+                        Terms of Sale
+                      </Link>
+                      ,{" "}
+                      <Link
+                        href="/delivery-policy"
+                        className="border-b border-black/30 text-black"
+                      >
+                        Delivery Policy
+                      </Link>
+                      ,{" "}
+                      <Link
+                        href="/exchange-return-policy"
+                        className="border-b border-black/30 text-black"
+                      >
+                        Exchange &amp; Return Policy
+                      </Link>
+                      ,{" "}
+                      <Link
+                        href="/refund-policy"
+                        className="border-b border-black/30 text-black"
+                      >
+                        Refund Policy
+                      </Link>
+                      , and{" "}
+                      <Link
+                        href="/privacy"
+                        className="border-b border-black/30 text-black"
+                      >
+                        Privacy Policy
+                      </Link>
+                      .
+                    </span>
+                  </label>
 
                   {submitError ? (
                     <div

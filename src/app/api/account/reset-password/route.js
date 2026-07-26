@@ -1,7 +1,10 @@
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
-import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import {
+  createPublicApiResponse,
+  enforcePublicJsonRequest,
+} from "@/lib/publicApiSecurity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,31 +83,58 @@ function createErrorResponse(
   field = null,
   code = null
 ) {
-  return NextResponse.json(
+  return createPublicApiResponse(
     {
       success: false,
       message,
       field,
       code,
     },
-    {
-      status,
-    }
+    status
   );
 }
 
 export async function POST(request) {
   try {
-    let requestBody;
+    const security =
+      await enforcePublicJsonRequest(
+        request,
+        {
+          action:
+            "account-reset-password",
 
-    try {
-      requestBody = await request.json();
-    } catch {
-      return createErrorResponse(
-        "Invalid request data.",
-        400
+          maxBodyBytes:
+            32 * 1024,
+
+          rateLimits: [
+            {
+              scope: "ip",
+              limit: 20,
+              windowMs:
+                15 * 60 * 1000,
+            },
+
+            {
+              scope: "reset-token",
+              limit: 10,
+              windowMs:
+                15 * 60 * 1000,
+
+              identifier: (body) =>
+                normalizeText(
+                  body?.token
+                ),
+            },
+          ],
+        }
       );
+
+    if (!security.success) {
+      return security.response;
     }
+
+    const requestBody =
+      security.body;
 
     const token = normalizeText(
       requestBody?.token
@@ -356,14 +386,11 @@ export async function POST(request) {
       await session.endSession();
     }
 
-    return NextResponse.json(
+    return createPublicApiResponse(
       {
         success: true,
         message:
           "Your password has been updated successfully. You can now sign in with your new password.",
-      },
-      {
-        status: 200,
       }
     );
   } catch (error) {

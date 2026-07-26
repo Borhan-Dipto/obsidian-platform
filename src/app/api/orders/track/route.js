@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import clientPromise from "../../../../lib/mongodb";
 
 export const runtime = "nodejs";
@@ -6,22 +8,27 @@ export const dynamic = "force-dynamic";
 const RATE_LIMIT_WINDOW_MS =
   15 * 60 * 1000;
 
-const MAX_ATTEMPTS_PER_WINDOW = 20;
-const MAX_PHONE_RESULTS = 10;
+const MAX_ATTEMPTS_PER_IP = 20;
+const MAX_ATTEMPTS_PER_LOOKUP = 8;
+const MAX_REQUEST_BODY_BYTES = 16 * 1024;
 
-const trackingAttempts =
-  globalThis.__obsidianPublicTrackingAttempts ||
-  new Map();
+const RATE_LIMIT_COLLECTION_NAME =
+  "public_order_tracking_rate_limits";
 
-globalThis.__obsidianPublicTrackingAttempts =
-  trackingAttempts;
+let rateLimitIndexPromise = null;
 
-function createResponse(data, status = 200) {
+function createResponse(
+  data,
+  status = 200,
+  headers = {}
+) {
   return Response.json(data, {
     status,
     headers: {
       "Cache-Control":
         "no-store, no-cache, must-revalidate",
+
+      ...headers,
     },
   });
 }
@@ -164,71 +171,272 @@ function createPhoneQuery(phone) {
   };
 }
 
-function getClientKey(request) {
+function getClientIp(request) {
   const forwardedFor =
     request.headers.get(
       "x-forwarded-for"
     );
 
-  const ipAddress =
+  return normalizeText(
     forwardedFor
       ?.split(",")[0]
       ?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
-
-  return `public-order-tracking:${ipAddress}`;
+      request.headers.get(
+        "x-real-ip"
+      ) ||
+      "unknown",
+    "unknown"
+  ).slice(0, 120);
 }
 
-function consumeTrackingAttempt(request) {
-  const now = Date.now();
-  const key = getClientKey(request);
+function isSameOriginRequest(request) {
+  const originHeader =
+    request.headers.get("origin");
 
-  if (trackingAttempts.size > 5000) {
-    for (const [
-      attemptKey,
-      attempt,
-    ] of trackingAttempts.entries()) {
-      if (
-        now - attempt.startedAt >
-        RATE_LIMIT_WINDOW_MS
-      ) {
-        trackingAttempts.delete(
-          attemptKey
-        );
-      }
-    }
-  }
-
-  const existingAttempt =
-    trackingAttempts.get(key);
-
-  if (
-    !existingAttempt ||
-    now - existingAttempt.startedAt >
-      RATE_LIMIT_WINDOW_MS
-  ) {
-    trackingAttempts.set(key, {
-      count: 1,
-      startedAt: now,
-    });
-
+  if (!originHeader) {
     return true;
   }
 
-  if (
-    existingAttempt.count >=
-    MAX_ATTEMPTS_PER_WINDOW
-  ) {
+  try {
+    return (
+      new URL(request.url).origin ===
+      new URL(originHeader).origin
+    );
+  } catch {
     return false;
   }
+}
 
-  trackingAttempts.set(key, {
-    ...existingAttempt,
-    count: existingAttempt.count + 1,
-  });
+async function readTrackingBody(request) {
+  const contentLength = Number(
+    request.headers.get(
+      "content-length"
+    ) || 0
+  );
 
-  return true;
+  if (
+    Number.isFinite(contentLength) &&
+    contentLength >
+      MAX_REQUEST_BODY_BYTES
+  ) {
+    return {
+      ok: false,
+      status: 413,
+      message:
+        "Tracking request is too large.",
+    };
+  }
+
+  const rawBody =
+    await request.text();
+
+  if (
+    Buffer.byteLength(
+      rawBody,
+      "utf8"
+    ) > MAX_REQUEST_BODY_BYTES
+  ) {
+    return {
+      ok: false,
+      status: 413,
+      message:
+        "Tracking request is too large.",
+    };
+  }
+
+  try {
+    return {
+      ok: true,
+      value: JSON.parse(rawBody),
+    };
+  } catch {
+    return {
+      ok: false,
+      status: 400,
+      message:
+        "Invalid tracking request.",
+    };
+  }
+}
+
+function hashRateLimitIdentifier(
+  scope,
+  identifier
+) {
+  return createHash("sha256")
+    .update(
+      `${scope}:${identifier}`
+    )
+    .digest("hex");
+}
+
+async function ensureRateLimitIndex(
+  collection
+) {
+  if (!rateLimitIndexPromise) {
+    rateLimitIndexPromise =
+      collection
+        .createIndex(
+          {
+            expiresAt: 1,
+          },
+          {
+            name:
+              "public_order_tracking_rate_limit_ttl",
+
+            expireAfterSeconds: 0,
+          }
+        )
+        .catch((error) => {
+          console.error(
+            "Public tracking rate-limit index error:",
+            error
+          );
+
+          return null;
+        });
+  }
+
+  await rateLimitIndexPromise;
+}
+
+async function consumeRateLimit(
+  collection,
+  {
+    scope,
+    identifier,
+    limit,
+    nowMs,
+  }
+) {
+  const windowStartedAtMs =
+    Math.floor(
+      nowMs /
+        RATE_LIMIT_WINDOW_MS
+    ) * RATE_LIMIT_WINDOW_MS;
+
+  const windowEndsAtMs =
+    windowStartedAtMs +
+    RATE_LIMIT_WINDOW_MS;
+
+  const identifierHash =
+    hashRateLimitIdentifier(
+      scope,
+      identifier
+    );
+
+  const bucketId =
+    `public-order-tracking:${scope}:` +
+    `${identifierHash}:` +
+    `${windowStartedAtMs}`;
+
+  const now = new Date(nowMs);
+
+  const document =
+    await collection.findOneAndUpdate(
+      {
+        _id: bucketId,
+      },
+      {
+        $inc: {
+          attempts: 1,
+        },
+
+        $set: {
+          updatedAt: now,
+        },
+
+        $setOnInsert: {
+          scope,
+
+          windowStartedAt:
+            new Date(
+              windowStartedAtMs
+            ),
+
+          windowEndsAt:
+            new Date(
+              windowEndsAtMs
+            ),
+
+          expiresAt:
+            new Date(
+              windowEndsAtMs +
+                RATE_LIMIT_WINDOW_MS
+            ),
+
+          createdAt: now,
+        },
+      },
+      {
+        upsert: true,
+        returnDocument: "after",
+        includeResultMetadata: false,
+      }
+    );
+
+  const attempts = Number(
+    document?.attempts || 1
+  );
+
+  return {
+    allowed:
+      attempts <= limit,
+
+    retryAfterSeconds:
+      Math.max(
+        1,
+        Math.ceil(
+          (windowEndsAtMs -
+            nowMs) /
+            1000
+        )
+      ),
+  };
+}
+
+async function consumeTrackingLimits(
+  collection,
+  request,
+  orderId,
+  phone
+) {
+  const nowMs = Date.now();
+
+  const ipLimit =
+    await consumeRateLimit(
+      collection,
+      {
+        scope: "ip",
+
+        identifier:
+          getClientIp(request),
+
+        limit:
+          MAX_ATTEMPTS_PER_IP,
+
+        nowMs,
+      }
+    );
+
+  if (!ipLimit.allowed) {
+    return ipLimit;
+  }
+
+  return consumeRateLimit(
+    collection,
+    {
+      scope: "lookup",
+
+      identifier:
+        `${orderId}:${phone}`,
+
+      limit:
+        MAX_ATTEMPTS_PER_LOOKUP,
+
+      nowMs,
+    }
+  );
 }
 
 function maskPhone(value) {
@@ -474,57 +682,7 @@ function serializeDetailedOrder(order) {
   };
 }
 
-function serializePhoneOrder(order) {
-  const items = Array.isArray(
-    order?.items
-  )
-    ? order.items
-    : [];
-
-  return {
-    orderId: normalizeText(
-      order?.orderId
-    ),
-
-    status: normalizeText(
-      order?.status,
-      "pending"
-    ).toLowerCase(),
-
-    paymentStatus: normalizeText(
-      order?.paymentStatus,
-      "unpaid"
-    ).toLowerCase(),
-
-    itemCount: items.reduce(
-      (total, item) =>
-        total +
-        Math.max(
-          Number(item?.quantity) || 1,
-          1
-        ),
-      0
-    ),
-
-    total: getOrderTotal(order),
-
-    currency: normalizeText(
-      order?.pricing?.currency,
-      "BDT"
-    ),
-
-    estimatedDelivery:
-      order?.estimatedDelivery || null,
-
-    createdAt:
-      order?.createdAt || null,
-
-    updatedAt:
-      order?.updatedAt || null,
-  };
-}
-
-async function getOrdersCollection() {
+async function getDatabase() {
   const client = await clientPromise;
 
   if (
@@ -536,90 +694,58 @@ async function getOrdersCollection() {
     );
   }
 
-  return client
-    .db(
-      process.env.MONGODB_DB ||
-        "obsidian"
-    )
-    .collection("orders");
+  return client.db(
+    process.env.MONGODB_DB ||
+      "obsidian"
+  );
 }
 
 export async function POST(request) {
   try {
-    if (
-      !consumeTrackingAttempt(request)
-    ) {
+    if (!isSameOriginRequest(request)) {
       return createResponse(
         {
           success: false,
           message:
-            "Too many tracking attempts. Please try again later.",
+            "Tracking request was rejected.",
         },
-        429
+        403
       );
     }
 
-    let body;
+    const bodyResult =
+      await readTrackingBody(request);
 
-    try {
-      body = await request.json();
-    } catch {
+    if (!bodyResult.ok) {
       return createResponse(
         {
           success: false,
           message:
-            "Invalid tracking request.",
+            bodyResult.message,
         },
-        400
+        bodyResult.status
       );
     }
 
     const orderId =
       normalizeOrderId(
-        body?.orderId
+        bodyResult.value?.orderId
       );
 
     const phone =
-      normalizePhone(body?.phone);
+      normalizePhone(
+        bodyResult.value?.phone
+      );
 
-    if (!orderId && !phone) {
+    if (!orderId || !phone) {
       return createResponse(
         {
           success: false,
           message:
-            "Enter your Tracking ID or Order Phone Number.",
+            "Enter both your Tracking ID and the phone number used during checkout.",
         },
         400
       );
-    }
-
-    const ordersCollection =
-      await getOrdersCollection();
-
-    if (orderId) {
-      const order =
-        await ordersCollection.findOne({
-          orderId,
-        });
-
-      if (!order) {
-        return createResponse(
-          {
-            success: false,
-            message:
-              "Order not found. Check your Tracking ID.",
-          },
-          404
-        );
-      }
-
-      return createResponse({
-        success: true,
-        mode: "tracking-id",
-        order:
-          serializeDetailedOrder(order),
-        orders: [],
-      });
     }
 
     if (!isValidPhone(phone)) {
@@ -633,25 +759,62 @@ export async function POST(request) {
       );
     }
 
-    const phoneQuery =
-      createPhoneQuery(phone);
+    const database =
+      await getDatabase();
 
-    const orders =
-      await ordersCollection
-        .find(phoneQuery)
-        .sort({
-          createdAt: -1,
-          _id: -1,
-        })
-        .limit(MAX_PHONE_RESULTS)
-        .toArray();
+    const rateLimitCollection =
+      database.collection(
+        RATE_LIMIT_COLLECTION_NAME
+      );
 
-    if (orders.length === 0) {
+    await ensureRateLimitIndex(
+      rateLimitCollection
+    );
+
+    const rateLimit =
+      await consumeTrackingLimits(
+        rateLimitCollection,
+        request,
+        orderId,
+        phone
+      );
+
+    if (!rateLimit.allowed) {
       return createResponse(
         {
           success: false,
           message:
-            "No order was found for this phone number.",
+            "Too many tracking attempts. Please try again later.",
+        },
+        429,
+        {
+          "Retry-After": String(
+            rateLimit.retryAfterSeconds
+          ),
+        }
+      );
+    }
+
+    const ordersCollection =
+      database.collection("orders");
+
+    const order =
+      await ordersCollection.findOne({
+        $and: [
+          {
+            orderId,
+          },
+
+          createPhoneQuery(phone),
+        ],
+      });
+
+    if (!order) {
+      return createResponse(
+        {
+          success: false,
+          message:
+            "Order not found. Check your Tracking ID and phone number.",
         },
         404
       );
@@ -659,11 +822,12 @@ export async function POST(request) {
 
     return createResponse({
       success: true,
-      mode: "phone",
-      order: null,
-      orders: orders.map(
-        serializePhoneOrder
-      ),
+      mode: "tracking-id",
+
+      order:
+        serializeDetailedOrder(order),
+
+      orders: [],
     });
   } catch (error) {
     console.error(

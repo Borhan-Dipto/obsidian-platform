@@ -41,6 +41,35 @@ const ORDER_STATUSES = [
   },
 ];
 
+const ORDER_STATUS_TRANSITIONS = {
+  pending: [
+    "confirmed",
+    "cancelled",
+  ],
+
+  confirmed: [
+    "processing",
+    "cancelled",
+  ],
+
+  processing: [
+    "packed",
+    "cancelled",
+  ],
+
+  packed: [
+    "shipped",
+    "cancelled",
+  ],
+
+  shipped: [
+    "delivered",
+  ],
+
+  delivered: [],
+  cancelled: [],
+};
+
 const PAYMENT_STATUSES = [
   {
     value: "unpaid",
@@ -320,6 +349,33 @@ export default function OrderStatusUpdater({
     (item) => item.value === form.status
   );
 
+  const selectableStatuses = useMemo(
+    () => {
+      const currentStatus =
+        savedForm.status ||
+        "pending";
+
+      const allowedStatuses =
+        new Set([
+          currentStatus,
+
+          ...(
+            ORDER_STATUS_TRANSITIONS[
+              currentStatus
+            ] || []
+          ),
+        ]);
+
+      return ORDER_STATUSES.filter(
+        (item) =>
+          allowedStatuses.has(
+            item.value
+          )
+      );
+    },
+    [savedForm.status]
+  );
+
   const requiresCancellationReason =
     form.status === "cancelled" ||
     form.paymentStatus === "refunded" ||
@@ -346,6 +402,16 @@ export default function OrderStatusUpdater({
 
     if (!form.status) {
       return "Please select an order status.";
+    }
+
+    if (
+      !selectableStatuses.some(
+        (item) =>
+          item.value ===
+          form.status
+      )
+    ) {
+      return `Order status cannot move from ${savedForm.status} to ${form.status}.`;
     }
 
     if (
@@ -421,7 +487,7 @@ export default function OrderStatusUpdater({
       savedForm.status !== "cancelled"
     ) {
       const confirmed = window.confirm(
-        "Are you sure you want to cancel this order? The cancellation will be recorded in the order history."
+        "Are you sure you want to cancel this order? Reserved stock and coupon usage will be restored exactly once, and the cancellation will be recorded in the order history."
       );
 
       if (!confirmed) {
@@ -535,7 +601,7 @@ export default function OrderStatusUpdater({
             }
             disabled={isSaving}
           >
-            {ORDER_STATUSES.map((item) => (
+            {selectableStatuses.map((item) => (
               <option
                 key={item.value}
                 value={item.value}

@@ -3,6 +3,11 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getCustomerSession } from "@/lib/customerAuth";
 
+import {
+  enforcePublicJsonRequest,
+  enforcePublicRequestEnvelope,
+} from "@/lib/publicApiSecurity";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -882,17 +887,49 @@ export async function PATCH(
       );
     }
 
-    let requestBody;
+    const security =
+      await enforcePublicJsonRequest(
+        request,
+        {
+          action:
+            "account-address-update",
 
-    try {
-      requestBody =
-        await request.json();
-    } catch {
-      return createErrorResponse(
-        "Invalid request data.",
-        400
+          maxBodyBytes:
+            32 * 1024,
+
+          rateLimits: [
+            {
+              scope: "ip",
+              limit: 120,
+              windowMs:
+                60 * 60 * 1000,
+            },
+
+            {
+              scope: "session",
+              limit: 60,
+              windowMs:
+                60 * 60 * 1000,
+
+              identifier:
+                (
+                  _body,
+                  currentRequest
+                ) =>
+                  currentRequest.headers.get(
+                    "cookie"
+                  ) || "",
+            },
+          ],
+        }
       );
+
+    if (!security.success) {
+      return security.response;
     }
+
+    const requestBody =
+      security.body;
 
     const {
       session,
@@ -1064,6 +1101,50 @@ export async function DELETE(
   context
 ) {
   try {
+    const security =
+      await enforcePublicRequestEnvelope(
+        request,
+        {
+          action:
+            "account-address-delete",
+
+          maxBodyBytes:
+            1024,
+
+          requireJson:
+            false,
+
+          rateLimits: [
+            {
+              scope: "ip",
+              limit: 120,
+              windowMs:
+                60 * 60 * 1000,
+            },
+
+            {
+              scope: "session",
+              limit: 60,
+              windowMs:
+                60 * 60 * 1000,
+
+              identifier:
+                (
+                  _body,
+                  currentRequest
+                ) =>
+                  currentRequest.headers.get(
+                    "cookie"
+                  ) || "",
+            },
+          ],
+        }
+      );
+
+    if (!security.success) {
+      return security.response;
+    }
+
     const addressId =
       await getAddressIdFromContext(
         context

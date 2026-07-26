@@ -253,9 +253,6 @@ export default function TrackOrderClient({
   const [order, setOrder] =
     useState(null);
 
-  const [phoneOrders, setPhoneOrders] =
-    useState([]);
-
   const [message, setMessage] =
     useState("");
 
@@ -408,34 +405,30 @@ export default function TrackOrderClient({
     const cleanPhone =
       normalizePhone(phone);
 
-    if (!cleanId && !cleanPhone) {
+    if (!cleanId) {
       setMessage(
-        "Enter your Tracking ID or Order Phone Number."
+        "Enter your Tracking ID."
       );
 
       setOrder(null);
-      setPhoneOrders([]);
       return;
     }
 
     if (
-      !cleanId &&
-      (cleanPhone.length < 10 ||
-        cleanPhone.length > 13)
+      cleanPhone.length < 10 ||
+      cleanPhone.length > 13
     ) {
       setMessage(
-        "Enter a valid Order Phone Number."
+        "Enter the phone number used during checkout."
       );
 
       setOrder(null);
-      setPhoneOrders([]);
       return;
     }
 
     setIsLoading(true);
     setMessage("");
     setOrder(null);
-    setPhoneOrders([]);
     setCopied(false);
 
     try {
@@ -449,49 +442,33 @@ export default function TrackOrderClient({
 
       if (
         !response.ok ||
-        !data.success
+        !data.success ||
+        !data.order
       ) {
         setMessage(
           cleanText(
             data.message,
-            "Order not found. Check your information and try again."
+            "Order not found. Check your Tracking ID and phone number."
           )
         );
 
         return;
       }
 
-      if (
-        data.mode === "phone" &&
-        Array.isArray(data.orders)
-      ) {
-        setPhoneOrders(data.orders);
+      setOrder(data.order);
 
-        if (data.orders.length === 1) {
-          await loadDetailedOrder(
-            data.orders[0].orderId
-          );
-        }
+      setOrderId(
+        cleanText(
+          data.order.orderId,
+          cleanId
+        ).toUpperCase()
+      );
 
-        return;
-      }
+      saveRecentOrder(data.order);
 
-      if (data.order) {
-        setOrder(data.order);
-
-        setOrderId(
-          cleanText(
-            data.order.orderId,
-            cleanId
-          ).toUpperCase()
-        );
-
-        saveRecentOrder(data.order);
-
-        setRecentOrders(
-          getRecentOrders()
-        );
-      }
+      setRecentOrders(
+        getRecentOrders()
+      );
     } catch {
       setMessage(
         cleanText(
@@ -505,13 +482,28 @@ export default function TrackOrderClient({
   }
 
   async function loadDetailedOrder(
-    trackingId
+    trackingId,
+    phoneNumber = phone
   ) {
     const cleanId = cleanText(
       trackingId
     ).toUpperCase();
 
+    const cleanPhone =
+      normalizePhone(phoneNumber);
+
     if (!cleanId) {
+      return;
+    }
+
+    if (
+      cleanPhone.length < 10 ||
+      cleanPhone.length > 13
+    ) {
+      setMessage(
+        "Enter the phone number used during checkout."
+      );
+
       return;
     }
 
@@ -526,6 +518,7 @@ export default function TrackOrderClient({
         data,
       } = await sendTrackingRequest({
         trackingId: cleanId,
+        phoneNumber: cleanPhone,
       });
 
       if (
@@ -536,7 +529,7 @@ export default function TrackOrderClient({
         setMessage(
           cleanText(
             data.message,
-            "We could not load this order."
+            "Order not found. Check your Tracking ID and phone number."
           )
         );
 
@@ -545,7 +538,6 @@ export default function TrackOrderClient({
 
       setOrder(data.order);
       setOrderId(cleanId);
-      setPhoneOrders([]);
 
       saveRecentOrder(data.order);
 
@@ -568,10 +560,27 @@ export default function TrackOrderClient({
       recentOrder?.orderId
     ).toUpperCase();
 
-    setOrderId(recentOrderId);
-    setPhone("");
+    const cleanPhone =
+      normalizePhone(phone);
 
-    loadDetailedOrder(recentOrderId);
+    setOrderId(recentOrderId);
+
+    if (
+      cleanPhone.length < 10 ||
+      cleanPhone.length > 13
+    ) {
+      setMessage(
+        "Enter the phone number used during checkout, then try again."
+      );
+
+      setOrder(null);
+      return;
+    }
+
+    void loadDetailedOrder(
+      recentOrderId,
+      cleanPhone
+    );
   }
 
   async function handleCopyTrackingId() {
@@ -602,7 +611,6 @@ export default function TrackOrderClient({
 
   function handleNewSearch() {
     setOrder(null);
-    setPhoneOrders([]);
     setMessage("");
     setCopied(false);
   }
@@ -674,7 +682,7 @@ export default function TrackOrderClient({
         onSubmit={handleSubmit}
         className="mt-12 border border-black/10 bg-[#eee7dd] p-6 sm:p-8 md:p-10"
       >
-        <div className="grid gap-6 md:grid-cols-[1fr_auto_1fr] md:items-end">
+        <div className="grid gap-6 md:grid-cols-2 md:items-end">
           <div>
             <label
               htmlFor="tracking-id"
@@ -690,6 +698,7 @@ export default function TrackOrderClient({
               maxLength={120}
               autoComplete="off"
               placeholder="OBS-XXXX-XXXX"
+              required
               onChange={(event) =>
                 setOrderId(
                   event.target.value.toUpperCase()
@@ -697,12 +706,6 @@ export default function TrackOrderClient({
               }
               className="w-full border border-black/15 bg-[#f1ece4] px-5 py-4 font-sans text-base font-medium uppercase tracking-[0.08em] outline-none transition focus:border-black"
             />
-          </div>
-
-          <div className="flex items-center justify-center md:h-[58px]">
-            <span className="text-[10px] uppercase tracking-[0.28em] text-neutral-400">
-              Or
-            </span>
           </div>
 
           <div>
@@ -721,6 +724,7 @@ export default function TrackOrderClient({
               maxLength={24}
               autoComplete="tel"
               placeholder="01XXXXXXXXX"
+              required
               onChange={(event) =>
                 setPhone(event.target.value)
               }
@@ -740,9 +744,9 @@ export default function TrackOrderClient({
         </button>
 
         <p className="mt-4 text-center text-xs leading-6 text-neutral-500">
-          Enter either your Tracking ID or the
-          phone number used during checkout.
-          You do not need both.
+          For your privacy, enter both your
+          Tracking ID and the phone number used
+          during checkout.
         </p>
 
         {message ? (
@@ -755,113 +759,8 @@ export default function TrackOrderClient({
         ) : null}
       </form>
 
-      {phoneOrders.length > 0 &&
-      !order ? (
-        <section className="mt-10">
-          <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">
-                Orders Found
-              </p>
-
-              <h2 className="mt-3 font-heading text-4xl font-light">
-                Select Your Order
-              </h2>
-            </div>
-
-            <p className="text-sm text-neutral-500">
-              {phoneOrders.length}{" "}
-              {phoneOrders.length === 1
-                ? "order"
-                : "orders"}{" "}
-              found
-            </p>
-          </div>
-
-          <div className="grid gap-4">
-            {phoneOrders.map(
-              (phoneOrder) => {
-                const phoneOrderCurrency =
-                  getCurrencySymbol(
-                    phoneOrder.currency,
-                    currencySymbol
-                  );
-
-                const isOpening =
-                  loadingOrderId ===
-                  phoneOrder.orderId;
-
-                return (
-                  <button
-                    key={phoneOrder.orderId}
-                    type="button"
-                    disabled={Boolean(
-                      loadingOrderId
-                    )}
-                    onClick={() =>
-                      loadDetailedOrder(
-                        phoneOrder.orderId
-                      )
-                    }
-                    className="grid gap-5 border border-black/10 bg-[#eee7dd] p-6 text-left transition hover:border-black disabled:cursor-wait disabled:opacity-60 sm:grid-cols-[1fr_auto] sm:items-center"
-                  >
-                    <div>
-                      <p className="font-sans text-base font-semibold uppercase tracking-[0.08em]">
-                        {phoneOrder.orderId}
-                      </p>
-
-                      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-neutral-500">
-                        <span>
-                          {getStatusLabel(
-                            phoneOrder.status,
-                            content.statusLabels
-                          )}
-                        </span>
-
-                        <span>
-                          {phoneOrder.itemCount}{" "}
-                          {phoneOrder.itemCount ===
-                          1
-                            ? "item"
-                            : "items"}
-                        </span>
-
-                        {phoneOrder.createdAt ? (
-                          <span>
-                            {formatDate(
-                              phoneOrder.createdAt
-                            )}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-5 sm:flex-col sm:items-end">
-                      <p className="font-heading text-2xl font-light">
-                        {formatCurrency(
-                          phoneOrder.total,
-                          phoneOrderCurrency,
-                          currencyLocale
-                        )}
-                      </p>
-
-                      <span className="text-[10px] uppercase tracking-[0.24em]">
-                        {isOpening
-                          ? "Opening..."
-                          : "View Order"}
-                      </span>
-                    </div>
-                  </button>
-                );
-              }
-            )}
-          </div>
-        </section>
-      ) : null}
-
       {recentOrders.length > 0 &&
-      !order &&
-      phoneOrders.length === 0 ? (
+      !order ? (
         <section className="mt-8">
           <p className="mb-4 text-xs uppercase tracking-[0.3em] text-neutral-500">
             Recent Orders On This Device

@@ -1,4 +1,5 @@
 import clientPromise from "../../../../lib/mongodb";
+import { enforcePublicJsonRequest } from "../../../../lib/publicApiSecurity";
 import {
   OrderPricingError,
   buildTrustedOrderQuote,
@@ -19,59 +20,47 @@ function jsonResponse(body, status = 200) {
   });
 }
 
-function isPlainObject(value) {
-  return Boolean(
-    value &&
-      typeof value === "object" &&
-      !Array.isArray(value)
-  );
-}
-
 export async function POST(request) {
   try {
-    const contentLength = Number(
-      request.headers.get("content-length") || 0
-    );
-
-    if (
-      Number.isFinite(contentLength) &&
-      contentLength > MAX_REQUEST_SIZE
-    ) {
-      return jsonResponse(
+    const security =
+      await enforcePublicJsonRequest(
+        request,
         {
-          success: false,
-          valid: false,
-          message: "Request body is too large.",
-        },
-        413
+          action:
+            "coupon-validate",
+
+          maxBodyBytes:
+            MAX_REQUEST_SIZE,
+
+          rateLimits: [
+            {
+              scope: "ip",
+              limit: 120,
+              windowMs:
+                15 * 60 * 1000,
+            },
+
+            {
+              scope: "coupon",
+              limit: 60,
+              windowMs:
+                15 * 60 * 1000,
+
+              identifier: (body) =>
+                normalizeCouponCode(
+                  body?.couponCode ||
+                    body?.code
+                ),
+            },
+          ],
+        }
       );
+
+    if (!security.success) {
+      return security.response;
     }
 
-    let body;
-
-    try {
-      body = await request.json();
-    } catch {
-      return jsonResponse(
-        {
-          success: false,
-          valid: false,
-          message: "Invalid request body.",
-        },
-        400
-      );
-    }
-
-    if (!isPlainObject(body)) {
-      return jsonResponse(
-        {
-          success: false,
-          valid: false,
-          message: "Invalid request body.",
-        },
-        400
-      );
-    }
+    const body = security.body;
 
     const couponCode = normalizeCouponCode(
       body.couponCode || body.code

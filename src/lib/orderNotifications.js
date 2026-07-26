@@ -11,11 +11,22 @@ import {
   sendTransactionalEmail,
 } from "./transactionalEmail";
 
+import {
+  ORDERS_COLLECTION_NAME,
+} from "./orderPricing";
+
 export const NOTIFICATION_DELIVERIES_COLLECTION_NAME =
   "notification_deliveries";
 
 const PROVIDER_TIMEOUT_MS = 15_000;
 const MAX_ERROR_LENGTH = 1000;
+
+const MAX_DELIVERY_ATTEMPTS = 5;
+const DELIVERY_LEASE_MS = 2 * 60 * 1000;
+const BASE_RETRY_DELAY_MS = 60 * 1000;
+const MAX_RETRY_DELAY_MS = 60 * 60 * 1000;
+const DEFAULT_RETRY_BATCH_LIMIT = 25;
+const MAX_RETRY_BATCH_LIMIT = 100;
 
 let notificationIndexPromise = null;
 
@@ -1025,6 +1036,29 @@ async function ensureNotificationIndexes() {
                 "notification_delivery_status",
             }
           ),
+
+          collection.createIndex(
+            {
+              status: 1,
+              nextRetryAt: 1,
+              updatedAt: 1,
+            },
+            {
+              name:
+                "notification_retry_queue",
+            }
+          ),
+
+          collection.createIndex(
+            {
+              status: 1,
+              leaseExpiresAt: 1,
+            },
+            {
+              name:
+                "notification_stale_lease",
+            }
+          ),
         ]);
 
         return collection;
@@ -1057,6 +1091,64 @@ function createDedupeKey({
   ].join(":");
 }
 
+function getRetryDelayMs(
+  attemptCount
+) {
+  const normalizedAttempt =
+    Math.max(
+      1,
+      Number(
+        attemptCount || 1
+      )
+    );
+
+  return Math.min(
+    MAX_RETRY_DELAY_MS,
+
+    BASE_RETRY_DELAY_MS *
+      2 **
+        Math.max(
+          0,
+          normalizedAttempt - 1
+        )
+  );
+}
+
+function isRetryableDeliveryError(
+  error,
+  channel
+) {
+  const status =
+    Number(error?.status);
+
+  if (
+    status === 408 ||
+    status === 425 ||
+    status === 429 ||
+    status >= 500
+  ) {
+    return true;
+  }
+
+  const code =
+    normalizeText(
+      error?.code,
+      200
+    );
+
+  if (
+    channel === "email" &&
+    [
+      "TRANSACTIONAL_EMAIL_PROVIDER_TIMEOUT",
+      "TRANSACTIONAL_EMAIL_PROVIDER_REQUEST_FAILED",
+    ].includes(code)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 async function claimDelivery({
   eventType,
   orderId,
@@ -1080,61 +1172,260 @@ async function claimDelivery({
 
   const now = new Date();
 
+  const leaseExpiresAt =
+    new Date(
+      now.getTime() +
+        DELIVERY_LEASE_MS
+    );
+
+  const staleBefore =
+    new Date(
+      now.getTime() -
+        DELIVERY_LEASE_MS
+    );
+
+  const leaseToken =
+    crypto.randomUUID();
+
+  const deliveryDocument = {
+    dedupeKey,
+    eventType,
+
+    eventStatus:
+      eventStatus || null,
+
+    orderId,
+    channel,
+    audience,
+
+    recipientHash:
+      hashRecipient(
+        recipient
+      ),
+
+    recipientMasked:
+      maskRecipient(
+        recipient,
+        channel
+      ),
+
+    status: "leased",
+    attemptCount: 1,
+    lastAttemptAt: now,
+    leaseToken,
+    leaseExpiresAt,
+    createdAt: now,
+    updatedAt: now,
+  };
+
   try {
-    const result =
-      await collection.updateOne(
+    await collection.insertOne(
+      deliveryDocument
+    );
+
+    return {
+      claimed: true,
+      dedupeKey,
+      collection,
+      leaseToken,
+      attemptCount: 1,
+    };
+  } catch (error) {
+    if (error?.code !== 11000) {
+      throw error;
+    }
+  }
+
+  const claimResult =
+    await collection.updateOne(
+      {
+        dedupeKey,
+
+        $and: [
+          {
+            $or: [
+              {
+                attemptCount: {
+                  $lt:
+                    MAX_DELIVERY_ATTEMPTS,
+                },
+              },
+
+              {
+                attemptCount: {
+                  $exists: false,
+                },
+              },
+            ],
+          },
+
+          {
+            $or: [
+              {
+                status: {
+                  $in: [
+                    "failed",
+                    "retry_scheduled",
+                  ],
+                },
+
+                $or: [
+                  {
+                    nextRetryAt: {
+                      $lte: now,
+                    },
+                  },
+
+                  {
+                    nextRetryAt:
+                      null,
+                  },
+
+                  {
+                    nextRetryAt: {
+                      $exists: false,
+                    },
+                  },
+                ],
+              },
+
+              {
+                status: {
+                  $in: [
+                    "pending",
+                    "leased",
+                  ],
+                },
+
+                $or: [
+                  {
+                    leaseExpiresAt: {
+                      $lte: now,
+                    },
+                  },
+
+                  {
+                    leaseExpiresAt: {
+                      $exists: false,
+                    },
+
+                    updatedAt: {
+                      $lte:
+                        staleBefore,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        $set: {
+          status: "leased",
+          leaseToken,
+          leaseExpiresAt,
+          lastAttemptAt: now,
+          updatedAt: now,
+        },
+
+        $inc: {
+          attemptCount: 1,
+        },
+
+        $unset: {
+          nextRetryAt: "",
+          error: "",
+          failedAt: "",
+          terminalFailedAt: "",
+        },
+      }
+    );
+
+  if (
+    claimResult.matchedCount === 1
+  ) {
+    const claimedDelivery =
+      await collection.findOne(
         {
           dedupeKey,
+          leaseToken,
         },
         {
-          $setOnInsert: {
-            dedupeKey,
-            eventType,
-            eventStatus:
-              eventStatus || null,
-            orderId,
-            channel,
-            audience,
-
-            recipientHash:
-              hashRecipient(
-                recipient
-              ),
-
-            recipientMasked:
-              maskRecipient(
-                recipient,
-                channel
-              ),
-
-            status: "pending",
-            createdAt: now,
-            updatedAt: now,
+          projection: {
+            attemptCount: 1,
           },
-        },
-        {
-          upsert: true,
         }
       );
 
     return {
-      claimed:
-        result.upsertedCount === 1,
-
+      claimed: true,
       dedupeKey,
       collection,
-    };
-  } catch (error) {
-    if (error?.code === 11000) {
-      return {
-        claimed: false,
-        dedupeKey,
-        collection,
-      };
-    }
+      leaseToken,
 
-    throw error;
+      attemptCount:
+        Number(
+          claimedDelivery
+            ?.attemptCount || 1
+        ),
+    };
   }
+
+  const existingDelivery =
+    await collection.findOne(
+      {
+        dedupeKey,
+      },
+      {
+        projection: {
+          status: 1,
+          attemptCount: 1,
+          nextRetryAt: 1,
+          leaseExpiresAt: 1,
+        },
+      }
+    );
+
+  let reason = "duplicate";
+
+  if (
+    existingDelivery?.status ===
+    "sent"
+  ) {
+    reason = "already_sent";
+  } else if (
+    existingDelivery?.status ===
+    "terminal_failed"
+  ) {
+    reason =
+      "terminal_failure";
+  } else if (
+    Number(
+      existingDelivery
+        ?.attemptCount || 0
+    ) >=
+    MAX_DELIVERY_ATTEMPTS
+  ) {
+    reason =
+      "attempt_limit_reached";
+  } else if (
+    existingDelivery?.status ===
+      "leased" ||
+    existingDelivery?.status ===
+      "pending"
+  ) {
+    reason = "in_progress";
+  } else {
+    reason = "retry_not_due";
+  }
+
+  return {
+    claimed: false,
+    dedupeKey,
+    collection,
+    reason,
+  };
 }
 
 function normalizeErrorMessage(error) {
@@ -1202,7 +1493,10 @@ async function executeDelivery({
       channel,
       audience,
       status: "skipped",
-      reason: "duplicate",
+
+      reason:
+        claim.reason ||
+        "duplicate",
     };
   }
 
@@ -1213,41 +1507,64 @@ async function executeDelivery({
     const deliveredAt =
       new Date();
 
-    await claim.collection.updateOne(
-      {
-        dedupeKey:
-          claim.dedupeKey,
-      },
-      {
-        $set: {
-          status: "sent",
+    const deliveryUpdate =
+      await claim.collection.updateOne(
+        {
+          dedupeKey:
+            claim.dedupeKey,
 
-          provider:
-            providerResult.provider,
+          leaseToken:
+            claim.leaseToken,
 
-          providerMessageId:
-            providerResult
-              .providerMessageId ||
-            "",
-
-          responseStatus:
-            providerResult
-              .responseStatus ||
-            null,
-
-          sentAt:
-            deliveredAt,
-
-          updatedAt:
-            deliveredAt,
+          status: "leased",
         },
+        {
+          $set: {
+            status: "sent",
 
-        $unset: {
-          error: "",
-          failedAt: "",
-        },
-      }
-    );
+            provider:
+              providerResult.provider,
+
+            providerMessageId:
+              providerResult
+                .providerMessageId ||
+              "",
+
+            responseStatus:
+              providerResult
+                .responseStatus ||
+              null,
+
+            sentAt:
+              deliveredAt,
+
+            updatedAt:
+              deliveredAt,
+          },
+
+          $unset: {
+            error: "",
+            failedAt: "",
+            nextRetryAt: "",
+            leaseToken: "",
+            leaseExpiresAt: "",
+            terminalFailedAt: "",
+          },
+        }
+      );
+
+    if (
+      deliveryUpdate.matchedCount !==
+      1
+    ) {
+      console.error(
+        "Notification delivery lease was lost after provider success:",
+        {
+          dedupeKey:
+            claim.dedupeKey,
+        }
+      );
+    }
 
     return {
       channel,
@@ -1269,18 +1586,78 @@ async function executeDelivery({
     const errorMessage =
       normalizeErrorMessage(error);
 
+    const retryable =
+      isRetryableDeliveryError(
+        error,
+        channel
+      );
+
+    const canRetry =
+      retryable &&
+      claim.attemptCount <
+        MAX_DELIVERY_ATTEMPTS;
+
+    const nextRetryAt =
+      canRetry
+        ? new Date(
+            failedAt.getTime() +
+              getRetryDelayMs(
+                claim.attemptCount
+              )
+          )
+        : null;
+
+    const deliveryStatus =
+      canRetry
+        ? "retry_scheduled"
+        : "terminal_failed";
+
     try {
       await claim.collection.updateOne(
         {
           dedupeKey:
             claim.dedupeKey,
+
+          leaseToken:
+            claim.leaseToken,
+
+          status: "leased",
         },
         {
           $set: {
-            status: "failed",
-            error: errorMessage,
+            status:
+              deliveryStatus,
+
+            error:
+              errorMessage,
+
             failedAt,
-            updatedAt: failedAt,
+            updatedAt:
+              failedAt,
+
+            ...(nextRetryAt
+              ? {
+                  nextRetryAt,
+                }
+              : {
+                  terminalFailedAt:
+                    failedAt,
+                }),
+          },
+
+          $unset: {
+            leaseToken: "",
+            leaseExpiresAt: "",
+
+            ...(nextRetryAt
+              ? {
+                  terminalFailedAt:
+                    "",
+                }
+              : {
+                  nextRetryAt:
+                    "",
+                }),
           },
         }
       );
@@ -1301,6 +1678,14 @@ async function executeDelivery({
       audience,
       status: "failed",
       error: errorMessage,
+
+      retryScheduled:
+        canRetry,
+
+      nextRetryAt:
+        nextRetryAt
+          ?.toISOString() ||
+        null,
     };
   }
 }
@@ -1567,6 +1952,703 @@ async function loadNotificationContext({
     providers:
       getNotificationProviderStatus(),
     values,
+  };
+}
+
+function normalizeRetryBatchLimit(
+  value
+) {
+  const number =
+    Number(value);
+
+  if (
+    !Number.isInteger(number) ||
+    number < 1
+  ) {
+    return DEFAULT_RETRY_BATCH_LIMIT;
+  }
+
+  return Math.min(
+    number,
+    MAX_RETRY_BATCH_LIMIT
+  );
+}
+
+function normalizeChannelRecipient(
+  channel,
+  recipient
+) {
+  if (channel === "email") {
+    return normalizeEmail(
+      recipient
+    );
+  }
+
+  if (channel === "sms") {
+    return getSmsRecipient(
+      recipient
+    );
+  }
+
+  if (
+    channel === "whatsapp"
+  ) {
+    return getWhatsAppRecipient(
+      recipient
+    );
+  }
+
+  return "";
+}
+
+function getRetryRecipientCandidates({
+  delivery,
+  order,
+  notificationSettings,
+}) {
+  if (
+    delivery.channel ===
+    "email"
+  ) {
+    if (
+      delivery.audience ===
+      "customer"
+    ) {
+      return [
+        getCustomerEmail(order),
+      ];
+    }
+
+    return notificationSettings
+      .email.adminRecipients;
+  }
+
+  if (
+    delivery.channel ===
+    "sms"
+  ) {
+    if (
+      delivery.audience ===
+      "customer"
+    ) {
+      return [
+        getCustomerPhone(order),
+      ];
+    }
+
+    return notificationSettings
+      .sms.adminRecipients;
+  }
+
+  if (
+    delivery.channel ===
+    "whatsapp"
+  ) {
+    if (
+      delivery.audience ===
+      "customer"
+    ) {
+      return [
+        getCustomerPhone(order),
+      ];
+    }
+
+    return notificationSettings
+      .whatsapp.adminRecipients;
+  }
+
+  return [];
+}
+
+function findRetryRecipient({
+  delivery,
+  order,
+  notificationSettings,
+}) {
+  const candidates =
+    getRetryRecipientCandidates({
+      delivery,
+      order,
+      notificationSettings,
+    });
+
+  return (
+    candidates.find(
+      (candidate) => {
+        const normalizedRecipient =
+          normalizeChannelRecipient(
+            delivery.channel,
+            candidate
+          );
+
+        return (
+          normalizedRecipient &&
+          hashRecipient(
+            normalizedRecipient
+          ) ===
+            delivery.recipientHash
+        );
+      }
+    ) || ""
+  );
+}
+
+function isRetryDeliveryEnabled(
+  delivery,
+  notificationSettings
+) {
+  const channelSettings =
+    notificationSettings[
+      delivery.channel
+    ];
+
+  if (
+    !channelSettings?.enabled
+  ) {
+    return false;
+  }
+
+  if (
+    delivery.eventType ===
+    "order-status-updated"
+  ) {
+    return Boolean(
+      channelSettings
+        .customerStatusUpdates &&
+      notificationSettings
+        .statusEvents[
+        delivery.eventStatus
+      ]
+    );
+  }
+
+  if (
+    delivery.audience ===
+    "admin"
+  ) {
+    return Boolean(
+      channelSettings
+        .adminOrderPlaced
+    );
+  }
+
+  return Boolean(
+    channelSettings
+      .customerOrderPlaced
+  );
+}
+
+async function markDeliveryTerminal({
+  collection,
+  delivery,
+  reason,
+}) {
+  const failedAt =
+    new Date();
+
+  const result =
+    await collection.updateOne(
+      {
+        _id:
+          delivery._id,
+
+        status:
+          delivery.status,
+
+        updatedAt:
+          delivery.updatedAt,
+      },
+      {
+        $set: {
+          status:
+            "terminal_failed",
+
+          error:
+            normalizeText(
+              reason,
+              MAX_ERROR_LENGTH
+            ),
+
+          terminalFailedAt:
+            failedAt,
+
+          updatedAt:
+            failedAt,
+        },
+
+        $unset: {
+          nextRetryAt: "",
+          leaseToken: "",
+          leaseExpiresAt: "",
+        },
+      }
+    );
+
+  return {
+    channel:
+      delivery.channel,
+
+    audience:
+      delivery.audience,
+
+    status:
+      result.matchedCount === 1
+        ? "failed"
+        : "skipped",
+
+    reason:
+      result.matchedCount === 1
+        ? "terminal_failure"
+        : "delivery_changed",
+
+    error: reason,
+    retryScheduled: false,
+  };
+}
+
+function createRetryDelivery({
+  delivery,
+  recipient,
+  order,
+  notificationSettings,
+  values,
+}) {
+  const isStatusUpdate =
+    delivery.eventType ===
+    "order-status-updated";
+
+  const isAdminOrder =
+    delivery.audience ===
+    "admin";
+
+  if (
+    delivery.channel ===
+    "email"
+  ) {
+    return createEmailDelivery({
+      eventType:
+        delivery.eventType,
+
+      eventStatus:
+        delivery.eventStatus ||
+        undefined,
+
+      audience:
+        delivery.audience,
+
+      recipient,
+
+      subjectTemplate:
+        isStatusUpdate
+          ? notificationSettings
+              .email
+              .statusUpdateSubject
+          : isAdminOrder
+            ? notificationSettings
+                .email
+                .adminOrderPlacedSubject
+            : notificationSettings
+                .email
+                .orderPlacedSubject,
+
+      messageTemplate:
+        isStatusUpdate
+          ? notificationSettings
+              .email
+              .statusUpdateMessage
+          : isAdminOrder
+            ? notificationSettings
+                .email
+                .adminOrderPlacedMessage
+            : notificationSettings
+                .email
+                .orderPlacedMessage,
+
+      values,
+      order,
+
+      replyTo:
+        notificationSettings
+          .email.replyTo,
+    });
+  }
+
+  if (
+    delivery.channel ===
+    "sms"
+  ) {
+    return createSmsDelivery({
+      eventType:
+        delivery.eventType,
+
+      eventStatus:
+        delivery.eventStatus ||
+        undefined,
+
+      audience:
+        delivery.audience,
+
+      recipient,
+
+      messageTemplate:
+        isStatusUpdate
+          ? notificationSettings
+              .sms
+              .statusUpdateMessage
+          : isAdminOrder
+            ? notificationSettings
+                .sms
+                .adminOrderPlacedMessage
+            : notificationSettings
+                .sms
+                .orderPlacedMessage,
+
+      values,
+    });
+  }
+
+  if (
+    delivery.channel ===
+    "whatsapp"
+  ) {
+    return createWhatsAppDelivery({
+      eventType:
+        delivery.eventType,
+
+      eventStatus:
+        delivery.eventStatus ||
+        undefined,
+
+      audience:
+        delivery.audience,
+
+      recipient,
+
+      templateName:
+        isStatusUpdate
+          ? notificationSettings
+              .whatsapp
+              .templates
+              .statusUpdate
+          : isAdminOrder
+            ? notificationSettings
+                .whatsapp
+                .templates
+                .adminOrderPlaced
+            : notificationSettings
+                .whatsapp
+                .templates
+                .orderPlaced,
+
+      languageCode:
+        notificationSettings
+          .whatsapp
+          .languageCode,
+
+      values,
+    });
+  }
+
+  return null;
+}
+
+export async function processRetryableNotificationDeliveries({
+  limit =
+    DEFAULT_RETRY_BATCH_LIMIT,
+
+  baseUrl = "",
+} = {}) {
+  const batchLimit =
+    normalizeRetryBatchLimit(
+      limit
+    );
+
+  const collection =
+    await ensureNotificationIndexes();
+
+  const now =
+    new Date();
+
+  const staleBefore =
+    new Date(
+      now.getTime() -
+        DELIVERY_LEASE_MS
+    );
+
+  const retryableDeliveries =
+    await collection
+      .find({
+        $and: [
+          {
+            $or: [
+              {
+                attemptCount: {
+                  $lt:
+                    MAX_DELIVERY_ATTEMPTS,
+                },
+              },
+
+              {
+                attemptCount: {
+                  $exists: false,
+                },
+              },
+            ],
+          },
+
+          {
+            $or: [
+              {
+                status: {
+                  $in: [
+                    "failed",
+                    "retry_scheduled",
+                  ],
+                },
+
+                $or: [
+                  {
+                    nextRetryAt: {
+                      $lte: now,
+                    },
+                  },
+
+                  {
+                    nextRetryAt:
+                      null,
+                  },
+
+                  {
+                    nextRetryAt: {
+                      $exists: false,
+                    },
+                  },
+                ],
+              },
+
+              {
+                status: {
+                  $in: [
+                    "pending",
+                    "leased",
+                  ],
+                },
+
+                $or: [
+                  {
+                    leaseExpiresAt: {
+                      $lte: now,
+                    },
+                  },
+
+                  {
+                    leaseExpiresAt: {
+                      $exists: false,
+                    },
+
+                    updatedAt: {
+                      $lte:
+                        staleBefore,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      })
+      .sort({
+        nextRetryAt: 1,
+        updatedAt: 1,
+      })
+      .limit(batchLimit)
+      .toArray();
+
+  if (
+    retryableDeliveries.length ===
+    0
+  ) {
+    return {
+      scanned: 0,
+      attempted: 0,
+      sent: 0,
+      failed: 0,
+      skipped: 0,
+      results: [],
+    };
+  }
+
+  const database =
+    await getNotificationDatabase();
+
+  const orderIds =
+    Array.from(
+      new Set(
+        retryableDeliveries
+          .map(
+            (delivery) =>
+              normalizeText(
+                delivery.orderId,
+                120
+              ).toUpperCase()
+          )
+          .filter(Boolean)
+      )
+    );
+
+  const orders =
+    await database
+      .collection(
+        ORDERS_COLLECTION_NAME
+      )
+      .find({
+        orderId: {
+          $in:
+            orderIds,
+        },
+      })
+      .toArray();
+
+  const orderMap =
+    new Map(
+      orders.map(
+        (order) => [
+          getOrderId(order),
+          order,
+        ]
+      )
+    );
+
+  const [
+    storeSettings,
+    notificationSettings,
+  ] = await Promise.all([
+    getSettings(),
+    getNotificationSettings(),
+  ]);
+
+  const resolvedBaseUrl =
+    getBaseUrl(baseUrl);
+
+  const results = [];
+
+  for (
+    const delivery
+    of retryableDeliveries
+  ) {
+    const orderId =
+      normalizeText(
+        delivery.orderId,
+        120
+      ).toUpperCase();
+
+    const order =
+      orderMap.get(
+        orderId
+      );
+
+    if (!order) {
+      results.push(
+        await markDeliveryTerminal({
+          collection,
+          delivery,
+
+          reason:
+            "The related order no longer exists.",
+        })
+      );
+
+      continue;
+    }
+
+    if (
+      !isRetryDeliveryEnabled(
+        delivery,
+        notificationSettings
+      )
+    ) {
+      results.push(
+        await markDeliveryTerminal({
+          collection,
+          delivery,
+
+          reason:
+            "This notification type or channel is no longer enabled.",
+        })
+      );
+
+      continue;
+    }
+
+    const recipient =
+      findRetryRecipient({
+        delivery,
+        order,
+        notificationSettings,
+      });
+
+    if (!recipient) {
+      results.push(
+        await markDeliveryTerminal({
+          collection,
+          delivery,
+
+          reason:
+            "The original notification recipient could not be resolved safely.",
+        })
+      );
+
+      continue;
+    }
+
+    const values =
+      createTemplateValues({
+        order,
+        storeSettings,
+
+        status:
+          delivery.eventStatus ||
+          order.status,
+
+        baseUrl:
+          resolvedBaseUrl,
+      });
+
+    const retryPromise =
+      createRetryDelivery({
+        delivery,
+        recipient,
+        order,
+        notificationSettings,
+        values,
+      });
+
+    if (!retryPromise) {
+      results.push(
+        await markDeliveryTerminal({
+          collection,
+          delivery,
+
+          reason:
+            "The notification channel is unsupported.",
+        })
+      );
+
+      continue;
+    }
+
+    results.push(
+      await retryPromise
+    );
+  }
+
+  return {
+    scanned:
+      retryableDeliveries.length,
+
+    ...summarizeResults(
+      results
+    ),
   };
 }
 

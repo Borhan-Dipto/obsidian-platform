@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { ObjectId } from "mongodb";
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { enforcePublicJsonRequest } from "@/lib/publicApiSecurity";
 import {
   getCustomerSession,
   setCustomerSession,
@@ -174,17 +175,49 @@ function isBlockedCustomer(customer) {
 
 export async function POST(request) {
   try {
-    let requestBody;
+    const security =
+      await enforcePublicJsonRequest(
+        request,
+        {
+          action:
+            "account-change-password",
 
-    try {
-      requestBody =
-        await request.json();
-    } catch {
-      return createErrorResponse(
-        "Invalid request data.",
-        400
+          maxBodyBytes:
+            32 * 1024,
+
+          rateLimits: [
+            {
+              scope: "ip",
+              limit: 20,
+              windowMs:
+                15 * 60 * 1000,
+            },
+
+            {
+              scope: "session",
+              limit: 10,
+              windowMs:
+                15 * 60 * 1000,
+
+              identifier:
+                (
+                  _body,
+                  currentRequest
+                ) =>
+                  currentRequest.headers.get(
+                    "cookie"
+                  ) || "",
+            },
+          ],
+        }
       );
+
+    if (!security.success) {
+      return security.response;
     }
+
+    const requestBody =
+      security.body;
 
     const currentPassword =
       requestBody?.currentPassword;

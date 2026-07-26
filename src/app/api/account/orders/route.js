@@ -25,13 +25,6 @@ function normalizeNumber(value) {
   return parsedValue;
 }
 
-function escapeRegExp(value) {
-  return String(value || "").replace(
-    /[.*+?^${}()|[\]\\]/g,
-    "\\$&"
-  );
-}
-
 function serializeDate(value) {
   if (!value) {
     return null;
@@ -376,16 +369,10 @@ function createCustomerOrderFilter(
     customer?.customerId
   );
 
-  const customerEmail =
-    normalizeEmail(
-      customer?.email ||
-        customer?.emailNormalized
-    );
-
-  const filters = [];
+  const ownershipFilters = [];
 
   if (customerId) {
-    filters.push(
+    ownershipFilters.push(
       {
         customerId,
       },
@@ -397,7 +384,7 @@ function createCustomerOrderFilter(
   }
 
   if (accountId) {
-    filters.push(
+    ownershipFilters.push(
       {
         customerAccountId:
           accountId,
@@ -409,24 +396,27 @@ function createCustomerOrderFilter(
     );
   }
 
-  if (customerEmail) {
-    const escapedEmail =
-      escapeRegExp(customerEmail);
-
-    filters.push({
-      "customer.email": {
-        $regex: `^${escapedEmail}$`,
-        $options: "i",
-      },
-    });
-  }
-
-  if (filters.length === 0) {
+  if (ownershipFilters.length === 0) {
     return null;
   }
 
+  const ownershipFilter = {
+    $or: ownershipFilters,
+  };
+
+  if (customer?.emailVerified === true) {
+    return ownershipFilter;
+  }
+
   return {
-    $or: filters,
+    $and: [
+      ownershipFilter,
+      {
+        customerLinkSource: {
+          $ne: "account_registration",
+        },
+      },
+    ],
   };
 }
 
@@ -466,17 +456,6 @@ async function ensureOrderIndexes(
               $type: "string",
             },
           },
-        }
-      ),
-
-      ordersCollection.createIndex(
-        {
-          "customer.email": 1,
-          createdAt: -1,
-        },
-        {
-          name:
-            "account_orders_customer_email",
         }
       ),
     ]);

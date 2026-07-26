@@ -135,8 +135,59 @@ const DEFAULT_FOOTER = {
   legal: {
     copyrightText:
       "OBSIDIAN. All rights reserved.",
+
     showCurrentYear: true,
-    links: [],
+
+    links: [
+      {
+        id: "footer-privacy",
+        label: "Privacy",
+        href: "/privacy",
+        order: 1,
+        isActive: true,
+        openInNewTab: false,
+      },
+      {
+        id: "footer-terms",
+        label: "Terms",
+        href: "/terms",
+        order: 2,
+        isActive: true,
+        openInNewTab: false,
+      },
+      {
+        id: "footer-terms-of-sale",
+        label: "Terms of Sale",
+        href: "/terms-of-sale",
+        order: 3,
+        isActive: true,
+        openInNewTab: false,
+      },
+      {
+        id: "footer-delivery-policy",
+        label: "Delivery",
+        href: "/delivery-policy",
+        order: 4,
+        isActive: true,
+        openInNewTab: false,
+      },
+      {
+        id: "footer-exchange-return-policy",
+        label: "Exchange & Return",
+        href: "/exchange-return-policy",
+        order: 5,
+        isActive: true,
+        openInNewTab: false,
+      },
+      {
+        id: "footer-refund-policy",
+        label: "Refund",
+        href: "/refund-policy",
+        order: 6,
+        isActive: true,
+        openInNewTab: false,
+      },
+    ],
   },
 };
 
@@ -1002,6 +1053,9 @@ export default function Footer() {
           body: JSON.stringify({
             email: normalizedEmail,
             source: "footer",
+
+            marketingConsent:
+              true,
           }),
         }
       );
@@ -1507,6 +1561,20 @@ export default function Footer() {
                       <ArrowIcon className="transition-transform duration-300 group-hover/button:translate-x-1" />
                     </button>
                   </div>
+
+                  <p className="mt-3 text-[10px] leading-5 text-white/32">
+                    By joining, you agree to
+                    receive marketing updates
+                    and acknowledge our{" "}
+                    <Link
+                      href="/privacy"
+                      className="border-b border-white/25 text-white/55 transition hover:border-white/70 hover:text-white"
+                    >
+                      Privacy Policy
+                    </Link>
+                    . You can unsubscribe at
+                    any time.
+                  </p>
 
                   {newsletterMessage ? (
                     <p

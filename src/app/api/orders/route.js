@@ -6,11 +6,21 @@ import {
 
 import clientPromise from "../../../lib/mongodb";
 import { getCurrentCustomer } from "../../../lib/customerAuth";
+import { enforcePublicJsonRequest } from "../../../lib/publicApiSecurity";
+
+import {
+  createLegalConsentRecord,
+  LegalConsentError,
+} from "../../../lib/legalConsent";
 import { PRODUCTS_COLLECTION_NAME } from "../../../lib/catalog";
 
 import {
   dispatchOrderPlacedNotifications,
 } from "../../../lib/orderNotifications";
+
+import {
+  createInventoryReservationRecord,
+} from "../../../lib/orderLifecycle";
 
 import {
   COUPONS_COLLECTION_NAME,
@@ -613,87 +623,6 @@ async function ensureOrderIndexes(
   }
 }
 
-async function readJsonBody(
-  request
-) {
-  const contentLength =
-    Number(
-      request.headers.get(
-        "content-length"
-      ) || 0
-    );
-
-  if (
-    Number.isFinite(
-      contentLength
-    ) &&
-    contentLength >
-      MAX_REQUEST_SIZE
-  ) {
-    throw new OrderPricingError(
-      "Request body is too large.",
-      {
-        status: 413,
-        code:
-          "REQUEST_TOO_LARGE",
-      }
-    );
-  }
-
-  const rawBody =
-    await request.text();
-
-  if (
-    rawBody.length >
-    MAX_REQUEST_SIZE
-  ) {
-    throw new OrderPricingError(
-      "Request body is too large.",
-      {
-        status: 413,
-        code:
-          "REQUEST_TOO_LARGE",
-      }
-    );
-  }
-
-  let body;
-
-  try {
-    body =
-      JSON.parse(
-        rawBody
-      );
-  } catch {
-    throw new OrderPricingError(
-      "Invalid request body.",
-      {
-        status: 400,
-        code:
-          "INVALID_JSON",
-      }
-    );
-  }
-
-  if (
-    !isPlainObject(
-      body
-    )
-  ) {
-    throw new OrderPricingError(
-      "Invalid request body.",
-      {
-        status: 400,
-
-        code:
-          "INVALID_REQUEST_BODY",
-      }
-    );
-  }
-
-  return body;
-}
-
 export async function GET(
   request
 ) {
@@ -930,10 +859,76 @@ export async function POST(
     null;
 
   try {
-    const body =
-      await readJsonBody(
-        request
+    const security =
+      await enforcePublicJsonRequest(
+        request,
+        {
+          action:
+            "order-create",
+
+          maxBodyBytes:
+            MAX_REQUEST_SIZE,
+
+          rateLimits: [
+            {
+              scope: "ip",
+              limit: 40,
+              windowMs:
+                60 * 60 * 1000,
+            },
+
+            {
+              scope: "phone",
+              limit: 12,
+              windowMs:
+                24 * 60 * 60 * 1000,
+
+              identifier: (body) =>
+                normalizePhone(
+                  body?.customer?.phone
+                ),
+            },
+
+            {
+              scope:
+                "checkout-token",
+
+              limit: 12,
+
+              windowMs:
+                24 * 60 * 60 * 1000,
+
+              identifier: (body) =>
+                normalizeText(
+                  body?.checkoutToken ||
+                    body?.idempotencyKey,
+                  120
+                ),
+            },
+          ],
+        }
       );
+
+    if (!security.success) {
+      return security.response;
+    }
+
+    const body = security.body;
+
+    if (
+      body.acceptedPolicies !==
+      true
+    ) {
+      throw new OrderPricingError(
+        "You must agree to the Terms of Sale, Delivery Policy, Exchange and Return Policy, Refund Policy, and Privacy Policy.",
+        {
+          status: 400,
+
+          code:
+            "LEGAL_CONSENT_REQUIRED",
+        }
+      );
+    }
 
     checkoutTokenData =
       normalizeCheckoutToken(
@@ -1017,6 +1012,20 @@ export async function POST(
         });
       }
     }
+
+    const checkoutLegalConsent =
+      await createLegalConsentRecord({
+        group: "checkout",
+
+        purpose:
+          "online_order_purchase",
+
+        source:
+          "checkout_form",
+
+        acceptedAt:
+          new Date(),
+      });
 
     const session =
       client.startSession();
@@ -1187,6 +1196,9 @@ export async function POST(
             source:
               "website",
 
+            legalConsent:
+              checkoutLegalConsent,
+
             status:
               "pending",
 
@@ -1231,6 +1243,55 @@ export async function POST(
 
             items:
               publicQuote.items,
+
+            inventoryReservations:
+              quote.items.map(
+                (item) =>
+                  createInventoryReservationRecord(
+                    item
+                  )
+              ),
+
+            inventoryReservationStatus:
+              "reserved",
+
+            inventoryReservedAt:
+              now,
+
+            inventoryReleasedAt:
+              null,
+
+            inventoryReleaseReason:
+              "",
+
+            couponUsageReservation:
+              quote.couponRecord
+                ? {
+                    couponId:
+                      quote
+                        .couponRecord
+                        ._id,
+
+                    code:
+                      publicQuote
+                        .coupon
+                        ?.code ||
+                      "",
+                  }
+                : null,
+
+            couponUsageStatus:
+              quote.couponRecord
+                ? "consumed"
+                : "not_applicable",
+
+            couponUsageReservedAt:
+              quote.couponRecord
+                ? now
+                : null,
+
+            couponUsageReleasedAt:
+              null,
 
             pricing:
               publicQuote.pricing,
@@ -1360,6 +1421,24 @@ export async function POST(
       201
     );
   } catch (error) {
+    if (
+      error instanceof
+      LegalConsentError
+    ) {
+      return jsonResponse(
+        {
+          success: false,
+
+          code:
+            error.code,
+
+          message:
+            "The current legal policies could not be verified. Please try again later.",
+        },
+        error.status || 503
+      );
+    }
+
     if (
       error instanceof
       OrderPricingError
