@@ -262,8 +262,15 @@ export default function TrackOrderClient({
   const [loadingOrderId, setLoadingOrderId] =
     useState("");
 
-  const [copied, setCopied] =
-    useState(false);
+  const [
+    copiedTrackingId,
+    setCopiedTrackingId,
+  ] = useState("");
+
+  const [
+    matchingOrders,
+    setMatchingOrders,
+  ] = useState([]);
 
   const [recentOrders, setRecentOrders] =
     useState([]);
@@ -390,8 +397,6 @@ export default function TrackOrderClient({
     return {
       response,
       data,
-      cleanId,
-      cleanPhone,
     };
   }
 
@@ -405,31 +410,136 @@ export default function TrackOrderClient({
     const cleanPhone =
       normalizePhone(phone);
 
-    if (!cleanId) {
+    if (!cleanId && !cleanPhone) {
       setMessage(
-        "Enter your Tracking ID."
+        "Enter your Tracking ID or Order Phone Number."
       );
 
       setOrder(null);
+      setMatchingOrders([]);
       return;
     }
 
     if (
-      cleanPhone.length < 10 ||
-      cleanPhone.length > 13
+      cleanPhone &&
+      (cleanPhone.length < 10 ||
+        cleanPhone.length > 13)
     ) {
       setMessage(
-        "Enter the phone number used during checkout."
+        "Enter a valid Order Phone Number."
       );
 
       setOrder(null);
+      setMatchingOrders([]);
       return;
     }
 
     setIsLoading(true);
     setMessage("");
     setOrder(null);
-    setCopied(false);
+    setMatchingOrders([]);
+    setCopiedTrackingId("");
+
+    try {
+      const {
+        response,
+        data,
+      } = await sendTrackingRequest({
+        trackingId: cleanId,
+        phoneNumber: cleanPhone,
+      });
+
+      if (
+        !response.ok ||
+        !data.success
+      ) {
+        setMessage(
+          cleanText(
+            data.message,
+            "Order not found. Check the information and try again."
+          )
+        );
+
+        return;
+      }
+
+      if (data.order) {
+        setOrder(data.order);
+
+        setOrderId(
+          cleanText(
+            data.order.orderId,
+            cleanId
+          ).toUpperCase()
+        );
+
+        saveRecentOrder(data.order);
+
+        setRecentOrders(
+          getRecentOrders()
+        );
+
+        return;
+      }
+
+      const orders = Array.isArray(
+        data.orders
+      )
+        ? data.orders
+        : [];
+
+      if (orders.length > 0) {
+        setMatchingOrders(orders);
+        return;
+      }
+
+      setMessage(
+        "Order not found. Check the information and try again."
+      );
+    } catch {
+      setMessage(
+        cleanText(
+          content.genericErrorMessage,
+          "Something went wrong. Please try again."
+        )
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function loadDetailedOrder(
+    trackingId,
+    phoneNumber = ""
+  ) {
+    const cleanId = cleanText(
+      trackingId
+    ).toUpperCase();
+
+    const cleanPhone =
+      normalizePhone(phoneNumber);
+
+    if (!cleanId) {
+      return;
+    }
+
+    if (
+      cleanPhone &&
+      (cleanPhone.length < 10 ||
+        cleanPhone.length > 13)
+    ) {
+      setMessage(
+        "Enter a valid Order Phone Number."
+      );
+
+      return;
+    }
+
+    setLoadingOrderId(cleanId);
+    setMessage("");
+    setOrder(null);
+    setMatchingOrders([]);
+    setCopiedTrackingId("");
 
     try {
       const {
@@ -448,7 +558,7 @@ export default function TrackOrderClient({
         setMessage(
           cleanText(
             data.message,
-            "Order not found. Check your Tracking ID and phone number."
+            "Order not found. Check the information and try again."
           )
         );
 
@@ -471,81 +581,6 @@ export default function TrackOrderClient({
       );
     } catch {
       setMessage(
-        cleanText(
-          content.genericErrorMessage,
-          "Something went wrong. Please try again."
-        )
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function loadDetailedOrder(
-    trackingId,
-    phoneNumber = phone
-  ) {
-    const cleanId = cleanText(
-      trackingId
-    ).toUpperCase();
-
-    const cleanPhone =
-      normalizePhone(phoneNumber);
-
-    if (!cleanId) {
-      return;
-    }
-
-    if (
-      cleanPhone.length < 10 ||
-      cleanPhone.length > 13
-    ) {
-      setMessage(
-        "Enter the phone number used during checkout."
-      );
-
-      return;
-    }
-
-    setLoadingOrderId(cleanId);
-    setMessage("");
-    setOrder(null);
-    setCopied(false);
-
-    try {
-      const {
-        response,
-        data,
-      } = await sendTrackingRequest({
-        trackingId: cleanId,
-        phoneNumber: cleanPhone,
-      });
-
-      if (
-        !response.ok ||
-        !data.success ||
-        !data.order
-      ) {
-        setMessage(
-          cleanText(
-            data.message,
-            "Order not found. Check your Tracking ID and phone number."
-          )
-        );
-
-        return;
-      }
-
-      setOrder(data.order);
-      setOrderId(cleanId);
-
-      saveRecentOrder(data.order);
-
-      setRecentOrders(
-        getRecentOrders()
-      );
-    } catch {
-      setMessage(
         "Something went wrong. Please try again."
       );
     } finally {
@@ -560,32 +595,42 @@ export default function TrackOrderClient({
       recentOrder?.orderId
     ).toUpperCase();
 
-    const cleanPhone =
-      normalizePhone(phone);
-
-    setOrderId(recentOrderId);
-
-    if (
-      cleanPhone.length < 10 ||
-      cleanPhone.length > 13
-    ) {
-      setMessage(
-        "Enter the phone number used during checkout, then try again."
-      );
-
-      setOrder(null);
+    if (!recentOrderId) {
       return;
     }
 
+    setOrderId(recentOrderId);
+
     void loadDetailedOrder(
-      recentOrderId,
-      cleanPhone
+      recentOrderId
     );
   }
 
-  async function handleCopyTrackingId() {
+  function handleMatchingOrder(
+    matchingOrder
+  ) {
+    const matchingOrderId = cleanText(
+      matchingOrder?.orderId
+    ).toUpperCase();
+
+    if (!matchingOrderId) {
+      return;
+    }
+
+    setOrderId(matchingOrderId);
+
+    void loadDetailedOrder(
+      matchingOrderId,
+      phone
+    );
+  }
+
+  async function handleCopyTrackingId(
+    value
+  ) {
     const trackingId = cleanText(
-      order?.orderId ||
+      value ||
+        order?.orderId ||
         order?.id ||
         orderId
     ).toUpperCase();
@@ -595,24 +640,80 @@ export default function TrackOrderClient({
     }
 
     try {
-      await navigator.clipboard.writeText(
+      if (
+        navigator.clipboard &&
+        window.isSecureContext
+      ) {
+        await navigator.clipboard.writeText(
+          trackingId
+        );
+      } else {
+        const textArea =
+          document.createElement(
+            "textarea"
+          );
+
+        textArea.value = trackingId;
+
+        textArea.setAttribute(
+          "readonly",
+          ""
+        );
+
+        textArea.style.position =
+          "fixed";
+
+        textArea.style.opacity =
+          "0";
+
+        document.body.appendChild(
+          textArea
+        );
+
+        textArea.select();
+
+        const copied =
+          document.execCommand(
+            "copy"
+          );
+
+        document.body.removeChild(
+          textArea
+        );
+
+        if (!copied) {
+          throw new Error(
+            "Copy command failed."
+          );
+        }
+      }
+
+      setCopiedTrackingId(
         trackingId
       );
 
-      setCopied(true);
-
       window.setTimeout(() => {
-        setCopied(false);
+        setCopiedTrackingId(
+          (currentValue) =>
+            currentValue === trackingId
+              ? ""
+              : currentValue
+        );
       }, 2000);
     } catch {
-      setCopied(false);
+      setCopiedTrackingId("");
+
+      setMessage(
+        "Could not copy the Tracking ID. Please copy it manually."
+      );
     }
   }
 
   function handleNewSearch() {
     setOrder(null);
+    setMatchingOrders([]);
     setMessage("");
-    setCopied(false);
+    setCopiedTrackingId("");
   }
 
   const orderItems = Array.isArray(
@@ -682,7 +783,7 @@ export default function TrackOrderClient({
         onSubmit={handleSubmit}
         className="mt-12 border border-black/10 bg-[#eee7dd] p-6 sm:p-8 md:p-10"
       >
-        <div className="grid gap-6 md:grid-cols-2 md:items-end">
+        <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-end">
           <div>
             <label
               htmlFor="tracking-id"
@@ -698,7 +799,6 @@ export default function TrackOrderClient({
               maxLength={120}
               autoComplete="off"
               placeholder="OBS-XXXX-XXXX"
-              required
               onChange={(event) =>
                 setOrderId(
                   event.target.value.toUpperCase()
@@ -706,6 +806,13 @@ export default function TrackOrderClient({
               }
               className="w-full border border-black/15 bg-[#f1ece4] px-5 py-4 font-sans text-base font-medium uppercase tracking-[0.08em] outline-none transition focus:border-black"
             />
+          </div>
+
+          <div
+            aria-hidden="true"
+            className="flex items-center justify-center text-[10px] uppercase tracking-[0.28em] text-neutral-400 md:h-[58px] md:px-1"
+          >
+            Or
           </div>
 
           <div>
@@ -724,7 +831,6 @@ export default function TrackOrderClient({
               maxLength={24}
               autoComplete="tel"
               placeholder="01XXXXXXXXX"
-              required
               onChange={(event) =>
                 setPhone(event.target.value)
               }
@@ -744,9 +850,9 @@ export default function TrackOrderClient({
         </button>
 
         <p className="mt-4 text-center text-xs leading-6 text-neutral-500">
-          For your privacy, enter both your
-          Tracking ID and the phone number used
-          during checkout.
+          Enter either your Tracking ID or the
+          phone number used during checkout. You
+          may also enter both.
         </p>
 
         {message ? (
@@ -759,7 +865,125 @@ export default function TrackOrderClient({
         ) : null}
       </form>
 
+      {matchingOrders.length > 0 &&
+      !order ? (
+        <section className="mt-8">
+          <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">
+                Orders Found
+              </p>
+
+              <p className="mt-2 text-sm leading-6 text-neutral-500">
+                Select an order to view its full
+                tracking details.
+              </p>
+            </div>
+
+            <p className="text-xs text-neutral-400">
+              {matchingOrders.length} result
+              {matchingOrders.length === 1
+                ? ""
+                : "s"}
+            </p>
+          </div>
+
+          <div className="grid gap-3">
+            {matchingOrders.map(
+              (matchingOrder) => {
+                const matchingOrderId =
+                  cleanText(
+                    matchingOrder?.orderId
+                  ).toUpperCase();
+
+                const matchingCurrencySymbol =
+                  getCurrencySymbol(
+                    matchingOrder?.currency,
+                    currencySymbol
+                  );
+
+                return (
+                  <article
+                    key={matchingOrderId}
+                    className="border border-black/10 bg-[#eee7dd] p-5 transition hover:border-black"
+                  >
+                    <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <p className="select-all break-all font-sans text-sm font-semibold uppercase tracking-[0.08em]">
+                            {matchingOrderId}
+                          </p>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void handleCopyTrackingId(
+                                matchingOrderId
+                              )
+                            }
+                            className="border border-black/20 px-3 py-2 text-[10px] uppercase tracking-[0.22em] transition hover:border-black"
+                          >
+                            {copiedTrackingId ===
+                            matchingOrderId
+                              ? "Copied"
+                              : "Copy ID"}
+                          </button>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-neutral-500">
+                          <span>
+                            {getStatusLabel(
+                              matchingOrder?.status,
+                              content.statusLabels
+                            )}
+                          </span>
+
+                          {matchingOrder?.createdAt ? (
+                            <span>
+                              {formatDate(
+                                matchingOrder.createdAt
+                              )}
+                            </span>
+                          ) : null}
+
+                          <span>
+                            {formatCurrency(
+                              matchingOrder?.total,
+                              matchingCurrencySymbol,
+                              currencyLocale
+                            )}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={Boolean(
+                          loadingOrderId
+                        )}
+                        onClick={() =>
+                          handleMatchingOrder(
+                            matchingOrder
+                          )
+                        }
+                        className="shrink-0 bg-black px-5 py-4 text-[10px] uppercase tracking-[0.24em] text-[#f1ece4] transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {loadingOrderId ===
+                        matchingOrderId
+                          ? "Opening..."
+                          : "View Order"}
+                      </button>
+                    </div>
+                  </article>
+                );
+              }
+            )}
+          </div>
+        </section>
+      ) : null}
+
       {recentOrders.length > 0 &&
+      matchingOrders.length === 0 &&
       !order ? (
         <section className="mt-8">
           <p className="mb-4 text-xs uppercase tracking-[0.3em] text-neutral-500">
@@ -768,41 +992,67 @@ export default function TrackOrderClient({
 
           <div className="grid gap-3">
             {recentOrders.map(
-              (recentOrder) => (
-                <button
-                  key={recentOrder.orderId}
-                  type="button"
-                  disabled={Boolean(
-                    loadingOrderId
-                  )}
-                  onClick={() =>
-                    handleRecentOrder(
-                      recentOrder
-                    )
-                  }
-                  className="flex flex-col justify-between gap-3 border border-black/10 bg-[#eee7dd] p-5 text-left transition hover:border-black disabled:opacity-60 sm:flex-row sm:items-center"
-                >
-                  <div>
-                    <p className="font-sans text-sm font-semibold uppercase tracking-[0.08em]">
-                      {recentOrder.orderId}
-                    </p>
+              (recentOrder) => {
+                const recentOrderId =
+                  cleanText(
+                    recentOrder?.orderId
+                  ).toUpperCase();
 
-                    <p className="mt-2 text-xs text-neutral-500">
-                      {getStatusLabel(
-                        recentOrder.status,
-                        content.statusLabels
+                return (
+                  <article
+                    key={recentOrderId}
+                    className="flex flex-col justify-between gap-4 border border-black/10 bg-[#eee7dd] p-5 transition hover:border-black sm:flex-row sm:items-center"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <p className="select-all break-all font-sans text-sm font-semibold uppercase tracking-[0.08em]">
+                          {recentOrderId}
+                        </p>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleCopyTrackingId(
+                              recentOrderId
+                            )
+                          }
+                          className="border border-black/20 px-3 py-2 text-[10px] uppercase tracking-[0.22em] transition hover:border-black"
+                        >
+                          {copiedTrackingId ===
+                          recentOrderId
+                            ? "Copied"
+                            : "Copy ID"}
+                        </button>
+                      </div>
+
+                      <p className="mt-2 text-xs text-neutral-500">
+                        {getStatusLabel(
+                          recentOrder.status,
+                          content.statusLabels
+                        )}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={Boolean(
+                        loadingOrderId
                       )}
-                    </p>
-                  </div>
-
-                  <span className="text-xs uppercase tracking-[0.24em]">
-                    {loadingOrderId ===
-                    recentOrder.orderId
-                      ? "Opening..."
-                      : "Track Again"}
-                  </span>
-                </button>
-              )
+                      onClick={() =>
+                        handleRecentOrder(
+                          recentOrder
+                        )
+                      }
+                      className="shrink-0 text-left text-xs uppercase tracking-[0.24em] transition hover:opacity-60 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {loadingOrderId ===
+                      recentOrderId
+                        ? "Opening..."
+                        : "Track Again"}
+                    </button>
+                  </article>
+                );
+              }
             )}
           </div>
         </section>
@@ -841,12 +1091,17 @@ export default function TrackOrderClient({
 
                   <button
                     type="button"
-                    onClick={
-                      handleCopyTrackingId
+                    onClick={() =>
+                      void handleCopyTrackingId(
+                        order.orderId
+                      )
                     }
                     className="border border-black/20 px-3 py-2 text-[10px] uppercase tracking-[0.22em] transition hover:border-black"
                   >
-                    {copied
+                    {copiedTrackingId ===
+                    cleanText(
+                      order.orderId
+                    ).toUpperCase()
                       ? "Copied"
                       : "Copy ID"}
                   </button>

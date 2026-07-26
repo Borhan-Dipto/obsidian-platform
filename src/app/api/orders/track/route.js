@@ -1,6 +1,9 @@
-import { createHash } from "node:crypto";
+import { createHmac } from "node:crypto";
 
 import clientPromise from "../../../../lib/mongodb";
+import {
+  enforcePublicRequestEnvelope,
+} from "../../../../lib/publicApiSecurity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,6 +14,8 @@ const RATE_LIMIT_WINDOW_MS =
 const MAX_ATTEMPTS_PER_IP = 20;
 const MAX_ATTEMPTS_PER_LOOKUP = 8;
 const MAX_REQUEST_BODY_BYTES = 16 * 1024;
+const MAX_PHONE_LOOKUP_RESULTS = 10;
+const MINIMUM_SECURITY_SECRET_LENGTH = 32;
 
 const RATE_LIMIT_COLLECTION_NAME =
   "public_order_tracking_rate_limits";
@@ -27,6 +32,9 @@ function createResponse(
     headers: {
       "Cache-Control":
         "no-store, no-cache, must-revalidate",
+
+      "X-Content-Type-Options":
+        "nosniff",
 
       ...headers,
     },
@@ -189,24 +197,6 @@ function getClientIp(request) {
   ).slice(0, 120);
 }
 
-function isSameOriginRequest(request) {
-  const originHeader =
-    request.headers.get("origin");
-
-  if (!originHeader) {
-    return true;
-  }
-
-  try {
-    return (
-      new URL(request.url).origin ===
-      new URL(originHeader).origin
-    );
-  } catch {
-    return false;
-  }
-}
-
 async function readTrackingBody(request) {
   const contentLength = Number(
     request.headers.get(
@@ -245,9 +235,25 @@ async function readTrackingBody(request) {
   }
 
   try {
+    const value =
+      JSON.parse(rawBody);
+
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value)
+    ) {
+      return {
+        ok: false,
+        status: 400,
+        message:
+          "Invalid tracking request.",
+      };
+    }
+
     return {
       ok: true,
-      value: JSON.parse(rawBody),
+      value,
     };
   } catch {
     return {
@@ -259,11 +265,33 @@ async function readTrackingBody(request) {
   }
 }
 
+function getSecuritySecret() {
+  const secret = normalizeText(
+    process.env.PUBLIC_API_SECURITY_SECRET ||
+      process.env.CUSTOMER_AUTH_SECRET ||
+      process.env.BETTER_AUTH_SECRET
+  );
+
+  if (
+    secret.length <
+    MINIMUM_SECURITY_SECRET_LENGTH
+  ) {
+    throw new Error(
+      "A public API security secret with at least 32 characters is required."
+    );
+  }
+
+  return secret;
+}
+
 function hashRateLimitIdentifier(
   scope,
   identifier
 ) {
-  return createHash("sha256")
+  return createHmac(
+    "sha256",
+    getSecuritySecret()
+  )
     .update(
       `${scope}:${identifier}`
     )
@@ -288,12 +316,9 @@ async function ensureRateLimitIndex(
           }
         )
         .catch((error) => {
-          console.error(
-            "Public tracking rate-limit index error:",
-            error
-          );
+          rateLimitIndexPromise = null;
 
-          return null;
+          throw error;
         });
   }
 
@@ -332,48 +357,80 @@ async function consumeRateLimit(
 
   const now = new Date(nowMs);
 
-  const document =
-    await collection.findOneAndUpdate(
-      {
-        _id: bucketId,
-      },
-      {
-        $inc: {
-          attempts: 1,
+  const update = {
+    $inc: {
+      attempts: 1,
+    },
+
+    $set: {
+      updatedAt: now,
+    },
+
+    $setOnInsert: {
+      scope,
+      identifierHash,
+      limit,
+
+      windowStartedAt:
+        new Date(
+          windowStartedAtMs
+        ),
+
+      windowEndsAt:
+        new Date(
+          windowEndsAtMs
+        ),
+
+      expiresAt:
+        new Date(
+          windowEndsAtMs +
+            RATE_LIMIT_WINDOW_MS
+        ),
+
+      createdAt: now,
+    },
+  };
+
+  let document;
+
+  try {
+    document =
+      await collection.findOneAndUpdate(
+        {
+          _id: bucketId,
         },
+        update,
+        {
+          upsert: true,
+          returnDocument: "after",
+          includeResultMetadata: false,
+        }
+      );
+  } catch (error) {
+    if (error?.code !== 11000) {
+      throw error;
+    }
 
-        $set: {
-          updatedAt: now,
+    document =
+      await collection.findOneAndUpdate(
+        {
+          _id: bucketId,
         },
+        {
+          $inc: {
+            attempts: 1,
+          },
 
-        $setOnInsert: {
-          scope,
-
-          windowStartedAt:
-            new Date(
-              windowStartedAtMs
-            ),
-
-          windowEndsAt:
-            new Date(
-              windowEndsAtMs
-            ),
-
-          expiresAt:
-            new Date(
-              windowEndsAtMs +
-                RATE_LIMIT_WINDOW_MS
-            ),
-
-          createdAt: now,
+          $set: {
+            updatedAt: now,
+          },
         },
-      },
-      {
-        upsert: true,
-        returnDocument: "after",
-        includeResultMetadata: false,
-      }
-    );
+        {
+          returnDocument: "after",
+          includeResultMetadata: false,
+        }
+      );
+  }
 
   const attempts = Number(
     document?.attempts || 1
@@ -398,8 +455,8 @@ async function consumeRateLimit(
 async function consumeTrackingLimits(
   collection,
   request,
-  orderId,
-  phone
+  lookupMode,
+  lookupIdentifier
 ) {
   const nowMs = Date.now();
 
@@ -429,7 +486,7 @@ async function consumeTrackingLimits(
       scope: "lookup",
 
       identifier:
-        `${orderId}:${phone}`,
+        `${lookupMode}:${lookupIdentifier}`,
 
       limit:
         MAX_ATTEMPTS_PER_LOOKUP,
@@ -547,7 +604,6 @@ function sanitizeOrderItems(order) {
       size: normalizeText(item?.size),
 
       quantity,
-
       price,
 
       lineTotal:
@@ -682,6 +738,30 @@ function serializeDetailedOrder(order) {
   };
 }
 
+function serializeOrderSummary(order) {
+  return {
+    orderId: normalizeText(
+      order?.orderId
+    ),
+
+    status: normalizeText(
+      order?.status,
+      "pending"
+    ).toLowerCase(),
+
+    total: getOrderTotal(order),
+
+    currency: normalizeText(
+      order?.pricing?.currency ||
+        order?.currency,
+      "BDT"
+    ),
+
+    createdAt:
+      order?.createdAt || null,
+  };
+}
+
 async function getDatabase() {
   const client = await clientPromise;
 
@@ -700,17 +780,48 @@ async function getDatabase() {
   );
 }
 
+function getLookupMode(
+  hasOrderId,
+  hasPhone
+) {
+  if (hasOrderId && hasPhone) {
+    return "tracking-id-and-phone";
+  }
+
+  if (hasOrderId) {
+    return "tracking-id";
+  }
+
+  return "phone";
+}
+
+function getLookupIdentifier(
+  orderId,
+  phone
+) {
+  if (orderId && phone) {
+    return `${orderId}:${phone}`;
+  }
+
+  return orderId || phone;
+}
+
 export async function POST(request) {
   try {
-    if (!isSameOriginRequest(request)) {
-      return createResponse(
+    const envelope =
+      await enforcePublicRequestEnvelope(
+        request,
         {
-          success: false,
-          message:
-            "Tracking request was rejected.",
-        },
-        403
+          action: "track-order",
+          maxBodyBytes:
+            MAX_REQUEST_BODY_BYTES,
+          sameOrigin: true,
+          requireJson: true,
+        }
       );
+
+    if (!envelope.success) {
+      return envelope.response;
     }
 
     const bodyResult =
@@ -737,18 +848,27 @@ export async function POST(request) {
         bodyResult.value?.phone
       );
 
-    if (!orderId || !phone) {
+    const hasOrderId =
+      Boolean(orderId);
+
+    const hasPhone =
+      Boolean(phone);
+
+    if (!hasOrderId && !hasPhone) {
       return createResponse(
         {
           success: false,
           message:
-            "Enter both your Tracking ID and the phone number used during checkout.",
+            "Enter your Tracking ID or Order Phone Number.",
         },
         400
       );
     }
 
-    if (!isValidPhone(phone)) {
+    if (
+      hasPhone &&
+      !isValidPhone(phone)
+    ) {
       return createResponse(
         {
           success: false,
@@ -758,6 +878,18 @@ export async function POST(request) {
         400
       );
     }
+
+    const lookupMode =
+      getLookupMode(
+        hasOrderId,
+        hasPhone
+      );
+
+    const lookupIdentifier =
+      getLookupIdentifier(
+        orderId,
+        phone
+      );
 
     const database =
       await getDatabase();
@@ -775,8 +907,8 @@ export async function POST(request) {
       await consumeTrackingLimits(
         rateLimitCollection,
         request,
-        orderId,
-        phone
+        lookupMode,
+        lookupIdentifier
       );
 
     if (!rateLimit.allowed) {
@@ -798,23 +930,85 @@ export async function POST(request) {
     const ordersCollection =
       database.collection("orders");
 
-    const order =
-      await ordersCollection.findOne({
-        $and: [
-          {
-            orderId,
-          },
+    if (lookupMode === "phone") {
+      const matchingOrders =
+        await ordersCollection
+          .find(
+            createPhoneQuery(phone)
+          )
+          .sort({
+            createdAt: -1,
+            _id: -1,
+          })
+          .limit(
+            MAX_PHONE_LOOKUP_RESULTS
+          )
+          .toArray();
 
-          createPhoneQuery(phone),
-        ],
+      if (matchingOrders.length === 0) {
+        return createResponse(
+          {
+            success: false,
+            message:
+              "Order not found. Check the information and try again.",
+          },
+          404
+        );
+      }
+
+      if (matchingOrders.length === 1) {
+        return createResponse({
+          success: true,
+          mode: lookupMode,
+
+          order:
+            serializeDetailedOrder(
+              matchingOrders[0]
+            ),
+
+          orders: [],
+        });
+      }
+
+      return createResponse({
+        success: true,
+        mode: lookupMode,
+        order: null,
+
+        orders:
+          matchingOrders.map(
+            serializeOrderSummary
+          ),
       });
+    }
+
+    const orderQuery =
+      lookupMode ===
+      "tracking-id-and-phone"
+        ? {
+            $and: [
+              {
+                orderId,
+              },
+
+              createPhoneQuery(phone),
+            ],
+          }
+        : {
+            orderId,
+          };
+
+    const order =
+      await ordersCollection.findOne(
+        orderQuery
+      );
 
     if (!order) {
       return createResponse(
         {
           success: false,
           message:
-            "Order not found. Check your Tracking ID and phone number.",
+            "Order not found. Check the information and try again.",
         },
         404
       );
@@ -822,7 +1016,7 @@ export async function POST(request) {
 
     return createResponse({
       success: true,
-      mode: "tracking-id",
+      mode: lookupMode,
 
       order:
         serializeDetailedOrder(order),

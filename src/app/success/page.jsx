@@ -816,6 +816,11 @@ function SuccessContent() {
     setReceiptMessage,
   ] = useState("");
 
+  const [
+    isOrderIdCopied,
+    setIsOrderIdCopied,
+  ] = useState(false);
+
   const [settings, setSettings] = useState({
     store: {
       name: "OBSIDIAN",
@@ -932,11 +937,21 @@ function SuccessContent() {
         "OBSIDIAN"
     ).trim() || "OBSIDIAN";
 
-  const orderNumber =
-    order?.id ||
+  const rawOrderNumber =
     order?.orderId ||
-    orderId ||
+    order?.id ||
+    orderId;
+
+  const orderNumber =
+    rawOrderNumber ||
     "Order confirmed";
+
+  const canCopyOrderNumber =
+    Boolean(
+      String(
+        rawOrderNumber || ""
+      ).trim()
+    );
 
   const receiptDate = formatDateTime(
     order?.createdAt ||
@@ -1040,6 +1055,83 @@ function SuccessContent() {
     currencySymbol,
     storeName,
   ]);
+
+  async function handleCopyOrderId() {
+    const trackingId = String(
+      rawOrderNumber || ""
+    ).trim();
+
+    if (!trackingId) {
+      setReceiptMessage(
+        "Tracking ID is not available."
+      );
+
+      return;
+    }
+
+    try {
+      if (
+        navigator.clipboard &&
+        window.isSecureContext
+      ) {
+        await navigator.clipboard.writeText(
+          trackingId
+        );
+      } else {
+        const textArea =
+          document.createElement(
+            "textarea"
+          );
+
+        textArea.value = trackingId;
+
+        textArea.setAttribute(
+          "readonly",
+          ""
+        );
+
+        textArea.style.position =
+          "fixed";
+
+        textArea.style.opacity =
+          "0";
+
+        document.body.appendChild(
+          textArea
+        );
+
+        textArea.select();
+
+        const copied =
+          document.execCommand(
+            "copy"
+          );
+
+        document.body.removeChild(
+          textArea
+        );
+
+        if (!copied) {
+          throw new Error(
+            "Copy command failed."
+          );
+        }
+      }
+
+      setIsOrderIdCopied(true);
+      setReceiptMessage("");
+
+      window.setTimeout(() => {
+        setIsOrderIdCopied(false);
+      }, 2000);
+    } catch {
+      setIsOrderIdCopied(false);
+
+      setReceiptMessage(
+        "Tracking ID could not be copied. Please copy it manually."
+      );
+    }
+  }
 
   function handlePrintReceipt() {
     if (!order) {
@@ -1147,12 +1239,33 @@ function SuccessContent() {
 
               <div className="mt-10 border-y border-black/10 py-7">
                 <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">
-                  Order ID
+                  Tracking ID
                 </p>
 
-                <p className="mt-4 select-all break-words font-sans text-xl font-semibold uppercase leading-relaxed tracking-[0.08em] tabular-nums sm:text-2xl md:text-3xl">
-                  {orderNumber}
-                </p>
+                <div className="mt-4 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                  <p className="select-all break-words font-sans text-xl font-semibold uppercase leading-relaxed tracking-[0.08em] tabular-nums sm:text-2xl md:text-3xl">
+                    {orderNumber}
+                  </p>
+
+                  {canCopyOrderNumber ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void handleCopyOrderId()
+                      }
+                      aria-label={
+                        isOrderIdCopied
+                          ? "Tracking ID copied"
+                          : "Copy Tracking ID"
+                      }
+                      className="shrink-0 border border-black/20 px-4 py-3 text-[10px] uppercase tracking-[0.24em] transition hover:border-black"
+                    >
+                      {isOrderIdCopied
+                        ? "Copied"
+                        : "Copy ID"}
+                    </button>
+                  ) : null}
+                </div>
 
                 {order ? (
                   <p className="mt-3 text-xs uppercase tracking-[0.18em] text-neutral-500">

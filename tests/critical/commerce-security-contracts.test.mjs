@@ -211,7 +211,7 @@ test(
 );
 
 test(
-  "public order tracking requires order ID and phone with persistent controls",
+  "public order tracking supports either lookup factor with persistent privacy controls",
   () => {
     const source =
       readSource(
@@ -224,7 +224,7 @@ test(
         "orderId"
       ) >= 3,
 
-      "Tracking route must process the order ID as a required verification factor."
+      "Tracking route must continue processing normalized Tracking IDs."
     );
 
     assert.ok(
@@ -233,14 +233,56 @@ test(
         "phone"
       ) >= 3,
 
-      "Tracking route must process the phone number as a required verification factor."
+      "Tracking route must continue processing normalized phone numbers."
     );
 
     assertContains(
       source,
-      /createPhoneQuery/,
+      /!hasOrderId\s*&&\s*!hasPhone/,
 
-      "Tracking lookup must require the normalized phone query together with the order ID."
+      "Tracking must require at least one lookup factor."
+    );
+
+    assertContains(
+      source,
+      /lookupMode\s*===\s*"phone"/,
+
+      "Phone-only tracking must remain supported."
+    );
+
+    assertContains(
+      source,
+      /MAX_PHONE_LOOKUP_RESULTS/,
+
+      "Phone-only tracking results must remain bounded."
+    );
+
+    assertContains(
+      source,
+      /serializeOrderSummary/,
+
+      "Multiple phone matches must use limited order summaries."
+    );
+
+    assertContains(
+      source,
+      /maskPhone/,
+
+      "Public tracking results must mask customer phone numbers."
+    );
+
+    assertContains(
+      source,
+      /enforcePublicRequestEnvelope/,
+
+      "Tracking requests must use the shared origin and request-envelope security policy."
+    );
+
+    assertContains(
+      source,
+      /createHmac/,
+
+      "Tracking rate-limit identifiers must use keyed hashing."
     );
 
     assertContains(
@@ -259,9 +301,9 @@ test(
 
     assertNotContains(
       source,
-      /\b(?:phoneOnly|listByPhone)\b/i,
+      /Enter both your Tracking ID and the phone number/i,
 
-      "Phone-only order listing must not be restored."
+      "Tracking must not require both lookup factors."
     );
 
     const adminOrderRoute =
@@ -273,7 +315,7 @@ test(
       adminOrderRoute,
       /requireAdminApiPermission/,
 
-      "Full order-detail access must require Admin Workspace permission."
+      "Full admin order-detail access must require Admin Workspace permission."
     );
 
     assertNotContains(
