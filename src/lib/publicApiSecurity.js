@@ -113,6 +113,77 @@ function getClientIp(request) {
   return "unknown";
 }
 
+function normalizeOrigin(
+  value
+) {
+  const normalizedValue =
+    normalizeText(
+      value,
+      2000
+    );
+
+  if (!normalizedValue) {
+    return "";
+  }
+
+  try {
+    const parsedUrl =
+      new URL(
+        normalizedValue
+      );
+
+    if (
+      ![
+        "http:",
+        "https:",
+      ].includes(
+        parsedUrl.protocol
+      )
+    ) {
+      return "";
+    }
+
+    return parsedUrl.origin
+      .toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function getTrustedRequestOrigins(
+  request
+) {
+  const trustedOrigins =
+    new Set();
+
+  const candidates = [
+    request.url,
+    process.env.BETTER_AUTH_URL,
+    process.env.NEXT_PUBLIC_SITE_URL,
+    process.env.URL,
+    process.env.DEPLOY_URL,
+    process.env.DEPLOY_PRIME_URL,
+  ];
+
+  for (
+    const candidate
+    of candidates
+  ) {
+    const origin =
+      normalizeOrigin(
+        candidate
+      );
+
+    if (origin) {
+      trustedOrigins.add(
+        origin
+      );
+    }
+  }
+
+  return trustedOrigins;
+}
+
 function isSameOriginRequest(
   request
 ) {
@@ -146,14 +217,18 @@ function isSameOriginRequest(
     return true;
   }
 
-  try {
-    return (
-      new URL(originHeader).origin ===
-      new URL(request.url).origin
+  const requestOrigin =
+    normalizeOrigin(
+      originHeader
     );
-  } catch {
+
+  if (!requestOrigin) {
     return false;
   }
+
+  return getTrustedRequestOrigins(
+    request
+  ).has(requestOrigin);
 }
 
 function isJsonRequest(request) {
