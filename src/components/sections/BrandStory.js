@@ -278,7 +278,10 @@ export default function BrandStory({
 
       <div className="container-custom relative z-10">
         <div className="grid grid-cols-1 gap-16 lg:grid-cols-[0.52fr_0.48fr] lg:items-end">
-          <Reveal>
+          <Reveal
+            variant="fade-up"
+            duration={1050}
+          >
             {eyebrow ? (
               <div className="mb-8 flex items-center gap-4">
                 <span className="h-px w-8 bg-[#b1844a]" />
@@ -301,7 +304,9 @@ export default function BrandStory({
 
           {paragraphs.length > 0 ? (
             <Reveal
-              delay={160}
+              variant="fade-up"
+              delay={140}
+              duration={980}
               className="max-w-2xl lg:pb-4"
             >
               {paragraphs.map(
@@ -339,7 +344,9 @@ export default function BrandStory({
                     card.id ||
                     `${card.title}-${index}`
                   }
-                  delay={(index + 1) * 120}
+                  variant="fade-up"
+                  duration={880}
+                  delay={120 + index * 90}
                   className={getFeatureCardClasses(
                     index,
                     featureCards.length
@@ -372,7 +379,9 @@ export default function BrandStory({
 
         {systemEnabled ? (
           <Reveal
-            delay={220}
+            variant="scale"
+            delay={180}
+            duration={1050}
             className="mt-20"
           >
             <div className="grid grid-cols-1 border border-[#f1ece4]/10 md:grid-cols-[0.42fr_0.58fr]">

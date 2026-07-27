@@ -137,9 +137,18 @@ function renderMultilineTitle(title) {
     .filter(Boolean);
 
   return lines.map((line, index) => (
-    <span key={`${line}-${index}`}>
-      {line}
-      {index < lines.length - 1 ? <br /> : null}
+    <span
+      key={`${line}-${index}`}
+      className="-mb-[0.12em] block overflow-hidden pb-[0.12em]"
+    >
+      <span
+        className="obsidian-hero-title-line block"
+        style={{
+          "--motion-delay": `${260 + index * 110}ms`,
+        }}
+      >
+        {line}
+      </span>
     </span>
   ));
 }
@@ -241,55 +250,53 @@ export default function Hero({ section = null, content = null } = {}) {
 
   return (
     <section
-      className="relative h-screen overflow-hidden bg-[#0b0b0b] text-[#f1ece4]"
+      className="obsidian-hero relative h-screen overflow-hidden bg-[#0b0b0b] text-[#f1ece4]"
       style={{
         minHeight: `${minHeight}px`,
       }}
     >
       {mediaType === "video" ? (
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          poster={desktopImage}
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{
-            objectPosition: backgroundPosition,
-          }}
-        >
-          <source src={videoUrl} type="video/mp4" />
-        </video>
+        <div className="obsidian-hero-media-shell absolute inset-0">
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            poster={desktopImage}
+            className="obsidian-hero-media h-full w-full object-cover"
+            style={{
+              objectPosition: backgroundPosition,
+            }}
+          >
+            <source src={videoUrl} type="video/mp4" />
+          </video>
+        </div>
       ) : (
         <>
-          <div className="absolute inset-0 md:hidden">
+          <div className="obsidian-hero-media-shell absolute inset-0 md:hidden">
             <Image
               src={mobileImage}
               alt={imageAlt}
               fill
               priority
               sizes="100vw"
-              className="object-cover"
+              className="obsidian-hero-media object-cover"
               style={{
                 objectPosition: backgroundPosition,
-                animation:
-                  "heroImagePremiumZoom 18s ease-out forwards",
               }}
             />
           </div>
 
-          <div className="absolute inset-0 hidden md:block">
+          <div className="obsidian-hero-media-shell absolute inset-0 hidden md:block">
             <Image
               src={desktopImage}
               alt={imageAlt}
               fill
               priority
               sizes="100vw"
-              className="object-cover"
+              className="obsidian-hero-media object-cover"
               style={{
                 objectPosition: backgroundPosition,
-                animation:
-                  "heroImagePremiumZoom 18s ease-out forwards",
               }}
             />
           </div>
@@ -313,7 +320,10 @@ export default function Hero({ section = null, content = null } = {}) {
         >
           {normalizeText(hero.eyebrow) ? (
             <div
-              className={`mb-7 flex items-center gap-4 ${horizontalAlignmentClasses[contentAlignment]}`}
+              className={`obsidian-hero-item mb-7 flex items-center gap-4 ${horizontalAlignmentClasses[contentAlignment]}`}
+              style={{
+                "--motion-delay": "150ms",
+              }}
             >
               <span className="h-px w-10 bg-[#b1844a]" />
 
@@ -328,14 +338,22 @@ export default function Hero({ section = null, content = null } = {}) {
           </h1>
 
           {normalizeText(hero.subtitle) ? (
-            <p className="mt-7 max-w-md text-base leading-8 text-[#eee7dd]/82">
+            <p
+              className="obsidian-hero-item mt-7 max-w-md text-base leading-8 text-[#eee7dd]/82"
+              style={{
+                "--motion-delay": "560ms",
+              }}
+            >
               {hero.subtitle}
             </p>
           ) : null}
 
           {(primaryCtaEnabled || secondaryCtaEnabled) ? (
             <div
-              className={`mt-10 flex flex-wrap items-center gap-6 ${horizontalAlignmentClasses[contentAlignment]}`}
+              className={`obsidian-hero-item mt-10 flex flex-wrap items-center gap-6 ${horizontalAlignmentClasses[contentAlignment]}`}
+              style={{
+                "--motion-delay": "700ms",
+              }}
             >
               {primaryCtaEnabled ? (
                 <Link
@@ -343,11 +361,11 @@ export default function Hero({ section = null, content = null } = {}) {
                   {...getLinkProps(
                     hero.primaryCta.openInNewTab
                   )}
-                  className="group inline-flex items-center gap-5 rounded-full bg-[#f1ece4] px-9 py-4 text-[10px] font-semibold uppercase tracking-[0.28em] text-[#0b0b0b] transition hover:bg-[#d7bea0]"
+                  className="obsidian-motion-button group inline-flex items-center gap-5 rounded-full bg-[#f1ece4] px-9 py-4 text-[10px] font-semibold uppercase tracking-[0.28em] text-[#0b0b0b] hover:bg-[#d7bea0]"
                 >
                   {hero.primaryCta.label}
 
-                  <span className="transition group-hover:translate-x-1">
+                  <span className="obsidian-motion-arrow">
                     →
                   </span>
                 </Link>
@@ -359,7 +377,7 @@ export default function Hero({ section = null, content = null } = {}) {
                   {...getLinkProps(
                     hero.secondaryCta.openInNewTab
                   )}
-                  className="border-b border-[#d7bea0]/70 pb-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-[#f1ece4]/85 transition hover:text-[#d7bea0]"
+                  className="inline-flex border-b border-[#d7bea0]/70 pb-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-[#f1ece4]/85 transition-transform duration-300 motion-safe:hover:-translate-y-px hover:text-[#d7bea0]"
                 >
                   {hero.secondaryCta.label}
                 </Link>
@@ -373,7 +391,10 @@ export default function Hero({ section = null, content = null } = {}) {
               {...getLinkProps(
                 hero.featuredCard.openInNewTab
               )}
-              className="relative z-40 mt-10 flex w-fit items-center gap-4 border border-[#f1ece4]/10 bg-[#0b0b0b]/45 p-3 backdrop-blur-md transition hover:bg-[#0b0b0b]/70"
+              className="obsidian-hero-card obsidian-motion-card relative z-40 mt-10 flex w-fit items-center gap-4 border border-[#f1ece4]/10 bg-[#0b0b0b]/45 p-3 backdrop-blur-md hover:bg-[#0b0b0b]/70"
+              style={{
+                "--motion-delay": "820ms",
+              }}
             >
               {normalizeText(hero.featuredCard.image) ? (
                 <div className="relative h-[60px] w-[60px] overflow-hidden bg-[#111]">
@@ -417,7 +438,12 @@ export default function Hero({ section = null, content = null } = {}) {
       </div>
 
       {sideCardEnabled ? (
-        <div className="absolute right-8 top-[42%] z-20 hidden w-[250px] border border-[#f1ece4]/12 bg-[#0b0b0b]/62 p-7 backdrop-blur-md lg:block xl:right-16">
+        <div
+          className="obsidian-hero-side absolute right-8 top-[42%] z-20 hidden w-[250px] border border-[#f1ece4]/12 bg-[#0b0b0b]/62 p-7 backdrop-blur-md lg:block xl:right-16"
+          style={{
+            "--motion-delay": "760ms",
+          }}
+        >
           <p className="text-[10px] font-semibold uppercase tracking-[0.32em]">
             {hero.sideCard.title}
           </p>
@@ -448,7 +474,12 @@ export default function Hero({ section = null, content = null } = {}) {
       ) : null}
 
       {hero.metaLabel?.isEnabled !== false ? (
-        <div className="absolute right-8 top-28 z-20 hidden text-center lg:block xl:right-16">
+        <div
+          className="obsidian-hero-meta absolute right-8 top-28 z-20 hidden text-center lg:block xl:right-16"
+          style={{
+            "--motion-delay": "620ms",
+          }}
+        >
           {normalizeText(
             hero.metaLabel.lineOne
           ) ? (

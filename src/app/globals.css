@@ -15,6 +15,13 @@
   --ash-grey: #a8a29e;
   --metal-edge: #b8b0a4;
   --burnt-amber: #b1844a;
+
+  --motion-duration-fast: 280ms;
+  --motion-duration-base: 680ms;
+  --motion-duration-slow: 960ms;
+  --motion-duration-cinematic: 1280ms;
+  --motion-ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @theme inline {
@@ -449,4 +456,373 @@ body {
     transform: translateX(0);
     filter: blur(0);
   }
+}
+
+/* OBSIDIAN MOTION SYSTEM V1 */
+
+.obsidian-reveal {
+  --motion-delay: 0ms;
+  --motion-duration: var(--motion-duration-slow);
+  --motion-distance: 28px;
+
+  opacity: 0;
+  transition-property: opacity, transform, filter, clip-path;
+  transition-duration: var(--motion-duration);
+  transition-delay: var(--motion-delay);
+  transition-timing-function: var(--motion-ease-soft);
+  will-change: opacity, transform, filter, clip-path;
+}
+
+.obsidian-reveal--fade-up {
+  transform: translate3d(0, var(--motion-distance), 0);
+  filter: blur(6px);
+}
+
+.obsidian-reveal--fade-in {
+  filter: blur(4px);
+}
+
+.obsidian-reveal--slide-left {
+  transform: translate3d(var(--motion-distance), 0, 0);
+}
+
+.obsidian-reveal--slide-right {
+  transform: translate3d(calc(var(--motion-distance) * -1), 0, 0);
+}
+
+.obsidian-reveal--scale {
+  transform: translate3d(0, 16px, 0) scale(0.975);
+  filter: blur(5px);
+}
+
+.obsidian-reveal--clip-up {
+  transform: translate3d(0, 18px, 0);
+  clip-path: inset(0 0 100% 0);
+}
+
+.obsidian-reveal[data-visible="true"] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  filter: blur(0);
+  clip-path: inset(0 0 0 0);
+  will-change: auto;
+}
+
+.obsidian-motion-card {
+  transition:
+    transform var(--motion-duration-base) var(--motion-ease-standard),
+    border-color var(--motion-duration-base) ease,
+    box-shadow var(--motion-duration-base) var(--motion-ease-standard),
+    background-color var(--motion-duration-base) ease;
+}
+
+.obsidian-motion-media {
+  transition: transform 1100ms var(--motion-ease-standard);
+}
+
+.obsidian-motion-button {
+  transition:
+    transform var(--motion-duration-fast) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-base) var(--motion-ease-standard),
+    color var(--motion-duration-fast) ease,
+    background-color var(--motion-duration-fast) ease,
+    border-color var(--motion-duration-fast) ease,
+    opacity var(--motion-duration-fast) ease;
+}
+
+.obsidian-motion-arrow {
+  display: inline-block;
+  transition: transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .obsidian-motion-card:hover {
+    transform: translate3d(0, -6px, 0);
+  }
+
+  .obsidian-motion-button:hover {
+    transform: translate3d(0, -2px, 0);
+    box-shadow: 0 18px 42px rgba(11, 11, 11, 0.12);
+  }
+
+  .group:hover .obsidian-motion-arrow,
+  .obsidian-motion-button:hover .obsidian-motion-arrow {
+    transform: translate3d(4px, 0, 0);
+  }
+}
+
+@keyframes obsidianHeroMediaShell {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 12% 0);
+  }
+
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes obsidianHeroMediaDrift {
+  from {
+    transform: scale(1.015);
+  }
+
+  to {
+    transform: scale(1.045);
+  }
+}
+
+@keyframes obsidianHeroItemEnter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0);
+    filter: blur(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0);
+  }
+}
+
+@keyframes obsidianHeroTitleEnter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 112%, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes obsidianHeroCardEnter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 22px, 0) scale(0.975);
+    filter: blur(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.obsidian-hero-media-shell {
+  animation: obsidianHeroMediaShell 1400ms var(--motion-ease-soft) both;
+}
+
+.obsidian-hero-media {
+  animation: obsidianHeroMediaDrift 18s 500ms ease-out both;
+  will-change: transform;
+}
+
+.obsidian-hero-item {
+  opacity: 0;
+  animation: obsidianHeroItemEnter 980ms var(--motion-delay, 0ms)
+    var(--motion-ease-soft) forwards;
+}
+
+.obsidian-hero-title-line {
+  opacity: 0;
+  animation: obsidianHeroTitleEnter 1100ms var(--motion-delay, 0ms)
+    var(--motion-ease-standard) forwards;
+}
+
+.obsidian-hero-card,
+.obsidian-hero-side,
+.obsidian-hero-meta {
+  opacity: 0;
+  animation: obsidianHeroCardEnter 1050ms var(--motion-delay, 0ms)
+    var(--motion-ease-soft) forwards;
+}
+
+@media (max-width: 767px) {
+  .obsidian-reveal--fade-up,
+  .obsidian-reveal--fade-in,
+  .obsidian-reveal--scale {
+    filter: none;
+  }
+
+  .obsidian-reveal {
+    --motion-distance: 18px;
+    --motion-duration: 760ms;
+  }
+
+  .obsidian-hero-item {
+    filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .obsidian-reveal,
+  .obsidian-reveal[data-visible="false"],
+  .obsidian-reveal[data-visible="true"],
+  .obsidian-hero-media-shell,
+  .obsidian-hero-media,
+  .obsidian-hero-item,
+  .obsidian-hero-title-line,
+  .obsidian-hero-card,
+  .obsidian-hero-side,
+  .obsidian-hero-meta {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    clip-path: none !important;
+    animation: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+
+  .obsidian-motion-card,
+  .obsidian-motion-media,
+  .obsidian-motion-button,
+  .obsidian-motion-arrow {
+    transform: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+}
+
+/* OBSIDIAN MOTION FAIL-OPEN OVERRIDE */
+
+.obsidian-reveal {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  clip-path: none;
+  will-change: auto;
+}
+
+.obsidian-reveal[
+  data-motion-ready="true"
+] {
+  transition-property:
+    opacity,
+    transform,
+    filter,
+    clip-path;
+
+  transition-duration:
+    var(--motion-duration);
+
+  transition-delay:
+    var(--motion-delay);
+
+  transition-timing-function:
+    var(--motion-ease-soft);
+}
+
+.obsidian-reveal[
+  data-motion-ready="true"
+][data-visible="false"] {
+  opacity: 0;
+
+  will-change:
+    opacity,
+    transform,
+    filter,
+    clip-path;
+}
+
+.obsidian-reveal[
+  data-motion-ready="true"
+][data-visible="false"].obsidian-reveal--fade-up {
+  transform:
+    translate3d(
+      0,
+      var(--motion-distance),
+      0
+    );
+
+  filter: blur(6px);
+}
+
+.obsidian-reveal[
+  data-motion-ready="true"
+][data-visible="false"].obsidian-reveal--fade-in {
+  filter: blur(4px);
+}
+
+.obsidian-reveal[
+  data-motion-ready="true"
+][data-visible="false"].obsidian-reveal--slide-left {
+  transform:
+    translate3d(
+      var(--motion-distance),
+      0,
+      0
+    );
+}
+
+.obsidian-reveal[
+  data-motion-ready="true"
+][data-visible="false"].obsidian-reveal--slide-right {
+  transform:
+    translate3d(
+      calc(
+        var(--motion-distance) *
+        -1
+      ),
+      0,
+      0
+    );
+}
+
+.obsidian-reveal[
+  data-motion-ready="true"
+][data-visible="false"].obsidian-reveal--scale {
+  transform:
+    translate3d(
+      0,
+      16px,
+      0
+    )
+    scale(0.975);
+
+  filter: blur(5px);
+}
+
+.obsidian-reveal[
+  data-motion-ready="true"
+][data-visible="false"].obsidian-reveal--clip-up {
+  transform:
+    translate3d(
+      0,
+      18px,
+      0
+    );
+
+  clip-path:
+    inset(
+      0 0 100% 0
+    );
+}
+
+.obsidian-reveal[
+  data-motion-ready="true"
+][data-visible="true"] {
+  opacity: 1;
+
+  transform:
+    translate3d(
+      0,
+      0,
+      0
+    )
+    scale(1);
+
+  filter: blur(0);
+
+  clip-path:
+    inset(
+      0 0 0 0
+    );
+
+  will-change: auto;
 }

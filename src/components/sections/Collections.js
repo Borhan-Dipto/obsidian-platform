@@ -352,7 +352,10 @@ export default async function Collections({
       </div>
 
       <div className="container-custom relative z-10">
-        <Reveal>
+        <Reveal
+          variant="fade-up"
+          duration={1000}
+        >
           {eyebrow ? (
             <div className="mb-7 flex items-center gap-4">
               <span className="h-px w-8 bg-[#b1844a]" />
@@ -385,11 +388,11 @@ export default async function Collections({
             buttonHref ? (
               <Link
                 href={buttonHref}
-                className="group inline-flex w-fit items-center gap-4 border border-black/20 px-6 py-4 text-[10px] font-semibold uppercase tracking-[0.3em] text-neutral-700 transition duration-300 hover:border-black hover:bg-black hover:text-[#f1ece4]"
+                className="obsidian-motion-button group inline-flex w-fit items-center gap-4 border border-black/20 px-6 py-4 text-[10px] font-semibold uppercase tracking-[0.3em] text-neutral-700 hover:border-black hover:bg-black hover:text-[#f1ece4]"
               >
                 {buttonText}
 
-                <span className="transition duration-300 group-hover:translate-x-1">
+                <span className="obsidian-motion-arrow">
                   →
                 </span>
               </Link>
@@ -398,7 +401,10 @@ export default async function Collections({
         </Reveal>
 
         {collections.length === 0 ? (
-          <Reveal>
+          <Reveal
+            variant="scale"
+            duration={900}
+          >
             <div className="border border-black/10 bg-[#f1ece4] p-8 md:p-10">
               <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-neutral-500">
                 Collections
@@ -465,16 +471,18 @@ export default async function Collections({
                     key={String(
                       collectionKey
                     )}
+                    variant="fade-up"
+                    duration={900}
                     delay={Math.min(
-                      index * 100,
-                      500
+                      index * 90,
+                      450
                     )}
                   >
                     <Link
                       href={
                         collectionHref
                       }
-                      className="group block h-full overflow-hidden border border-black/10 bg-[#f1ece4] transition duration-500 hover:-translate-y-2 hover:border-black/30 hover:shadow-2xl hover:shadow-black/10"
+                      className="obsidian-motion-card group block h-full overflow-hidden border border-black/10 bg-[#f1ece4] hover:border-black/30 hover:shadow-2xl hover:shadow-black/10"
                       aria-label={`View ${collectionTitle}`}
                     >
                       <div className="relative aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
@@ -488,7 +496,7 @@ export default async function Collections({
                           fill
                           priority={index < 3}
                           sizes="(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 33vw"
-                          className="object-cover object-center transition-transform duration-1000 ease-out group-hover:scale-[1.055]"
+                          className="obsidian-motion-media object-cover object-center motion-safe:group-hover:scale-[1.035] motion-reduce:transition-none"
                         />
 
                         <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(11,11,11,0.46),rgba(11,11,11,0.06)_58%,transparent)] opacity-75 transition duration-500 group-hover:opacity-45" />
@@ -538,7 +546,7 @@ export default async function Collections({
                             {cardButtonText}
                           </p>
 
-                          <span className="text-xl leading-none text-[#0b0b0b] transition duration-300 group-hover:translate-x-1">
+                          <span className="obsidian-motion-arrow text-xl leading-none text-[#0b0b0b]">
                             →
                           </span>
                         </div>

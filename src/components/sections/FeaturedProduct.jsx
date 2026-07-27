@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import clientPromise from "../../lib/mongodb";
+import Reveal from "../ui/Reveal";
 
 const DEFAULT_CONTENT = {
   eyebrow: "Featured Product",
@@ -249,30 +250,40 @@ export default async function FeaturedProduct({
       <div className="pointer-events-none absolute -right-40 top-20 h-[28rem] w-[28rem] rounded-full bg-[#b1844a]/10 blur-3xl" />
 
       <div className="container-custom relative z-10 grid grid-cols-1 gap-16 md:grid-cols-2 md:items-center lg:gap-24">
-        <Link
-          href={productHref}
-          className="group relative block aspect-square overflow-hidden bg-[#111]"
-          aria-label={`View ${title}`}
+        <Reveal
+          variant="scale"
+          duration={1050}
         >
+          <Link
+            href={productHref}
+            className="obsidian-motion-card group relative block aspect-square overflow-hidden bg-[#111]"
+            aria-label={`View ${title}`}
+          >
           <Image
             src={image}
             alt={imageAlt}
             fill
             priority
             sizes="(max-width: 768px) 100vw, 50vw"
-            className="object-cover object-center transition-transform duration-1000 ease-out group-hover:scale-105"
+            className="obsidian-motion-media object-cover object-center motion-safe:group-hover:scale-[1.035] motion-reduce:transition-none"
           />
 
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-50" />
 
-          {!databaseProduct ? (
-            <div className="absolute left-5 top-5 border border-white/15 bg-black/45 px-4 py-2 text-[9px] uppercase tracking-[0.25em] text-[#f1ece4] backdrop-blur-md">
-              Preview
-            </div>
-          ) : null}
-        </Link>
+            {!databaseProduct ? (
+              <div className="absolute left-5 top-5 border border-white/15 bg-black/45 px-4 py-2 text-[9px] uppercase tracking-[0.25em] text-[#f1ece4] backdrop-blur-md">
+                Preview
+              </div>
+            ) : null}
+          </Link>
+        </Reveal>
 
-        <div>
+        <Reveal
+          variant="fade-up"
+          delay={160}
+          duration={1000}
+        >
+          <div>
           {eyebrow ? (
             <div className="mb-6 flex items-center gap-4">
               <span className="h-px w-8 bg-[#b1844a]" />
@@ -308,16 +319,17 @@ export default async function FeaturedProduct({
           {buttonText ? (
             <Link
               href={productHref}
-              className="group mt-12 inline-flex items-center gap-5 border border-[#f1ece4] px-8 py-4 text-xs uppercase tracking-[0.3em] transition hover:bg-[#f1ece4] hover:text-[#0b0b0b]"
+              className="obsidian-motion-button group mt-12 inline-flex items-center gap-5 border border-[#f1ece4] px-8 py-4 text-xs uppercase tracking-[0.3em] hover:bg-[#f1ece4] hover:text-[#0b0b0b]"
             >
               {buttonText}
 
-              <span className="transition group-hover:translate-x-1">
+              <span className="obsidian-motion-arrow">
                 →
               </span>
             </Link>
-          ) : null}
-        </div>
+            ) : null}
+          </div>
+        </Reveal>
       </div>
     </section>
   );
