@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
+import Reveal from "../../components/ui/Reveal";
 import {
   COLLECTIONS_COLLECTION_NAME,
   PRODUCTS_COLLECTION_NAME,
@@ -887,7 +888,7 @@ export default async function CollectionsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f1ece4] text-[#0b0b0b]">
+    <main className="obsidian-catalog-page min-h-screen bg-[#f1ece4] text-[#0b0b0b]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -913,8 +914,11 @@ export default async function CollectionsPage() {
         className="px-4 pb-24 pt-32 sm:px-6 sm:pb-28 sm:pt-36 lg:px-10 lg:pb-36 lg:pt-40"
       >
         <div className="mx-auto max-w-[1440px]">
-          <nav
+          <Reveal
+            as="nav"
             aria-label="Breadcrumb"
+            variant="fade-in"
+            duration={700}
             className="mb-9 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-neutral-500 sm:mb-10 sm:tracking-[0.28em]"
           >
             <Link
@@ -934,9 +938,15 @@ export default async function CollectionsPage() {
             >
               {breadcrumbCurrentLabel}
             </span>
-          </nav>
+          </Reveal>
 
-          <header className="mb-12 border-b border-black/10 pb-9 sm:mb-14 sm:pb-10">
+          <Reveal
+            as="header"
+            variant="fade-up"
+            delay={70}
+            duration={900}
+            className="mb-12 border-b border-black/10 pb-9 sm:mb-14 sm:pb-10"
+          >
             {eyebrow ? (
               <p className="mb-5 text-[10px] uppercase tracking-[0.38em] text-neutral-500 sm:text-xs sm:tracking-[0.45em]">
                 {eyebrow}
@@ -983,10 +993,15 @@ export default async function CollectionsPage() {
                 ) : null}
               </div>
             ) : null}
-          </header>
+          </Reveal>
 
           {collections.length === 0 ? (
-            <section className="border border-black/10 bg-[#eee7dd] p-8 sm:p-10 md:p-14">
+            <Reveal
+              as="section"
+              variant="scale"
+              duration={850}
+              className="border border-black/10 bg-[#eee7dd] p-8 sm:p-10 md:p-14"
+            >
               {emptyStateEyebrow ? (
                 <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">
                   {emptyStateEyebrow}
@@ -1016,7 +1031,7 @@ export default async function CollectionsPage() {
                   {emptyStateButtonText}
                 </Link>
               ) : null}
-            </section>
+            </Reveal>
           ) : (
             <ul className="grid list-none gap-7 p-0 sm:gap-8 md:grid-cols-2 xl:grid-cols-3">
               {collections.map(
@@ -1056,17 +1071,21 @@ export default async function CollectionsPage() {
                     );
 
                   return (
-                    <li
+                    <Reveal
+                      as="li"
                       key={getCollectionIdentifier(
                         collection,
                         index
                       )}
+                      variant="fade-up"
+                      delay={Math.min(index, 8) * 70}
+                      duration={900}
                       className="min-w-0"
                     >
                       <Link
                         href={shopPath}
                         aria-label={`Explore ${collectionTitle}`}
-                        className="group block h-full overflow-hidden border border-black/10 bg-[#eee7dd] transition duration-500 hover:-translate-y-1 hover:border-black/25 hover:shadow-2xl hover:shadow-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-4 focus-visible:ring-offset-[#f1ece4]"
+                        className="obsidian-catalog-card group block h-full overflow-hidden border border-black/10 bg-[#eee7dd] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-4 focus-visible:ring-offset-[#f1ece4]"
                       >
                         <div className="relative aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
                           <Image
@@ -1075,7 +1094,7 @@ export default async function CollectionsPage() {
                             fill
                             priority={index < 3}
                             sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1279px) 50vw, 33vw"
-                            className="object-cover object-center transition-transform duration-1000 ease-out motion-safe:group-hover:scale-105"
+                            className="obsidian-catalog-media object-cover object-center"
                           />
 
                           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10" />
@@ -1160,7 +1179,7 @@ export default async function CollectionsPage() {
                           ) : null}
                         </div>
                       </Link>
-                    </li>
+                    </Reveal>
                   );
                 }
               )}

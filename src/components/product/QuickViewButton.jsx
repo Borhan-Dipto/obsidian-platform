@@ -16,7 +16,7 @@ export default function QuickViewButton({ product }) {
       type="button"
       onClick={handleQuickView}
       aria-label={`Quick view ${product.name}`}
-      className="absolute inset-x-4 bottom-4 z-20 translate-y-4 border border-white/20 bg-[#0b0b0b]/85 px-5 py-4 text-[10px] font-semibold uppercase tracking-[0.3em] text-[#f1ece4] opacity-0 backdrop-blur-xl transition duration-500 group-hover:translate-y-0 group-hover:opacity-100 focus:translate-y-0 focus:opacity-100"
+      className="obsidian-quick-view absolute inset-x-4 bottom-4 z-20 translate-y-0 border border-white/20 bg-[#0b0b0b]/85 px-5 py-4 text-[10px] font-semibold uppercase tracking-[0.3em] text-[#f1ece4] opacity-100 backdrop-blur-xl transition duration-500 focus:translate-y-0 focus:opacity-100 md:translate-y-4 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:group-focus-within:translate-y-0 md:group-focus-within:opacity-100"
     >
       Quick View
     </button>

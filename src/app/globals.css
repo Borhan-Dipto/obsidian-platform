@@ -826,3 +826,187 @@ body {
 
   will-change: auto;
 }
+
+/* OBSIDIAN CATALOG MOTION V1 */
+
+@keyframes obsidianCatalogPulse {
+  0%,
+  100% {
+    opacity: 0.42;
+  }
+
+  50% {
+    opacity: 0.82;
+  }
+}
+
+@keyframes obsidianCatalogChipIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes obsidianCatalogProgress {
+  from {
+    transform: translate3d(-105%, 0, 0);
+  }
+
+  to {
+    transform: translate3d(105%, 0, 0);
+  }
+}
+
+@keyframes obsidianWishlistSettle {
+  0% {
+    transform: scale(0.92);
+  }
+
+  58% {
+    transform: scale(1.08);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.obsidian-catalog-page {
+  isolation: isolate;
+}
+
+.obsidian-catalog-card {
+  transform: translate3d(0, 0, 0);
+  transition:
+    transform var(--motion-duration-base) var(--motion-ease-standard),
+    border-color var(--motion-duration-base) ease,
+    box-shadow var(--motion-duration-base) var(--motion-ease-standard),
+    background-color var(--motion-duration-base) ease;
+}
+
+.obsidian-catalog-media {
+  transform: scale(1.001);
+  transition: transform 1150ms var(--motion-ease-standard);
+  will-change: transform;
+}
+
+.obsidian-filter-shell {
+  position: relative;
+}
+
+.obsidian-filter-progress {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity var(--motion-duration-fast) ease;
+}
+
+.obsidian-filter-progress::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(11, 11, 11, 0.9),
+    transparent
+  );
+  transform: translate3d(-105%, 0, 0);
+}
+
+.obsidian-filter-shell[aria-busy="true"] .obsidian-filter-progress {
+  opacity: 1;
+}
+
+.obsidian-filter-shell[aria-busy="true"] .obsidian-filter-progress::after {
+  animation: obsidianCatalogProgress 920ms var(--motion-ease-standard) infinite;
+}
+
+.obsidian-filter-status {
+  transition: opacity var(--motion-duration-fast) ease;
+}
+
+.obsidian-filter-shell[aria-busy="true"] .obsidian-filter-status {
+  opacity: 0.58;
+}
+
+.obsidian-filter-control {
+  transition:
+    border-color var(--motion-duration-fast) ease,
+    background-color var(--motion-duration-fast) ease,
+    box-shadow var(--motion-duration-fast) ease,
+    transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.obsidian-filter-chip {
+  animation: obsidianCatalogChipIn 420ms var(--motion-ease-standard) both;
+}
+
+.obsidian-wishlist-toggle {
+  transform: translate3d(0, 0, 0);
+  transition:
+    transform var(--motion-duration-fast) var(--motion-ease-standard),
+    color var(--motion-duration-fast) ease,
+    background-color var(--motion-duration-fast) ease,
+    border-color var(--motion-duration-fast) ease,
+    box-shadow var(--motion-duration-fast) ease;
+}
+
+.obsidian-wishlist-toggle--saved {
+  animation: obsidianWishlistSettle 440ms var(--motion-ease-standard) both;
+}
+
+.obsidian-loading-pulse {
+  animation: obsidianCatalogPulse 1650ms ease-in-out infinite;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .obsidian-catalog-card:hover,
+  .obsidian-catalog-card:focus-within {
+    transform: translate3d(0, -6px, 0);
+    border-color: rgba(11, 11, 11, 0.25);
+    box-shadow: 0 28px 70px rgba(11, 11, 11, 0.12);
+  }
+
+  .obsidian-catalog-card:hover .obsidian-catalog-media,
+  .obsidian-catalog-card:focus-within .obsidian-catalog-media {
+    transform: scale(1.045);
+  }
+
+  .obsidian-filter-control:hover {
+    border-color: rgba(11, 11, 11, 0.35);
+  }
+
+  .obsidian-wishlist-toggle:hover {
+    transform: translate3d(0, -2px, 0) scale(1.035);
+    box-shadow: 0 14px 28px rgba(11, 11, 11, 0.14);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .obsidian-catalog-card,
+  .obsidian-catalog-media,
+  .obsidian-filter-control,
+  .obsidian-filter-chip,
+  .obsidian-wishlist-toggle,
+  .obsidian-wishlist-toggle--saved,
+  .obsidian-loading-pulse,
+  .obsidian-filter-progress,
+  .obsidian-filter-progress::after {
+    animation: none !important;
+    transform: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+
+  .obsidian-loading-pulse {
+    opacity: 0.62;
+  }
+}

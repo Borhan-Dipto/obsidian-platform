@@ -337,7 +337,7 @@ function FilterChip({
   removeLabel,
 }) {
   return (
-    <span className="inline-flex min-h-10 items-center border border-black/15 bg-[#eee7dd] text-[9px] uppercase tracking-[0.2em] text-neutral-700 sm:text-[10px]">
+    <span className="obsidian-filter-chip inline-flex min-h-10 items-center border border-black/15 bg-[#eee7dd] text-[9px] uppercase tracking-[0.2em] text-neutral-700 sm:text-[10px]">
       <span className="px-3 py-2">
         {children}
       </span>
@@ -826,8 +826,13 @@ export default function ShopFilters({
     <section
       aria-label="Shop filters"
       aria-busy={isPending}
-      className="mt-12 border-y border-black/10 sm:mt-14"
+      className="obsidian-filter-shell mt-12 overflow-hidden border-y border-black/10 sm:mt-14"
     >
+      <span
+        aria-hidden="true"
+        className="obsidian-filter-progress"
+      />
+
       <div className="py-6 sm:py-7">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -836,7 +841,7 @@ export default function ShopFilters({
             </p>
 
             <p
-              className="mt-3 text-sm text-neutral-700"
+              className="obsidian-filter-status mt-3 text-sm text-neutral-700"
               aria-live="polite"
               aria-atomic="true"
             >
@@ -859,7 +864,7 @@ export default function ShopFilters({
           <div className="flex flex-wrap gap-3">
             <Link
               href="/wishlist"
-              className="inline-flex min-h-11 items-center justify-center border border-black/20 px-4 py-2 text-[10px] uppercase tracking-[0.23em] text-neutral-600 transition hover:bg-black hover:text-[#f1ece4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 focus-visible:ring-offset-[#f1ece4] sm:text-xs sm:tracking-[0.25em]"
+              className="obsidian-motion-button inline-flex min-h-11 items-center justify-center border border-black/20 px-4 py-2 text-[10px] uppercase tracking-[0.23em] text-neutral-600 transition hover:bg-black hover:text-[#f1ece4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 focus-visible:ring-offset-[#f1ece4] sm:text-xs sm:tracking-[0.25em]"
             >
               Wishlist
             </Link>
@@ -871,7 +876,7 @@ export default function ShopFilters({
                 activeFilterCount === 0 ||
                 isPending
               }
-              className="inline-flex min-h-11 items-center justify-center bg-[#0b0b0b] px-4 py-2 text-[10px] uppercase tracking-[0.23em] text-[#f1ece4] transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-40 sm:px-5 sm:text-xs sm:tracking-[0.25em]"
+              className="obsidian-motion-button inline-flex min-h-11 items-center justify-center bg-[#0b0b0b] px-4 py-2 text-[10px] uppercase tracking-[0.23em] text-[#f1ece4] transition disabled:cursor-not-allowed disabled:opacity-40 sm:px-5 sm:text-xs sm:tracking-[0.25em]"
             >
               Show All Products
             </button>
@@ -897,7 +902,7 @@ export default function ShopFilters({
               }
               placeholder="Product, color, series..."
               autoComplete="off"
-              className="min-h-13 w-full border border-black/15 bg-[#eee7dd] px-4 py-3 pr-11 text-sm outline-none transition placeholder:text-neutral-500 focus:border-black focus-visible:ring-1 focus-visible:ring-black"
+              className="obsidian-filter-control min-h-13 w-full border border-black/15 bg-[#eee7dd] px-4 py-3 pr-11 text-sm outline-none transition placeholder:text-neutral-500 focus:border-black focus-visible:ring-1 focus-visible:ring-black"
             />
 
             {filters.searchQuery ? (
@@ -931,7 +936,7 @@ export default function ShopFilters({
                   event.target.value
                 )
               }
-              className="min-h-13 w-full border border-black/15 bg-[#eee7dd] px-4 py-3 text-xs uppercase tracking-[0.17em] outline-none transition focus:border-black focus-visible:ring-1 focus-visible:ring-black"
+              className="obsidian-filter-control min-h-13 w-full border border-black/15 bg-[#eee7dd] px-4 py-3 text-xs uppercase tracking-[0.17em] outline-none transition focus:border-black focus-visible:ring-1 focus-visible:ring-black"
             >
               {normalizedSeriesOptions.map(
                 (series) => (
@@ -963,7 +968,7 @@ export default function ShopFilters({
                   event.target.value
                 )
               }
-              className="min-h-13 w-full border border-black/15 bg-[#eee7dd] px-4 py-3 text-xs uppercase tracking-[0.17em] outline-none transition focus:border-black focus-visible:ring-1 focus-visible:ring-black"
+              className="obsidian-filter-control min-h-13 w-full border border-black/15 bg-[#eee7dd] px-4 py-3 text-xs uppercase tracking-[0.17em] outline-none transition focus:border-black focus-visible:ring-1 focus-visible:ring-black"
             >
               {normalizedColorOptions.map(
                 (color) => (
@@ -995,7 +1000,7 @@ export default function ShopFilters({
                   event.target.value
                 )
               }
-              className="min-h-13 w-full border border-black/15 bg-[#eee7dd] px-4 py-3 text-xs uppercase tracking-[0.15em] outline-none transition focus:border-black focus-visible:ring-1 focus-visible:ring-black"
+              className="obsidian-filter-control min-h-13 w-full border border-black/15 bg-[#eee7dd] px-4 py-3 text-xs uppercase tracking-[0.15em] outline-none transition focus:border-black focus-visible:ring-1 focus-visible:ring-black"
             >
               {SORT_OPTIONS.map(
                 (option) => (
@@ -1023,7 +1028,7 @@ export default function ShopFilters({
                   Minimum price
                 </span>
 
-                <div className="flex min-h-13 items-center border border-black/15 bg-[#eee7dd] focus-within:border-black focus-within:ring-1 focus-within:ring-black">
+                <div className="obsidian-filter-control flex min-h-13 items-center border border-black/15 bg-[#eee7dd] focus-within:border-black focus-within:ring-1 focus-within:ring-black">
                   <span
                     aria-hidden="true"
                     className="pl-4 text-sm text-neutral-500"
@@ -1066,7 +1071,7 @@ export default function ShopFilters({
                   Maximum price
                 </span>
 
-                <div className="flex min-h-13 items-center border border-black/15 bg-[#eee7dd] focus-within:border-black focus-within:ring-1 focus-within:ring-black">
+                <div className="obsidian-filter-control flex min-h-13 items-center border border-black/15 bg-[#eee7dd] focus-within:border-black focus-within:ring-1 focus-within:ring-black">
                   <span
                     aria-hidden="true"
                     className="pl-4 text-sm text-neutral-500"
@@ -1135,7 +1140,7 @@ export default function ShopFilters({
                       aria-pressed={
                         isSelected
                       }
-                      className={`min-h-11 border px-4 py-2 text-[10px] uppercase tracking-[0.22em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 focus-visible:ring-offset-[#f1ece4] sm:text-xs ${
+                      className={`obsidian-filter-control min-h-11 border px-4 py-2 text-[10px] uppercase tracking-[0.22em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 focus-visible:ring-offset-[#f1ece4] sm:text-xs ${
                         isSelected
                           ? "border-black bg-black text-[#f1ece4]"
                           : "border-black/20 text-neutral-600 hover:bg-black hover:text-[#f1ece4]"

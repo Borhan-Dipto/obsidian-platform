@@ -6,6 +6,7 @@ import Footer from "../../components/layout/Footer";
 import ShopFilters from "../../components/shop/ShopFilters";
 import WishlistButton from "../../components/product/WishlistButton";
 import QuickViewButton from "../../components/product/QuickViewButton";
+import Reveal from "../../components/ui/Reveal";
 import {
   PRODUCTS_COLLECTION_NAME,
   getCatalogDatabase,
@@ -1164,7 +1165,7 @@ export default async function ShopPage({
   }
 
   return (
-    <main className="min-h-screen bg-[#f1ece4] text-[#0b0b0b]">
+    <main className="obsidian-catalog-page min-h-screen bg-[#f1ece4] text-[#0b0b0b]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -1192,8 +1193,11 @@ export default async function ShopPage({
         className="px-4 pb-24 pt-32 sm:px-6 sm:pb-28 sm:pt-36 lg:px-10 lg:pb-36 lg:pt-40"
       >
         <div className="mx-auto max-w-[1440px]">
-          <nav
+          <Reveal
+            as="nav"
             aria-label="Breadcrumb"
+            variant="fade-in"
+            duration={700}
             className="mb-9 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-neutral-500 sm:mb-10 sm:tracking-[0.28em]"
           >
             <Link
@@ -1238,9 +1242,15 @@ export default async function ShopPage({
                 </span>
               </>
             ) : null}
-          </nav>
+          </Reveal>
 
-          <header className="max-w-4xl">
+          <Reveal
+            as="header"
+            variant="fade-up"
+            delay={70}
+            duration={900}
+            className="max-w-4xl"
+          >
             <p className="mb-5 text-[10px] uppercase tracking-[0.38em] text-neutral-500 sm:text-xs sm:tracking-[0.45em]">
               Shop
             </p>
@@ -1270,9 +1280,14 @@ export default async function ShopPage({
             <p className="mt-7 max-w-xl text-base leading-8 text-neutral-600 sm:mt-8 sm:text-lg">
               {pageDescription}
             </p>
-          </header>
+          </Reveal>
 
-          <ShopFilters
+          <Reveal
+            variant="fade-up"
+            delay={160}
+            duration={850}
+          >
+            <ShopFilters
             initialFilters={{
               selectedSeries,
               searchQuery,
@@ -1294,14 +1309,20 @@ export default async function ShopPage({
             totalProductCount={
               products.length
             }
-            priceBounds={
-              priceBounds
-            }
-          />
+              priceBounds={
+                priceBounds
+              }
+            />
+          </Reveal>
 
           {filteredProducts.length ===
           0 ? (
-            <section className="mt-10 border border-black/10 bg-[#eee7dd] p-8 sm:mt-12 sm:p-10 md:p-14">
+            <Reveal
+              as="section"
+              variant="scale"
+              duration={850}
+              className="mt-10 border border-black/10 bg-[#eee7dd] p-8 sm:mt-12 sm:p-10 md:p-14"
+            >
               <p className="text-[10px] uppercase tracking-[0.32em] text-neutral-500 sm:text-xs sm:tracking-[0.35em]">
                 No Results
               </p>
@@ -1321,10 +1342,13 @@ export default async function ShopPage({
               >
                 Show All Products
               </Link>
-            </section>
+            </Reveal>
           ) : (
-            <section
+            <Reveal
+              as="section"
               aria-label="Product results"
+              variant="fade-up"
+              duration={850}
               className="mt-10 sm:mt-12"
             >
               <div className="grid gap-7 sm:gap-8 md:grid-cols-2 xl:grid-cols-3">
@@ -1362,11 +1386,15 @@ export default async function ShopPage({
                       );
 
                     return (
-                      <article
+                      <Reveal
+                        as="article"
                         key={String(
                           product.id
                         )}
-                        className="group overflow-hidden border border-black/10 bg-[#eee7dd] transition duration-500 hover:-translate-y-1 hover:border-black/25 hover:shadow-2xl hover:shadow-black/10 focus-within:border-black/30"
+                        variant="fade-up"
+                        delay={Math.min(index, 8) * 70}
+                        duration={880}
+                        className="obsidian-catalog-card group overflow-hidden border border-black/10 bg-[#eee7dd] focus-within:border-black/30"
                       >
                         <div className="relative aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
                           <WishlistButton
@@ -1393,7 +1421,7 @@ export default async function ShopPage({
                                 index < 3
                               }
                               sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1279px) 50vw, 33vw"
-                              className="object-cover object-center transition-transform duration-1000 ease-out motion-safe:group-hover:scale-105"
+                              className="obsidian-catalog-media object-cover object-center"
                             />
                           </Link>
 
@@ -1469,12 +1497,12 @@ export default async function ShopPage({
                             </p>
                           </div>
                         </div>
-                      </article>
+                      </Reveal>
                     );
                   }
                 )}
               </div>
-            </section>
+            </Reveal>
           )}
         </div>
       </section>
