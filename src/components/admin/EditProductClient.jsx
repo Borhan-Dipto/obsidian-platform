@@ -1,21 +1,61 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  useParams,
+  useRouter,
+} from "next/navigation";
+
 import Link from "next/link";
 import ImageUploader from "./ImageUploader";
+import ProductInventoryFields from "./ProductInventoryFields";
+
+import {
+  OBSIDIAN_SIZE_ORDER,
+  createEmptySizeStock,
+  getEnabledProductSizes,
+  hasProductSizeInventory,
+  normalizeSizeStockForForm,
+} from "../../lib/productInventory";
 
 export default function EditProductClient() {
   const params = useParams();
   const router = useRouter();
   const productId = params.id;
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [notFound, setNotFound] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(true);
 
-  const [formData, setFormData] = useState({
+  const [
+    isSubmitting,
+    setIsSubmitting,
+  ] = useState(false);
+
+  const [
+    notFound,
+    setNotFound,
+  ] = useState(false);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
+
+  const [
+    originalLegacyStock,
+    setOriginalLegacyStock,
+  ] = useState(0);
+
+  const [
+    formData,
+    setFormData,
+  ] = useState({
     id: "",
     name: "",
     series: "",
@@ -24,34 +64,97 @@ export default function EditProductClient() {
     stock: "",
     image: "",
     description: "",
+    inventoryMode: "legacy",
+    sizes: [
+      ...OBSIDIAN_SIZE_ORDER,
+    ],
+    sizeStock:
+      createEmptySizeStock(),
   });
 
   useEffect(() => {
     async function fetchProduct() {
       try {
-        const response = await fetch(
-          `/api/products/${productId}`,
-          {
-            cache: "no-store",
-          }
-        );
+        const response =
+          await fetch(
+            `/api/products/${productId}`,
+            {
+              cache: "no-store",
+            }
+          );
 
-        const data = await response.json();
+        const data =
+          await response.json();
 
-        if (!response.ok || !data.success) {
+        if (
+          !response.ok ||
+          !data.success
+        ) {
           setNotFound(true);
           return;
         }
 
+        const product =
+          data.product;
+
+        const usesSizeInventory =
+          hasProductSizeInventory(
+            product
+          );
+
+        const legacyStock =
+          Number(
+            product.stock || 0
+          );
+
+        setOriginalLegacyStock(
+          usesSizeInventory
+            ? 0
+            : legacyStock
+        );
+
         setFormData({
-          id: data.product.id || "",
-          name: data.product.name || "",
-          series: data.product.series || "",
-          color: data.product.color || "",
-          price: String(data.product.price || ""),
-          stock: String(data.product.stock || ""),
-          image: data.product.image || "",
-          description: data.product.description || "",
+          id:
+            product.id || "",
+          name:
+            product.name || "",
+          series:
+            product.series || "",
+          color:
+            product.color || "",
+          price:
+            String(
+              product.price ?? ""
+            ),
+          stock:
+            String(
+              product.stock ?? ""
+            ),
+          image:
+            product.image || "",
+          description:
+            product.description || "",
+
+          inventoryMode:
+            usesSizeInventory
+              ? "size"
+              : "legacy",
+
+          sizes:
+            usesSizeInventory
+              ? getEnabledProductSizes(
+                  product
+                )
+              : [
+                  ...OBSIDIAN_SIZE_ORDER,
+                ],
+
+          sizeStock:
+            usesSizeInventory
+              ? normalizeSizeStockForForm(
+                  product
+                )
+              : createEmptySizeStock(),
         });
       } catch {
         setNotFound(true);
@@ -66,22 +169,112 @@ export default function EditProductClient() {
   function handleChange(event) {
     setErrorMessage("");
 
-    setFormData((currentFormData) => ({
-      ...currentFormData,
-      [event.target.name]: event.target.value,
-    }));
+    setFormData(
+      (currentFormData) => ({
+        ...currentFormData,
+        [event.target.name]:
+          event.target.value,
+      })
+    );
   }
 
-  function handleImageChange(imageUrl) {
+  function handleImageChange(
+    imageUrl
+  ) {
     setErrorMessage("");
 
-    setFormData((currentFormData) => ({
-      ...currentFormData,
-      image: imageUrl,
-    }));
+    setFormData(
+      (currentFormData) => ({
+        ...currentFormData,
+        image: imageUrl,
+      })
+    );
   }
 
-  async function handleSubmit(event) {
+  function enableSizeInventory() {
+    setErrorMessage("");
+
+    setFormData(
+      (currentFormData) => ({
+        ...currentFormData,
+        inventoryMode: "size",
+        sizes: [
+          ...OBSIDIAN_SIZE_ORDER,
+        ],
+        sizeStock:
+          createEmptySizeStock(),
+      })
+    );
+  }
+
+  function handleToggleSize(
+    size,
+    isEnabled
+  ) {
+    setErrorMessage("");
+
+    setFormData(
+      (currentFormData) => {
+        const nextSizes =
+          isEnabled
+            ? [
+                ...new Set([
+                  ...currentFormData.sizes,
+                  size,
+                ]),
+              ]
+            : currentFormData.sizes.filter(
+                (item) =>
+                  item !== size
+              );
+
+        return {
+          ...currentFormData,
+
+          sizes:
+            OBSIDIAN_SIZE_ORDER.filter(
+              (item) =>
+                nextSizes.includes(
+                  item
+                )
+            ),
+
+          sizeStock: {
+            ...currentFormData.sizeStock,
+
+            [size]:
+              isEnabled
+                ? currentFormData
+                    .sizeStock[size] ??
+                  0
+                : 0,
+          },
+        };
+      }
+    );
+  }
+
+  function handleSizeStockChange(
+    size,
+    value
+  ) {
+    setErrorMessage("");
+
+    setFormData(
+      (currentFormData) => ({
+        ...currentFormData,
+
+        sizeStock: {
+          ...currentFormData.sizeStock,
+          [size]: value,
+        },
+      })
+    );
+  }
+
+  async function handleSubmit(
+    event
+  ) {
     event.preventDefault();
     setErrorMessage("");
 
@@ -93,34 +286,122 @@ export default function EditProductClient() {
       return;
     }
 
-    setIsSubmitting(true);
-
-    const productData = {
-      ...formData,
-      id: formData.id.trim(),
-      name: formData.name.trim(),
-      series: formData.series.trim(),
-      color: formData.color.trim(),
-      description: formData.description.trim(),
-      price: Number(formData.price),
-      stock: Number(formData.stock),
-    };
-
-    try {
-      const response = await fetch(
-        `/api/products/${productId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(productData),
-        }
+    if (
+      formData.inventoryMode ===
+        "size" &&
+      formData.sizes.length === 0
+    ) {
+      setErrorMessage(
+        "Enable at least one product size."
       );
 
-      const data = await response.json();
+      return;
+    }
 
-      if (!response.ok || !data.success) {
+    const totalSizeStock =
+      formData.sizes.reduce(
+        (total, size) =>
+          total +
+          (
+            Number(
+              formData.sizeStock[
+                size
+              ]
+            ) || 0
+          ),
+        0
+      );
+
+    if (
+      originalLegacyStock > 0 &&
+      formData.inventoryMode ===
+        "size" &&
+      totalSizeStock <= 0
+    ) {
+      setErrorMessage(
+        `Allocate the existing ${originalLegacyStock} units across the enabled sizes before saving.`
+      );
+
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    const commonProductData = {
+      id: formData.id.trim(),
+      name:
+        formData.name.trim(),
+      series:
+        formData.series.trim(),
+      color:
+        formData.color.trim(),
+      description:
+        formData.description.trim(),
+      price:
+        Number(formData.price),
+      image:
+        formData.image,
+    };
+
+    const productData =
+      formData.inventoryMode ===
+      "size"
+        ? {
+            ...commonProductData,
+
+            sizes:
+              formData.sizes,
+
+            sizeStock:
+              Object.fromEntries(
+                OBSIDIAN_SIZE_ORDER.map(
+                  (size) => [
+                    size,
+                    Number(
+                      formData
+                        .sizeStock[
+                          size
+                        ] || 0
+                    ),
+                  ]
+                )
+              ),
+          }
+        : {
+            ...commonProductData,
+
+            stock:
+              Number(
+                formData.stock
+              ),
+          };
+
+    try {
+      const response =
+        await fetch(
+          `/api/products/${productId}`,
+          {
+            method: "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify(
+                productData
+              ),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !data.success
+      ) {
         setErrorMessage(
           data.message ||
             "Product could not be updated."
@@ -130,7 +411,10 @@ export default function EditProductClient() {
         return;
       }
 
-      router.push("/admin/products");
+      router.push(
+        "/admin/products"
+      );
+
       router.refresh();
     } catch {
       setErrorMessage(
@@ -144,7 +428,7 @@ export default function EditProductClient() {
   if (isLoading) {
     return (
       <main className="min-h-screen bg-[#0b0b0b] px-6 py-10 text-[#f1ece4]">
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-4xl">
           <p className="text-neutral-400">
             Loading product...
           </p>
@@ -156,7 +440,7 @@ export default function EditProductClient() {
   if (notFound) {
     return (
       <main className="min-h-screen bg-[#0b0b0b] px-6 py-10 text-[#f1ece4]">
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-4xl">
           <p className="mb-6 text-neutral-400">
             Product not found.
           </p>
@@ -174,7 +458,7 @@ export default function EditProductClient() {
 
   return (
     <main className="min-h-screen bg-[#0b0b0b] px-6 py-10 text-[#f1ece4] lg:px-10">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-4xl">
         <div className="mb-12 flex flex-col justify-between gap-6 border-b border-white/10 pb-8 md:flex-row md:items-end">
           <div>
             <p className="mb-4 text-xs uppercase tracking-[0.45em] text-neutral-500">
@@ -195,7 +479,10 @@ export default function EditProductClient() {
         </div>
 
         {errorMessage ? (
-          <div className="mb-6 border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-300">
+          <div
+            role="alert"
+            className="mb-6 border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-300"
+          >
             {errorMessage}
           </div>
         ) : null}
@@ -240,39 +527,75 @@ export default function EditProductClient() {
             className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none placeholder:text-neutral-600"
           />
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <input
-              type="number"
-              name="price"
-              placeholder="Price"
-              value={formData.price}
-              onChange={handleChange}
-              required
-              min="0"
-              className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none placeholder:text-neutral-600"
-            />
+          <input
+            type="number"
+            name="price"
+            placeholder="Price"
+            value={formData.price}
+            onChange={handleChange}
+            required
+            min="0"
+            className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none placeholder:text-neutral-600"
+          />
 
-            <input
-              type="number"
-              name="stock"
-              placeholder="Stock"
-              value={formData.stock}
-              onChange={handleChange}
-              required
-              min="0"
-              className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none placeholder:text-neutral-600"
-            />
-          </div>
+          <ProductInventoryFields
+            inventoryMode={
+              formData.inventoryMode
+            }
+            legacyStock={
+              formData.stock
+            }
+            enabledSizes={
+              formData.sizes
+            }
+            sizeStock={
+              formData.sizeStock
+            }
+            allowLegacy={
+              formData.inventoryMode ===
+              "legacy"
+            }
+            migrationNote={
+              originalLegacyStock > 0 &&
+              formData.inventoryMode ===
+                "size"
+                ? `This product previously had ${originalLegacyStock} units of shared stock. Allocate those units across the required sizes before saving.`
+                : ""
+            }
+            onLegacyStockChange={(
+              value
+            ) =>
+              setFormData(
+                (current) => ({
+                  ...current,
+                  stock: value,
+                })
+              )
+            }
+            onEnableSizeInventory={
+              enableSizeInventory
+            }
+            onToggleSize={
+              handleToggleSize
+            }
+            onSizeStockChange={
+              handleSizeStockChange
+            }
+          />
 
           <ImageUploader
             value={formData.image}
-            onChange={handleImageChange}
+            onChange={
+              handleImageChange
+            }
           />
 
           <textarea
             name="description"
             placeholder="Description"
-            value={formData.description}
+            value={
+              formData.description
+            }
             onChange={handleChange}
             rows={5}
             required

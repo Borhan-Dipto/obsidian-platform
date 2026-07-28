@@ -3,44 +3,109 @@
 import { useState } from "react";
 import { useCart } from "../../context/CartContext";
 import { useToast } from "../../context/ToastContext";
+
 import {
   OBSIDIAN_SIZE_ORDER,
-} from "../../lib/sizeGuide";
+  getEnabledProductSizes,
+  getProductSizeStock,
+  getProductTotalStock,
+} from "../../lib/productInventory";
+
 import WishlistButton from "./WishlistButton";
 
 export default function ProductActions({
   product,
 }) {
-  const { addToCart, openMiniCart } =
-    useCart();
+  const {
+    addToCart,
+    openMiniCart,
+  } = useCart();
 
-  const { showToast } = useToast();
+  const { showToast } =
+    useToast();
 
-  const [selectedSize, setSelectedSize] =
-    useState("");
+  const [
+    selectedSize,
+    setSelectedSize,
+  ] = useState("");
 
-  const [quantity, setQuantity] =
-    useState(1);
-
-  const stock =
-    Number(product?.stock) || 0;
+  const [
+    quantity,
+    setQuantity,
+  ] = useState(1);
 
   const price =
     Number(product?.price) || 0;
 
+  const enabledSizes =
+    getEnabledProductSizes(
+      product
+    );
+
+  const enabledSizeSet =
+    new Set(enabledSizes);
+
+  const totalStock =
+    getProductTotalStock(
+      product
+    );
+
+  const selectedStock =
+    selectedSize
+      ? getProductSizeStock(
+          product,
+          selectedSize
+        )
+      : 0;
+
   const isOutOfStock =
-    stock <= 0;
+    totalStock <= 0;
 
   function decreaseQuantity() {
-    setQuantity((current) =>
-      Math.max(1, current - 1)
+    setQuantity(
+      (current) =>
+        Math.max(
+          1,
+          current - 1
+        )
     );
   }
 
   function increaseQuantity() {
-    setQuantity((current) =>
-      Math.min(stock, current + 1)
+    if (
+      !selectedSize ||
+      selectedStock <= 0
+    ) {
+      return;
+    }
+
+    setQuantity(
+      (current) =>
+        Math.min(
+          selectedStock,
+          current + 1
+        )
     );
+  }
+
+  function selectSize(size) {
+    const sizeStock =
+      getProductSizeStock(
+        product,
+        size
+      );
+
+    if (
+      !enabledSizeSet.has(
+        size
+      ) ||
+      sizeStock <= 0
+    ) {
+      return;
+    }
+
+    setSelectedSize(size);
+    setQuantity(1);
   }
 
   function handleAddToCart() {
@@ -60,7 +125,18 @@ export default function ProductActions({
         type: "error",
         title: "Select Size",
         message:
-          "Please select a size before adding this piece to cart.",
+          "Please select an available size before adding this piece to cart.",
+      });
+
+      return;
+    }
+
+    if (selectedStock <= 0) {
+      showToast({
+        type: "error",
+        title: "Size Unavailable",
+        message:
+          `Size ${selectedSize} is currently out of stock.`,
       });
 
       return;
@@ -73,7 +149,7 @@ export default function ProductActions({
       color: product.color,
       price,
       image: product.image,
-      stock,
+      stock: selectedStock,
       size: selectedSize,
       quantity,
     });
@@ -81,16 +157,22 @@ export default function ProductActions({
     if (!result?.success) {
       showToast({
         type: "error",
+
         title:
           result?.reason ===
           "out_of_stock"
             ? "Out Of Stock"
             : "Stock Limit",
+
         message:
           result?.message ||
           "Requested quantity is not available.",
-        actionLabel: "View Cart",
-        actionHref: "/cart",
+
+        actionLabel:
+          "View Cart",
+
+        actionHref:
+          "/cart",
       });
 
       return;
@@ -99,6 +181,7 @@ export default function ProductActions({
     showToast({
       type: "success",
       title: "Added To Cart",
+
       message:
         `${product.name} / Size ${selectedSize} × ${quantity}`,
     });
@@ -143,40 +226,80 @@ export default function ProductActions({
         >
           {OBSIDIAN_SIZE_ORDER.map(
             (size) => {
+              const sizeStock =
+                getProductSizeStock(
+                  product,
+                  size
+                );
+
+              const isEnabled =
+                enabledSizeSet.has(
+                  size
+                );
+
+              const isAvailable =
+                isEnabled &&
+                sizeStock > 0;
+
               const isSelected =
-                selectedSize === size;
+                selectedSize ===
+                size;
 
               return (
                 <button
                   key={size}
                   type="button"
                   role="radio"
-                  aria-checked={isSelected}
-                  disabled={isOutOfStock}
-                  onClick={() =>
-                    setSelectedSize(size)
+                  aria-checked={
+                    isSelected
                   }
-                  className={`obsidian-product-size-button flex min-h-12 items-center justify-center border px-2 text-[10px] font-semibold uppercase tracking-[0.16em] transition duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-3 focus-visible:ring-offset-[#f1ece4] disabled:cursor-not-allowed disabled:opacity-40 ${
+                  aria-label={
+                    isAvailable
+                      ? `${size}, ${sizeStock} available`
+                      : `${size}, unavailable`
+                  }
+                  disabled={
+                    !isAvailable
+                  }
+                  onClick={() =>
+                    selectSize(size)
+                  }
+                  className={`obsidian-product-size-button flex min-h-12 items-center justify-center border px-2 text-[10px] font-semibold uppercase tracking-[0.16em] transition duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-3 focus-visible:ring-offset-[#f1ece4] disabled:cursor-not-allowed disabled:border-black/10 disabled:bg-black/[0.025] disabled:text-neutral-400 disabled:opacity-55 ${
                     isSelected
                       ? "obsidian-product-size-button--selected border-[#0b0b0b] bg-[#0b0b0b] text-[#f1ece4]"
                       : "border-black/20 text-[#0b0b0b] hover:border-[#0b0b0b] hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
                   }`}
                 >
-                  {size}
+                  <span>
+                    {size}
+                  </span>
                 </button>
               );
             }
           )}
         </div>
 
-        <p className="mt-4 text-[9px] leading-5 text-neutral-500">
-          Full garment measurements are
-          displayed below the product
-          information.
-        </p>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[9px] leading-5 text-neutral-500">
+          <p>
+            Unavailable sizes are disabled automatically.
+          </p>
+
+          {selectedSize ? (
+            <p>
+              {selectedStock}{" "}
+              {selectedStock === 1
+                ? "unit"
+                : "units"}{" "}
+              available in size{" "}
+              {selectedSize}.
+            </p>
+          ) : null}
+        </div>
       </section>
 
-      {stock > 0 && stock <= 5 ? (
+      {selectedSize &&
+      selectedStock > 0 &&
+      selectedStock <= 5 ? (
         <div className="flex items-center gap-3">
           <span
             aria-hidden="true"
@@ -184,7 +307,8 @@ export default function ProductActions({
           />
 
           <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#9b713e]">
-            Only {stock} left — selling fast
+            Only {selectedStock} left in size{" "}
+            {selectedSize}
           </p>
         </div>
       ) : null}
@@ -197,8 +321,12 @@ export default function ProductActions({
         <div className="obsidian-product-quantity-control flex w-fit items-center border border-black/20 text-[#0b0b0b]">
           <button
             type="button"
-            onClick={decreaseQuantity}
-            disabled={quantity <= 1}
+            onClick={
+              decreaseQuantity
+            }
+            disabled={
+              quantity <= 1
+            }
             aria-label="Decrease quantity"
             className="obsidian-product-quantity-button flex h-12 w-12 items-center justify-center text-xl transition hover:bg-[#0b0b0b] hover:text-[#f1ece4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-[#0b0b0b]"
           >
@@ -214,10 +342,14 @@ export default function ProductActions({
 
           <button
             type="button"
-            onClick={increaseQuantity}
+            onClick={
+              increaseQuantity
+            }
             disabled={
-              isOutOfStock ||
-              quantity >= stock
+              !selectedSize ||
+              selectedStock <= 0 ||
+              quantity >=
+                selectedStock
             }
             aria-label="Increase quantity"
             className="obsidian-product-quantity-button flex h-12 w-12 items-center justify-center text-xl transition hover:bg-[#0b0b0b] hover:text-[#f1ece4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-[#0b0b0b]"
@@ -226,8 +358,10 @@ export default function ProductActions({
           </button>
         </div>
 
-        {!isOutOfStock &&
-        quantity >= stock ? (
+        {selectedSize &&
+        selectedStock > 0 &&
+        quantity >=
+          selectedStock ? (
           <p className="mt-3 text-[10px] uppercase tracking-[0.22em] text-neutral-500">
             Maximum available quantity selected
           </p>
@@ -237,8 +371,12 @@ export default function ProductActions({
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(180px,0.42fr)]">
         <button
           type="button"
-          onClick={handleAddToCart}
-          disabled={isOutOfStock}
+          onClick={
+            handleAddToCart
+          }
+          disabled={
+            isOutOfStock
+          }
           className="obsidian-product-primary-action group relative min-h-14 w-full overflow-hidden bg-[#0b0b0b] px-6 py-5 text-xs font-semibold uppercase tracking-[0.3em] text-[#f1ece4] transition duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-4 focus-visible:ring-offset-[#f1ece4] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
         >
           <span

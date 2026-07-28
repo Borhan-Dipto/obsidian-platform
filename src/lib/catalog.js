@@ -1,6 +1,9 @@
 import "server-only";
 
 import clientPromise from "./mongodb";
+import {
+  OBSIDIAN_SIZE_ORDER,
+} from "./sizeGuide";
 
 export const PRODUCTS_COLLECTION_NAME = "products";
 export const COLLECTIONS_COLLECTION_NAME = "collections";
@@ -363,6 +366,177 @@ function validateProductStock(value) {
   };
 }
 
+
+function normalizeInventorySize(
+  value
+) {
+  const normalizedSize =
+    normalizeCatalogText(
+      value
+    ).toUpperCase();
+
+  return OBSIDIAN_SIZE_ORDER.includes(
+    normalizedSize
+  )
+    ? normalizedSize
+    : "";
+}
+
+function validateProductSizeInventory(
+  sizeStockValue,
+  sizesValue
+) {
+  if (
+    !isPlainObject(
+      sizeStockValue
+    )
+  ) {
+    return {
+      error:
+        "Product size stock must be a valid object.",
+      sizes: [],
+      sizeStock: {},
+      totalStock: 0,
+    };
+  }
+
+  const normalizedInputStock =
+    new Map();
+
+  for (
+    const [
+      rawSize,
+      rawStock,
+    ] of Object.entries(
+      sizeStockValue
+    )
+  ) {
+    const size =
+      normalizeInventorySize(
+        rawSize
+      );
+
+    if (!size) {
+      return {
+        error:
+          `Unsupported product size: ${normalizeCatalogText(
+            rawSize,
+            "unknown"
+          )}.`,
+        sizes: [],
+        sizeStock: {},
+        totalStock: 0,
+      };
+    }
+
+    normalizedInputStock.set(
+      size,
+      rawStock
+    );
+  }
+
+  const rawEnabledSizes =
+    Array.isArray(sizesValue)
+      ? sizesValue
+      : Array.from(
+          normalizedInputStock.keys()
+        );
+
+  const enabledSizeSet =
+    new Set();
+
+  for (
+    const rawSize
+    of rawEnabledSizes
+  ) {
+    const size =
+      normalizeInventorySize(
+        rawSize
+      );
+
+    if (!size) {
+      return {
+        error:
+          `Unsupported enabled product size: ${normalizeCatalogText(
+            rawSize,
+            "unknown"
+          )}.`,
+        sizes: [],
+        sizeStock: {},
+        totalStock: 0,
+      };
+    }
+
+    enabledSizeSet.add(size);
+  }
+
+  const sizes =
+    OBSIDIAN_SIZE_ORDER.filter(
+      (size) =>
+        enabledSizeSet.has(
+          size
+        )
+    );
+
+  if (sizes.length === 0) {
+    return {
+      error:
+        "Enable at least one product size.",
+      sizes: [],
+      sizeStock: {},
+      totalStock: 0,
+    };
+  }
+
+  const sizeStock = {};
+  let totalStock = 0;
+
+  for (const size of sizes) {
+    const stockResult =
+      validateProductStock(
+        normalizedInputStock.get(
+          size
+        ) ?? 0
+      );
+
+    if (stockResult.error) {
+      return {
+        error:
+          `Size ${size}: ${stockResult.error}`,
+        sizes: [],
+        sizeStock: {},
+        totalStock: 0,
+      };
+    }
+
+    sizeStock[size] =
+      stockResult.value;
+
+    totalStock +=
+      stockResult.value;
+  }
+
+  if (
+    totalStock >
+    MAX_PRODUCT_STOCK
+  ) {
+    return {
+      error:
+        "Combined product stock is too large.",
+      sizes: [],
+      sizeStock: {},
+      totalStock,
+    };
+  }
+
+  return {
+    error: "",
+    sizes,
+    sizeStock,
+    totalStock,
+  };
+}
+
 export function normalizeProductPayload(
   incomingProduct = {},
   existingProduct = null
@@ -465,16 +639,56 @@ export function normalizeProductPayload(
     };
   }
 
-  const stockResult = validateProductStock(
-    mergedProduct.stock
-  );
+  const usesSizeInventory =
+    isPlainObject(
+      mergedProduct.sizeStock
+    );
 
-  if (stockResult.error) {
-    return {
-      success: false,
-      message: stockResult.error,
-      product: null,
-    };
+  let normalizedStock = 0;
+  let normalizedSizes = null;
+  let normalizedSizeStock = null;
+
+  if (usesSizeInventory) {
+    const inventoryResult =
+      validateProductSizeInventory(
+        mergedProduct.sizeStock,
+        mergedProduct.sizes
+      );
+
+    if (inventoryResult.error) {
+      return {
+        success: false,
+        message:
+          inventoryResult.error,
+        product: null,
+      };
+    }
+
+    normalizedStock =
+      inventoryResult.totalStock;
+
+    normalizedSizes =
+      inventoryResult.sizes;
+
+    normalizedSizeStock =
+      inventoryResult.sizeStock;
+  } else {
+    const stockResult =
+      validateProductStock(
+        mergedProduct.stock
+      );
+
+    if (stockResult.error) {
+      return {
+        success: false,
+        message:
+          stockResult.error,
+        product: null,
+      };
+    }
+
+    normalizedStock =
+      stockResult.value;
   }
 
   const suppliedId = hasOwn(incoming, "id")
@@ -526,7 +740,18 @@ export function normalizeProductPayload(
       seriesKey: normalizeSeriesKey(series),
       color: colorResult.value,
       price: priceResult.value,
-      stock: stockResult.value,
+      stock: normalizedStock,
+
+      ...(usesSizeInventory
+        ? {
+            sizes:
+              normalizedSizes,
+
+            sizeStock:
+              normalizedSizeStock,
+          }
+        : {}),
+
       image: imageResult.value,
       description: descriptionResult.value,
       isActive,
