@@ -2461,6 +2461,14 @@ export default function Navbar() {
 
       <header
         ref={headerRef}
+        data-obsidian-nav-contrast={
+          isHomepage &&
+          !isScrolled &&
+          !isOpen &&
+          !isSearchOpen
+            ? "light"
+            : "dark"
+        }
         onPointerMove={
           handlePointerMove
         }

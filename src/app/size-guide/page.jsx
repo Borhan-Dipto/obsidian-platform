@@ -1,6 +1,7 @@
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
 import { getSizeGuideContent } from "../../lib/getCmsContent";
+import { getObsidianSizeGuideRows } from "../../lib/sizeGuide";
 import { normalizeActiveItems } from "../../lib/cmsDefaults";
 
 function cleanText(value, fallback = "") {
@@ -99,7 +100,9 @@ export default async function SizeGuidePage() {
   const sizeGuidePage = await getSizeGuideContent();
   const content = sizeGuidePage?.content || {};
 
-  const sizes = normalizeActiveItems(content.sizes);
+  const sizes = normalizeActiveItems(
+    getObsidianSizeGuideRows()
+  );
 
   const measurementUnit = cleanText(
     content.measurementUnit,

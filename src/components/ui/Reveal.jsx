@@ -38,6 +38,7 @@ export default function Reveal({
   rootMargin = "0px 0px -8% 0px",
   as: Component = "div",
   style = {},
+  ...restProps
 }) {
   const ref = useRef(null);
 
@@ -281,6 +282,7 @@ export default function Reveal({
 
   return (
     <Component
+      {...restProps}
       ref={ref}
       data-motion-ready={
         motionReady

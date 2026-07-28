@@ -64,7 +64,7 @@ export default function ProductImageZoom({
     <div
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className="group relative aspect-[4/5] overflow-hidden border border-black/10 bg-[#eee7dd]"
+      className="obsidian-product-media-shell group relative aspect-[4/5] overflow-hidden border border-black/10 bg-[#eee7dd]"
     >
       {hasValidImage ? (
         <Image
@@ -76,7 +76,7 @@ export default function ProductImageZoom({
           onError={() =>
             setHasImageError(true)
           }
-          className="object-cover object-center transition-transform duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe:group-hover:scale-[1.06] motion-reduce:transition-none"
+          className="obsidian-product-media-image object-cover object-center transition-transform duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe:group-hover:scale-[1.06] motion-reduce:transition-none"
           style={{
             transformOrigin: `${position.x}% ${position.y}%`,
           }}
@@ -91,9 +91,9 @@ export default function ProductImageZoom({
 
       {hasValidImage ? (
         <>
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/[0.06] via-transparent to-transparent opacity-0 transition-opacity duration-500 motion-safe:group-hover:opacity-100 motion-reduce:transition-none" />
+          <div className="obsidian-product-media-overlay pointer-events-none absolute inset-0 bg-gradient-to-t from-black/[0.06] via-transparent to-transparent opacity-0 transition-opacity duration-500 motion-safe:group-hover:opacity-100 motion-reduce:transition-none" />
 
-          <div className="pointer-events-none absolute bottom-5 left-5 translate-y-2 border border-[#f1ece4]/15 bg-[#0b0b0b]/70 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-[#f1ece4] opacity-0 backdrop-blur-md transition duration-500 motion-safe:group-hover:translate-y-0 motion-safe:group-hover:opacity-100 motion-reduce:transition-none">
+          <div className="obsidian-product-media-label pointer-events-none absolute bottom-5 left-5 translate-y-2 border border-[#f1ece4]/15 bg-[#0b0b0b]/70 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-[#f1ece4] opacity-0 backdrop-blur-md transition duration-500 motion-safe:group-hover:translate-y-0 motion-safe:group-hover:opacity-100 motion-reduce:transition-none">
             Hover To Zoom
           </div>
         </>

@@ -8,9 +8,13 @@ import {
   getPublicProductQuery,
 } from "../../../lib/catalog";
 
-import { getProductContent } from "../../../lib/getCmsContent";
+import {
+  getProductContent,
+  getSizeGuideContent,
+} from "../../../lib/getCmsContent";
 import { normalizeActiveItems } from "../../../lib/cmsDefaults";
 import ProductActions from "../../../components/product/ProductActions";
+import ProductSizeGuide from "../../../components/product/ProductSizeGuide";
 import RelatedProducts from "../../../components/product/RelatedProducts";
 import RecentlyViewedProducts from "../../../components/product/RecentlyViewedProducts";
 import ProductImageZoom from "../../../components/product/ProductImageZoom";
@@ -277,13 +281,16 @@ export async function generateMetadata({ params }) {
 export default async function ProductDetailsPage({ params }) {
   const { id } = await params;
 
-  const [product, productPage] = await Promise.all([
+  const [product, productPage, sizeGuidePage] = await Promise.all([
     getProduct(id),
     getProductContent(),
+    getSizeGuideContent(),
   ]);
 
   const seo = productPage?.seo || {};
   const content = productPage?.content || {};
+  const sizeGuideContent =
+    sizeGuidePage?.content || {};
 
   const fallbackImage = cleanText(
     seo.fallbackImage,
@@ -453,7 +460,7 @@ export default async function ProductDetailsPage({ params }) {
   };
 
   return (
-    <main className="min-h-screen bg-[#f1ece4] text-[#0b0b0b]">
+    <main className="obsidian-product-page min-h-screen bg-[#f1ece4] text-[#0b0b0b]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -477,7 +484,7 @@ export default async function ProductDetailsPage({ params }) {
               content.breadcrumbAriaLabel,
               "Breadcrumb"
             )}
-            className="mb-10 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.28em] text-neutral-500"
+            className="obsidian-product-breadcrumb mb-10 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.28em] text-neutral-500"
           >
             <Link
               href="/"
@@ -512,14 +519,14 @@ export default async function ProductDetailsPage({ params }) {
           </nav>
 
           <div className="grid gap-14 lg:grid-cols-[1.1fr_0.9fr] lg:gap-20">
-            <div className="space-y-6">
+            <div className="obsidian-product-media-column space-y-6">
               <ProductImageZoom
                 src={productImage}
                 alt={imageAlt}
               />
             </div>
 
-            <div className="lg:sticky lg:top-32 lg:self-start">
+            <div className="obsidian-product-info-column lg:sticky lg:top-32 lg:self-start">
               <p className="mb-5 text-xs uppercase tracking-[0.4em] text-neutral-500">
                 {productSeries}
               </p>
@@ -660,6 +667,10 @@ export default async function ProductDetailsPage({ params }) {
           </div>
         </div>
       </section>
+
+      <ProductSizeGuide
+        content={sizeGuideContent}
+      />
 
       <RecentlyViewedProducts product={product} />
 

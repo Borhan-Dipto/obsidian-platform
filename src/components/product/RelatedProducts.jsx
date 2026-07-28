@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import Reveal from "../ui/Reveal";
 
 const RELATED_PRODUCTS = [
   {
@@ -45,9 +46,15 @@ export default function RelatedProducts({ currentProductId }) {
   }
 
   return (
-    <section className="border-t border-black/10 bg-[#f1ece4] px-6 py-24 text-[#0b0b0b] lg:px-10 lg:py-32">
+    <section className="obsidian-product-related-section border-t border-black/10 bg-[#f1ece4] px-6 py-24 text-[#0b0b0b] lg:px-10 lg:py-32">
       <div className="mx-auto max-w-[1440px]">
-        <div className="mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+        <Reveal
+          as="div"
+          variant="fade-up"
+          duration={900}
+          y={24}
+          className="mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end"
+        >
           <div>
             <p className="mb-4 text-xs uppercase tracking-[0.45em] text-neutral-500">
               Related Products
@@ -69,15 +76,23 @@ export default function RelatedProducts({ currentProductId }) {
           >
             View All Products
           </Link>
-        </div>
+        </Reveal>
 
         <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
           {products.map((product, index) => (
-            <Link
+            <Reveal
               key={product.id}
+              as="div"
+              variant="scale"
+              delay={index * 80}
+              duration={900}
+              y={22}
+              className="h-full"
+            >
+            <Link
               href={`/product/${product.id}`}
               aria-label={`View ${product.name}`}
-              className="group block overflow-hidden border border-black/10 bg-[#eee7dd] transition duration-500 hover:-translate-y-1 hover:border-black/25 hover:shadow-2xl hover:shadow-black/10"
+              className="obsidian-product-card group block h-full overflow-hidden border border-black/10 bg-[#eee7dd] transition duration-500 hover:-translate-y-1 hover:border-black/25 hover:shadow-2xl hover:shadow-black/10"
             >
               <div className="relative aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
                 <Image
@@ -122,6 +137,7 @@ export default function RelatedProducts({ currentProductId }) {
                 </div>
               </div>
             </Link>
+            </Reveal>
           ))}
         </div>
       </div>

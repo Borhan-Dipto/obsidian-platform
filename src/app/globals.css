@@ -1010,3 +1010,342 @@ body {
     opacity: 0.62;
   }
 }
+
+/* OBSIDIAN NAVBAR CONTRAST V1 */
+
+header[data-obsidian-nav-contrast="light"] .obsidian-nav-reveal {
+  color: rgba(255, 255, 255, 0.92) !important;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.42);
+}
+
+header[data-obsidian-nav-contrast="light"] .obsidian-nav-reveal:hover,
+header[data-obsidian-nav-contrast="light"] .obsidian-nav-reveal:focus-visible {
+  color: #ffffff !important;
+}
+
+
+header[data-obsidian-nav-contrast="light"] .obsidian-wordmark {
+  color: #0b0b0b !important;
+  text-shadow: none;
+}
+
+header[data-obsidian-nav-contrast="light"] nav .obsidian-liquid-control {
+  color: #ffffff !important;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.4);
+}
+
+header[data-obsidian-nav-contrast="light"] .obsidian-brand:focus-visible,
+header[data-obsidian-nav-contrast="light"] .obsidian-nav-reveal:focus-visible,
+header[data-obsidian-nav-contrast="light"] nav .obsidian-liquid-control:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.92);
+  outline-offset: 4px;
+}
+
+/* OBSIDIAN PRODUCT MOTION V1 */
+
+@keyframes obsidianProductBreadcrumbEnter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+    filter: blur(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0);
+  }
+}
+
+@keyframes obsidianProductMediaEnter {
+  from {
+    opacity: 0;
+    transform: translate3d(-18px, 26px, 0) scale(0.985);
+    clip-path: inset(0 0 8% 0);
+    filter: blur(7px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    clip-path: inset(0 0 0 0);
+    filter: blur(0);
+  }
+}
+
+@keyframes obsidianProductInfoEnter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 22px, 0);
+    filter: blur(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0);
+  }
+}
+
+@keyframes obsidianProductSelectedPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(11, 11, 11, 0.2);
+  }
+
+  100% {
+    box-shadow: 0 0 0 9px rgba(11, 11, 11, 0);
+  }
+}
+
+.obsidian-product-breadcrumb {
+  animation:
+    obsidianProductBreadcrumbEnter
+    760ms
+    60ms
+    var(--motion-ease-soft)
+    both;
+}
+
+.obsidian-product-media-column {
+  animation:
+    obsidianProductMediaEnter
+    1150ms
+    100ms
+    var(--motion-ease-soft)
+    both;
+}
+
+.obsidian-product-info-column > * {
+  animation:
+    obsidianProductInfoEnter
+    900ms
+    var(--motion-ease-soft)
+    both;
+}
+
+.obsidian-product-info-column > :nth-child(1) {
+  animation-delay: 120ms;
+}
+
+.obsidian-product-info-column > :nth-child(2) {
+  animation-delay: 180ms;
+}
+
+.obsidian-product-info-column > :nth-child(3) {
+  animation-delay: 240ms;
+}
+
+.obsidian-product-info-column > :nth-child(4) {
+  animation-delay: 300ms;
+}
+
+.obsidian-product-info-column > :nth-child(5) {
+  animation-delay: 360ms;
+}
+
+.obsidian-product-info-column > :nth-child(6) {
+  animation-delay: 420ms;
+}
+
+.obsidian-product-info-column > :nth-child(7) {
+  animation-delay: 480ms;
+}
+
+.obsidian-product-info-column > :nth-child(8) {
+  animation-delay: 540ms;
+}
+
+.obsidian-product-media-shell {
+  isolation: isolate;
+  box-shadow:
+    0 28px 75px rgba(11, 11, 11, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition:
+    transform 900ms var(--motion-ease-standard),
+    border-color 500ms ease,
+    box-shadow 900ms var(--motion-ease-standard);
+}
+
+.obsidian-product-media-image {
+  will-change: transform;
+}
+
+.obsidian-product-media-overlay {
+  z-index: 2;
+}
+
+.obsidian-product-media-label {
+  z-index: 3;
+}
+
+.obsidian-product-actions {
+  position: relative;
+}
+
+.obsidian-product-size-selector {
+  transition:
+    border-color var(--motion-duration-base) ease,
+    background-color var(--motion-duration-base) ease;
+}
+
+.obsidian-product-size-button {
+  position: relative;
+  overflow: hidden;
+  transform: translate3d(0, 0, 0);
+  transition:
+    transform var(--motion-duration-fast) var(--motion-ease-standard),
+    border-color var(--motion-duration-fast) ease,
+    background-color var(--motion-duration-fast) ease,
+    color var(--motion-duration-fast) ease,
+    box-shadow var(--motion-duration-base) var(--motion-ease-standard);
+}
+
+.obsidian-product-size-button::after {
+  content: "";
+  position: absolute;
+  right: 18%;
+  bottom: 6px;
+  left: 18%;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.55;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition:
+    transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.obsidian-product-size-button--selected {
+  animation:
+    obsidianProductSelectedPulse
+    620ms
+    var(--motion-ease-standard);
+}
+
+.obsidian-product-size-button--selected::after {
+  transform: scaleX(1);
+}
+
+.obsidian-product-quantity-control {
+  transition:
+    border-color var(--motion-duration-fast) ease,
+    box-shadow var(--motion-duration-base) var(--motion-ease-standard);
+}
+
+.obsidian-product-quantity-button {
+  transition:
+    transform var(--motion-duration-fast) var(--motion-ease-standard),
+    color var(--motion-duration-fast) ease,
+    background-color var(--motion-duration-fast) ease,
+    opacity var(--motion-duration-fast) ease;
+}
+
+.obsidian-product-primary-action {
+  isolation: isolate;
+  transition:
+    transform var(--motion-duration-fast) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-base) var(--motion-ease-standard);
+}
+
+.obsidian-product-primary-action-fill {
+  z-index: -1;
+}
+
+.obsidian-product-size-chart {
+  position: relative;
+  overflow: hidden;
+}
+
+.obsidian-product-size-row {
+  transition:
+    background-color var(--motion-duration-fast) ease,
+    transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.obsidian-product-size-card {
+  transition:
+    border-color var(--motion-duration-fast) ease,
+    box-shadow var(--motion-duration-base) var(--motion-ease-standard),
+    transform var(--motion-duration-base) var(--motion-ease-standard);
+}
+
+.obsidian-product-size-note {
+  transition:
+    border-color var(--motion-duration-base) ease;
+}
+
+.obsidian-product-card {
+  transition:
+    transform var(--motion-duration-base) var(--motion-ease-standard),
+    border-color var(--motion-duration-base) ease,
+    box-shadow var(--motion-duration-base) var(--motion-ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .obsidian-product-media-shell:hover {
+    transform: translate3d(0, -4px, 0);
+    border-color: rgba(11, 11, 11, 0.2);
+    box-shadow:
+      0 38px 95px rgba(11, 11, 11, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+
+  .obsidian-product-size-button:hover:not(:disabled) {
+    transform: translate3d(0, -2px, 0);
+    box-shadow: 0 12px 24px rgba(11, 11, 11, 0.08);
+  }
+
+  .obsidian-product-quantity-control:hover {
+    border-color: rgba(11, 11, 11, 0.42);
+    box-shadow: 0 12px 28px rgba(11, 11, 11, 0.06);
+  }
+
+  .obsidian-product-quantity-button:hover:not(:disabled) {
+    transform: scale(1.04);
+  }
+
+  .obsidian-product-primary-action:hover:not(:disabled) {
+    transform: translate3d(0, -3px, 0);
+    box-shadow: 0 22px 48px rgba(11, 11, 11, 0.18);
+  }
+
+  .obsidian-product-size-row:hover {
+    transform: translate3d(4px, 0, 0);
+  }
+
+  .obsidian-product-size-card:hover {
+    transform: translate3d(0, -4px, 0);
+    border-color: rgba(11, 11, 11, 0.24);
+    box-shadow: 0 20px 42px rgba(11, 11, 11, 0.08);
+  }
+
+  .obsidian-product-card:hover {
+    transform: translate3d(0, -7px, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .obsidian-product-breadcrumb,
+  .obsidian-product-media-column,
+  .obsidian-product-info-column > *,
+  .obsidian-product-media-shell,
+  .obsidian-product-media-image,
+  .obsidian-product-media-overlay,
+  .obsidian-product-media-label,
+  .obsidian-product-size-button,
+  .obsidian-product-size-button--selected,
+  .obsidian-product-quantity-control,
+  .obsidian-product-quantity-button,
+  .obsidian-product-primary-action,
+  .obsidian-product-primary-action-fill,
+  .obsidian-product-size-row,
+  .obsidian-product-size-card,
+  .obsidian-product-card {
+    animation: none !important;
+    transform: none !important;
+    filter: none !important;
+    clip-path: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+}

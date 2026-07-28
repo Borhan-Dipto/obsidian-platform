@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import Reveal from "../ui/Reveal";
 
 const STORAGE_KEY = "obsidian-recently-viewed";
 const MAX_RECENT_ITEMS = 6;
@@ -117,9 +118,15 @@ export default function RecentlyViewedProducts({ product }) {
   }
 
   return (
-    <section className="bg-[#f1ece4] px-6 pb-28 text-[#0b0b0b] lg:px-10 lg:pb-36">
+    <section className="obsidian-product-recent-section bg-[#f1ece4] px-6 pb-28 text-[#0b0b0b] lg:px-10 lg:pb-36">
       <div className="mx-auto max-w-[1440px] border-t border-black/10 pt-16 lg:pt-20">
-        <div className="mb-10 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+        <Reveal
+          as="div"
+          variant="fade-up"
+          duration={900}
+          y={24}
+          className="mb-10 flex flex-col justify-between gap-6 md:flex-row md:items-end"
+        >
           <div>
             <p className="mb-5 text-xs uppercase tracking-[0.45em] text-neutral-500">
               Recently Viewed
@@ -140,15 +147,23 @@ export default function RecentlyViewedProducts({ product }) {
           >
             View All Products
           </Link>
-        </div>
+        </Reveal>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {recentItems.map((item) => (
-            <Link
+          {recentItems.map((item, index) => (
+            <Reveal
               key={item.id}
+              as="div"
+              variant="scale"
+              delay={index * 70}
+              duration={860}
+              y={20}
+              className="h-full"
+            >
+            <Link
               href={`/product/${item.id}`}
               aria-label={`View ${item.name}`}
-              className="group block overflow-hidden border border-black/10 bg-[#eee7dd] transition duration-500 hover:-translate-y-1 hover:border-black/25 hover:shadow-xl hover:shadow-black/10"
+              className="obsidian-product-card group block h-full overflow-hidden border border-black/10 bg-[#eee7dd] transition duration-500 hover:-translate-y-1 hover:border-black/25 hover:shadow-xl hover:shadow-black/10"
             >
               <div className="relative aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
                 <Image
@@ -196,6 +211,7 @@ export default function RecentlyViewedProducts({ product }) {
                 </div>
               </div>
             </Link>
+            </Reveal>
           ))}
         </div>
       </div>
