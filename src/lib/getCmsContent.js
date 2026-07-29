@@ -1,12 +1,18 @@
 import clientPromise from "./mongodb";
+
 import {
   createCmsDocument,
   isSupportedCmsKey,
   mergeCmsContent,
 } from "./cmsDefaults";
+
 import {
   sanitizeNavbarContent,
 } from "./navbarCms";
+
+import {
+  sanitizeSizeGuideCmsContent,
+} from "./sizeGuide";
 
 const CMS_COLLECTION_NAME = "cms";
 
@@ -38,6 +44,16 @@ function normalizeResolvedCmsContent(
 
   if (key === "navbar") {
     return sanitizeNavbarContent(
+      mergedContent,
+      {
+        schemaVersion:
+          mergedContent.schemaVersion,
+      }
+    );
+  }
+
+  if (key === "size-guide") {
+    return sanitizeSizeGuideCmsContent(
       mergedContent,
       {
         schemaVersion:

@@ -18,6 +18,11 @@ import {
   validateNavbarContentInput,
 } from "../../../../lib/navbarCms";
 
+import {
+  sanitizeSizeGuideCmsContent,
+  validateSizeGuideContentInput,
+} from "../../../../lib/sizeGuide";
+
 export const dynamic =
   "force-dynamic";
 
@@ -302,6 +307,16 @@ function normalizeCmsDocument(
 ) {
   if (key === "navbar") {
     return sanitizeNavbarContent(
+      content,
+      {
+        schemaVersion:
+          CMS_SCHEMA_VERSION,
+      }
+    );
+  }
+
+  if (key === "size-guide") {
+    return sanitizeSizeGuideCmsContent(
       content,
       {
         schemaVersion:
@@ -600,6 +615,34 @@ export async function PATCH(
       }
     }
 
+    if (
+      key === "size-guide" &&
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          safeIncomingDocument
+            ?.content || {},
+          "sizes"
+        )
+    ) {
+      const validation =
+        validateSizeGuideContentInput(
+          safeIncomingDocument
+        );
+
+      if (
+        !validation.valid
+      ) {
+        return createErrorResponse(
+          validation.errors[0]
+            ?.message ||
+            "Size Guide content is invalid.",
+          400,
+          validation.errors
+        );
+      }
+    }
+
     const collection =
       await getCmsCollection();
 
@@ -644,6 +687,27 @@ export async function PATCH(
       );
     }
 
+    if (
+      key === "size-guide"
+    ) {
+      const validation =
+        validateSizeGuideContentInput(
+          normalizedDocument
+        );
+
+      if (
+        !validation.valid
+      ) {
+        return createErrorResponse(
+          validation.errors[0]
+            ?.message ||
+            "Size Guide content is invalid.",
+          400,
+          validation.errors
+        );
+      }
+    }
+
     const contentToSave = {
       ...normalizedDocument,
     };
@@ -663,17 +727,6 @@ export async function PATCH(
     if (
       key === "navbar"
     ) {
-      /*
-       * Replacing the complete Navbar
-       * document removes legacy fields
-       * such as:
-       *
-       * desktop.showAdminLink
-       * account.showAdminLogin
-       * account.adminLoginHref
-       * account.loginHref
-       * account.registerHref
-       */
       await collection.replaceOne(
         {
           key,

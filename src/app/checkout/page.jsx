@@ -79,6 +79,172 @@ function getCartPayload(cartItems) {
   }));
 }
 
+const INVENTORY_CORRECTION_CODES =
+  new Set([
+    "INSUFFICIENT_STOCK",
+    "STOCK_CHANGED",
+    "PRODUCT_UNAVAILABLE",
+    "INVALID_SIZE",
+    "SIZE_REQUIRED",
+    "INVALID_SIZE_STOCK_CONFIGURATION",
+  ]);
+
+function isInventoryCorrectionCode(
+  value
+) {
+  return (
+    INVENTORY_CORRECTION_CODES.has(
+      String(value || "")
+        .trim()
+        .toUpperCase()
+    )
+  );
+}
+
+function normalizeCheckoutSize(
+  value
+) {
+  return String(value || "")
+    .normalize("NFKC")
+    .trim()
+    .toLocaleLowerCase("en");
+}
+
+function createCheckoutLineKey(
+  item
+) {
+  return `${String(
+    item?.id || ""
+  )
+    .normalize("NFKC")
+    .trim()
+    .toLocaleLowerCase(
+      "en"
+    )}\u0000${normalizeCheckoutSize(
+    item?.size
+  )}`;
+}
+
+function normalizeCheckoutStock(
+  value
+) {
+  const stock =
+    Number(value);
+
+  return Number.isFinite(stock)
+    ? Math.max(
+        0,
+        Math.floor(stock)
+      )
+    : 0;
+}
+
+function normalizeCheckoutQuantity(
+  value
+) {
+  const quantity =
+    Number(value);
+
+  return Number.isFinite(
+    quantity
+  )
+    ? Math.max(
+        0,
+        Math.floor(quantity)
+      )
+    : 0;
+}
+
+function trustedItemsChangeCart(
+  cartItems,
+  trustedItems
+) {
+  if (
+    !Array.isArray(
+      trustedItems
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    cartItems.length !==
+    trustedItems.length
+  ) {
+    return true;
+  }
+
+  const trustedByLine =
+    new Map(
+      trustedItems.map(
+        (item) => [
+          createCheckoutLineKey(
+            item
+          ),
+          item,
+        ]
+      )
+    );
+
+  return cartItems.some(
+    (cartItem) => {
+      const trustedItem =
+        trustedByLine.get(
+          createCheckoutLineKey(
+            cartItem
+          )
+        );
+
+      if (
+        !trustedItem ||
+        trustedItem.isAvailable ===
+          false
+      ) {
+        return true;
+      }
+
+      const cartQuantity =
+        normalizeCheckoutQuantity(
+          cartItem.quantity
+        );
+
+      const trustedQuantity =
+        normalizeCheckoutQuantity(
+          trustedItem.quantity
+        );
+
+      const cartStock =
+        normalizeCheckoutStock(
+          cartItem.stock
+        );
+
+      const trustedStock =
+        normalizeCheckoutStock(
+          trustedItem.availableStock
+        );
+
+      const cartPrice =
+        Number(
+          cartItem.price
+        ) || 0;
+
+      const trustedPrice =
+        Number(
+          trustedItem.price
+        ) || 0;
+
+      return (
+        cartQuantity !==
+          trustedQuantity ||
+        cartStock !==
+          trustedStock ||
+        cartPrice !==
+          trustedPrice
+      );
+    }
+  );
+}
+
 function getCurrencySymbol(currency) {
   return currency === "BDT"
     ? "৳"
@@ -192,7 +358,13 @@ function getCouponOfferLabel(
 export default function CheckoutPage() {
   const router = useRouter();
 
-  const { cartItems, clearCart } = useCart();
+  const {
+    cartItems,
+    clearCart,
+    refreshCart,
+    isStorageReady,
+    isCartRefreshing,
+  } = useCart();
 
   const quoteRequestRef = useRef(0);
 
@@ -291,6 +463,8 @@ export default function CheckoutPage() {
 
   const quoteIsAvailable =
     settingsLoaded &&
+    isStorageReady &&
+    !isCartRefreshing &&
     cartItems.length > 0 &&
     Boolean(selectedPaymentMethod);
 
@@ -518,14 +692,77 @@ export default function CheckoutPage() {
             return;
           }
 
+          const quoteMessage =
+            data.message ||
+            "Order total could not be calculated.";
+
           setQuote(null);
 
+          if (
+            isInventoryCorrectionCode(
+              data.code
+            )
+          ) {
+            const refreshResult =
+              await refreshCart({
+                force: true,
+              });
+
+            if (
+              requestId !==
+              quoteRequestRef.current
+            ) {
+              return;
+            }
+
+            setQuoteError(
+              refreshResult?.success &&
+                refreshResult?.message
+                ? `${quoteMessage} ${refreshResult.message}`
+                : quoteMessage
+            );
+
+            return;
+          }
+
           setQuoteError(
-            data.message ||
-              "Order total could not be calculated."
+            quoteMessage
           );
 
           return;
+        }
+
+        if (
+          trustedItemsChangeCart(
+            cartItems,
+            data.quote.items
+          )
+        ) {
+          const refreshResult =
+            await refreshCart({
+              force: true,
+            });
+
+          if (
+            requestId !==
+              quoteRequestRef.current
+          ) {
+            return;
+          }
+
+          if (
+            refreshResult?.reason ===
+            "corrected"
+          ) {
+            setQuote(null);
+
+            setQuoteError(
+              refreshResult.message ||
+                "Your cart was updated using current stock and prices."
+            );
+
+            return;
+          }
         }
 
         setQuote(data.quote);
@@ -564,6 +801,7 @@ export default function CheckoutPage() {
     selectedPaymentMethod,
     appliedCoupon,
     quoteIsAvailable,
+    refreshCart,
   ]);
 
   function handleChange(event) {
@@ -817,6 +1055,49 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (
+      !isStorageReady ||
+      isCartRefreshing
+    ) {
+      setSubmitError(
+        "Cart stock is still being checked. Please wait a moment."
+      );
+
+      return;
+    }
+
+    const refreshResult =
+      await refreshCart({
+        force: true,
+      });
+
+    if (
+      !refreshResult?.success
+    ) {
+      setSubmitError(
+        refreshResult?.message ||
+          "Your cart could not be verified. Please try again."
+      );
+
+      return;
+    }
+
+    if (
+      trustedItemsChangeCart(
+        cartItems,
+        refreshResult.items
+      )
+    ) {
+      setQuote(null);
+
+      setSubmitError(
+        refreshResult.message ||
+          "Your cart was updated using current stock and prices. Please review it before placing the order."
+      );
+
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -861,9 +1142,34 @@ export default function CheckoutPage() {
         !data.success ||
         !data.order
       ) {
-        setSubmitError(
+        const orderMessage =
           data.message ||
-            "Order could not be placed."
+          "Order could not be placed.";
+
+        if (
+          isInventoryCorrectionCode(
+            data.code
+          )
+        ) {
+          const refreshResult =
+            await refreshCart({
+              force: true,
+            });
+
+          setQuote(null);
+
+          setSubmitError(
+            refreshResult?.success &&
+              refreshResult?.message
+              ? `${orderMessage} ${refreshResult.message}`
+              : orderMessage
+          );
+
+          return;
+        }
+
+        setSubmitError(
+          orderMessage
         );
 
         return;
@@ -1289,6 +1595,8 @@ export default function CheckoutPage() {
                       isSubmitting ||
                       isQuoteLoading ||
                       isApplyingCoupon ||
+                      isCartRefreshing ||
+                      !isStorageReady ||
                       !activeQuote ||
                       enabledPaymentMethods.length ===
                         0
@@ -1297,9 +1605,11 @@ export default function CheckoutPage() {
                   >
                     {isSubmitting
                       ? "Placing Order..."
-                      : isQuoteLoading
-                        ? "Updating Total..."
-                        : "Place Order"}
+                      : isCartRefreshing
+                        ? "Checking Stock..."
+                        : isQuoteLoading
+                          ? "Updating Total..."
+                          : "Place Order"}
                   </button>
 
                   <p className="mt-4 text-center text-xs leading-6 text-neutral-500">
@@ -1367,6 +1677,22 @@ export default function CheckoutPage() {
                             : ""}
                           Qty {item.quantity}
                         </p>
+
+                        {Number.isFinite(
+                          Number(
+                            item.availableStock
+                          )
+                        ) ? (
+                          <p className="mt-1 text-xs text-neutral-500">
+                            {normalizeCheckoutStock(
+                              item.availableStock
+                            )}{" "}
+                            currently available
+                            {item.size
+                              ? ` in size ${item.size}`
+                              : ""}
+                          </p>
+                        ) : null}
                       </div>
 
                       <p className="shrink-0 text-sm">

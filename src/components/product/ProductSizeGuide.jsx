@@ -1,5 +1,5 @@
 import {
-  OBSIDIAN_OVERSIZED_SIZE_GUIDE,
+  getActiveObsidianSizeGuideRows,
 } from "../../lib/sizeGuide";
 import Reveal from "../ui/Reveal";
 
@@ -15,6 +15,26 @@ function cleanText(
     value.replace(/\s+/g, " ").trim() ||
     fallback
   );
+}
+
+function resolveContent(value) {
+  if (
+    value?.content &&
+    typeof value.content === "object" &&
+    !Array.isArray(value.content)
+  ) {
+    return value.content;
+  }
+
+  if (
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+  ) {
+    return value;
+  }
+
+  return {};
 }
 
 function MeasurementValue({
@@ -37,6 +57,14 @@ function MeasurementValue({
 export default function ProductSizeGuide({
   content = {},
 }) {
+  const resolvedContent =
+    resolveContent(content);
+
+  const sizeRows =
+    getActiveObsidianSizeGuideRows(
+      resolvedContent
+    );
+
   return (
     <section
       aria-labelledby="product-size-chart-title"
@@ -53,7 +81,7 @@ export default function ProductSizeGuide({
           <div>
             <p className="text-[9px] font-semibold uppercase tracking-[0.32em] text-neutral-500">
               {cleanText(
-                content.eyebrow,
+                resolvedContent.eyebrow,
                 "Size Guide"
               )}
             </p>
@@ -63,7 +91,7 @@ export default function ProductSizeGuide({
               className="mt-4 max-w-3xl font-heading text-4xl font-light leading-none sm:text-5xl lg:text-6xl"
             >
               {cleanText(
-                content.inlineTitle,
+                resolvedContent.inlineTitle,
                 "Find Your OBSIDIAN Fit"
               )}
             </h2>
@@ -71,7 +99,7 @@ export default function ProductSizeGuide({
 
           <p className="max-w-xl text-sm leading-7 text-neutral-600 lg:justify-self-end">
             {cleanText(
-              content.inlineDescription,
+              resolvedContent.inlineDescription,
               "Compare body-fit and finished garment measurements before selecting your size. Measurements follow OBSIDIAN's relaxed oversized silhouette."
             )}
           </p>
@@ -87,7 +115,10 @@ export default function ProductSizeGuide({
         >
           <table
             className="w-full table-fixed text-left"
-            aria-label="OBSIDIAN product size measurements"
+            aria-label={cleanText(
+              resolvedContent.tableAriaLabel,
+              "OBSIDIAN product size measurements"
+            )}
           >
             <thead className="bg-[#0b0b0b] text-[#f1ece4]">
               <tr>
@@ -129,7 +160,7 @@ export default function ProductSizeGuide({
             </thead>
 
             <tbody>
-              {OBSIDIAN_OVERSIZED_SIZE_GUIDE.map(
+              {sizeRows.map(
                 (item) => (
                   <tr
                     key={item.size}
@@ -185,7 +216,7 @@ export default function ProductSizeGuide({
         </Reveal>
 
         <div className="mt-8 grid gap-3 md:hidden">
-          {OBSIDIAN_OVERSIZED_SIZE_GUIDE.map(
+          {sizeRows.map(
             (item, index) => (
               <Reveal
                 key={item.size}

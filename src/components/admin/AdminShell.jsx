@@ -148,10 +148,19 @@ const navigationItems = [
     },
   },
   {
+    label: "Size Guide CMS",
+    href: "/admin/content/size-guide",
+    description: "Measurements & Fit",
+    icon: "16",
+    permissions: {
+      content: ["update"],
+    },
+  },
+  {
     label: "Footer CMS",
     href: "/admin/content/footer",
     description: "Footer Content",
-    icon: "16",
+    icon: "17",
     permissions: {
       content: ["update"],
     },
@@ -160,7 +169,7 @@ const navigationItems = [
     label: "Security Audit",
     href: "/admin/security/audit-logs",
     description: "Authentication Logs",
-    icon: "17",
+    icon: "18",
     permissions: {
       security: ["read_audit"],
     },
@@ -169,7 +178,7 @@ const navigationItems = [
     label: "Settings",
     href: "/admin/settings",
     description: "Configuration",
-    icon: "18",
+    icon: "19",
     permissionSets: [
       {
         settings: ["read"],

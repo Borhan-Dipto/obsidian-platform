@@ -7,6 +7,13 @@ import {
 } from "../../lib/adminAuth";
 import AdminLogoutButton from "../../components/admin/AdminLogoutButton";
 
+import {
+  getEnabledProductSizes,
+  getProductSizeStock,
+  getProductTotalStock,
+  hasProductSizeInventory,
+} from "../../lib/productInventory";
+
 export const dynamic = "force-dynamic";
 
 const ACTIVE_ORDER_STATUSES = [
@@ -324,62 +331,76 @@ function getPaymentStatus(order) {
   );
 }
 
-function getProductStock(product) {
-  const directStock =
-    normalizeNumber(
-      product?.stock
+function getProductInventoryAlerts(
+  product
+) {
+  const totalStock =
+    getProductTotalStock(
+      product
     );
 
   if (
-    Array.isArray(
-      product?.variants
-    ) &&
-    product.variants
-      .length > 0
+    !hasProductSizeInventory(
+      product
+    )
   ) {
-    return product.variants.reduce(
-      (
-        total,
-        variant
-      ) =>
-        total +
-        Math.max(
-          0,
-          normalizeNumber(
-            variant?.stock
-          )
-        ),
-      0
-    );
+    return {
+      lowStockItems:
+        totalStock > 0 &&
+        totalStock < 10
+          ? [
+              {
+                product,
+                size: "",
+                stock:
+                  totalStock,
+              },
+            ]
+          : [],
+
+      outOfStockCount:
+        totalStock <= 0
+          ? 1
+          : 0,
+    };
   }
 
-  if (
-    Array.isArray(
-      product?.sizes
-    ) &&
-    product.sizes
-      .length > 0
-  ) {
-    return product.sizes.reduce(
-      (
-        total,
-        size
-      ) =>
-        total +
-        Math.max(
-          0,
-          normalizeNumber(
-            size?.stock
-          )
-        ),
-      0
+  const enabledSizes =
+    getEnabledProductSizes(
+      product
     );
-  }
 
-  return Math.max(
-    0,
-    directStock
-  );
+  const lowStockItems =
+    enabledSizes
+      .map((size) => ({
+        product,
+        size,
+
+        stock:
+          getProductSizeStock(
+            product,
+            size
+          ),
+      }))
+      .filter(
+        (item) =>
+          item.stock > 0 &&
+          item.stock < 5
+      );
+
+  const outOfStockCount =
+    enabledSizes.filter(
+      (size) =>
+        getProductSizeStock(
+          product,
+          size
+        ) <= 0
+    ).length;
+
+  return {
+    lowStockItems,
+    outOfStockCount,
+  };
 }
 
 function getProductName(product) {
@@ -914,38 +935,24 @@ async function getDashboardData({
       }
     );
 
-    const productInventory =
+    const inventoryAlerts =
       products.map(
-        (product) => ({
-          ...product,
-
-          calculatedStock:
-            getProductStock(
-              product
-            ),
-        })
+        getProductInventoryAlerts
       );
 
     const lowStockItems =
-      productInventory
-        .filter(
-          (product) =>
-            product
-              .calculatedStock >
-              0 &&
-            product
-              .calculatedStock <
-              10
+      inventoryAlerts
+        .flatMap(
+          (inventory) =>
+            inventory.lowStockItems
         )
         .sort(
           (
-            firstProduct,
-            secondProduct
+            firstItem,
+            secondItem
           ) =>
-            firstProduct
-              .calculatedStock -
-            secondProduct
-              .calculatedStock
+            firstItem.stock -
+            secondItem.stock
         )
         .slice(
           0,
@@ -953,12 +960,16 @@ async function getDashboardData({
         );
 
     const outOfStockProducts =
-      productInventory.filter(
-        (product) =>
-          product
-            .calculatedStock <=
-          0
-      ).length;
+      inventoryAlerts.reduce(
+        (
+          total,
+          inventory
+        ) =>
+          total +
+          inventory
+            .outOfStockCount,
+        0
+      );
 
     const productSalesMap =
       new Map();
@@ -1321,24 +1332,26 @@ async function getDashboardData({
 
       lowStockItems:
         lowStockItems.map(
-          (product) => ({
+          (item) => ({
             id:
               getProductIdentifier(
-                product
+                item.product
               ),
 
             name:
               getProductName(
-                product
+                item.product
               ),
 
+            size:
+              item.size,
+
             stock:
-              product
-                .calculatedStock,
+              item.stock,
 
             image:
               getProductImage(
-                product
+                item.product
               ),
           })
         ),
@@ -2244,10 +2257,7 @@ function InventoryPanel({
           {lowStockItems.map(
             (product) => (
               <Link
-                key={
-                  product.id ||
-                  product.name
-                }
+                key={`${product.id || product.name}-${product.size || "shared"}`}
                 href={
                   product.id
                     ? `/admin/products/${encodeURIComponent(
@@ -2286,7 +2296,9 @@ function InventoryPanel({
                   </p>
 
                   <p className="mt-1 text-[8px] uppercase tracking-[0.18em] text-white/25">
-                    Product inventory
+                    {product.size
+                      ? `Size ${product.size} inventory`
+                      : "Shared product inventory"}
                   </p>
                 </div>
 

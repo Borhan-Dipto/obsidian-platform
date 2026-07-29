@@ -404,101 +404,226 @@ function addConfiguredSize(
 function getProductSizeConfiguration(
   product
 ) {
-  const configuredSizes = new Map();
-  const sizeStockEntries = new Map();
+  const configuredSizes =
+    new Map();
 
-  const sizeStock = isPlainObject(
-    product?.sizeStock
-  )
-    ? product.sizeStock
-    : null;
+  const sizeStockEntries =
+    new Map();
+
+  const authoritativeSizes =
+    new Map();
+
+  const configuredProductSizes =
+    Array.isArray(
+      product?.sizes
+    )
+      ? product.sizes
+      : [];
+
+  for (
+    const configuredSize
+    of configuredProductSizes
+  ) {
+    if (
+      isPlainObject(
+        configuredSize
+      )
+    ) {
+      addConfiguredSize(
+        authoritativeSizes,
+        configuredSize.value ||
+          configuredSize.size ||
+          configuredSize.name ||
+          configuredSize.label
+      );
+    } else {
+      addConfiguredSize(
+        authoritativeSizes,
+        configuredSize
+      );
+    }
+  }
+
+  const hasAuthoritativeSizes =
+    authoritativeSizes.size >
+    0;
+
+  if (hasAuthoritativeSizes) {
+    for (
+      const [
+        sizeKey,
+        size,
+      ] of authoritativeSizes
+    ) {
+      configuredSizes.set(
+        sizeKey,
+        size
+      );
+    }
+  }
+
+  const sizeStock =
+    isPlainObject(
+      product?.sizeStock
+    )
+      ? product.sizeStock
+      : null;
 
   if (sizeStock) {
-    for (const [
-      rawSize,
-      rawStock,
-    ] of Object.entries(sizeStock)) {
-      const size = normalizeOrderSize(
-        rawSize
-      );
+    for (
+      const [
+        rawSize,
+        rawStock,
+      ] of Object.entries(
+        sizeStock
+      )
+    ) {
+      const size =
+        normalizeOrderSize(
+          rawSize
+        );
 
       if (!size) {
         continue;
       }
 
       const sizeKey =
-        size.toLocaleLowerCase("en");
+        size.toLocaleLowerCase(
+          "en"
+        );
 
-      configuredSizes.set(
-        sizeKey,
-        size
-      );
+      /*
+       * When product.sizes exists, it is
+       * the authoritative enabled-size
+       * list. Stale or disabled sizeStock
+       * keys must never become orderable.
+       */
+      if (
+        hasAuthoritativeSizes &&
+        !authoritativeSizes.has(
+          sizeKey
+        )
+      ) {
+        continue;
+      }
 
-      const stock = Number(rawStock);
+      if (
+        !hasAuthoritativeSizes
+      ) {
+        configuredSizes.set(
+          sizeKey,
+          size
+        );
+      }
+
+      const stock =
+        Number(rawStock);
 
       sizeStockEntries.set(
         sizeKey,
         {
           size,
-          fieldName: rawSize,
+
+          fieldName:
+            rawSize,
+
           stock:
-            Number.isFinite(stock)
-              ? Math.max(0, stock)
+            Number.isFinite(
+              stock
+            )
+              ? Math.max(
+                  0,
+                  stock
+                )
               : 0,
         }
       );
     }
   }
 
-  const sizeCollections = [
-    product?.sizes,
-    product?.availableSizes,
-  ];
+  if (
+    !hasAuthoritativeSizes
+  ) {
+    const sizeCollections = [
+      product?.sizes,
+      product?.availableSizes,
+    ];
 
-  for (const sizeCollection of sizeCollections) {
-    if (!Array.isArray(sizeCollection)) {
-      continue;
-    }
-
-    for (const size of sizeCollection) {
-      if (isPlainObject(size)) {
-        addConfiguredSize(
-          configuredSizes,
-          size.value ||
-            size.size ||
-            size.name ||
-            size.label
-        );
-      } else {
-        addConfiguredSize(
-          configuredSizes,
-          size
-        );
-      }
-    }
-  }
-
-  if (Array.isArray(product?.variants)) {
-    for (const variant of product.variants) {
-      if (!isPlainObject(variant)) {
+    for (
+      const sizeCollection
+      of sizeCollections
+    ) {
+      if (
+        !Array.isArray(
+          sizeCollection
+        )
+      ) {
         continue;
       }
 
-      addConfiguredSize(
-        configuredSizes,
-        variant.size ||
-          variant.name ||
-          variant.label ||
-          variant.value
-      );
+      for (
+        const size
+        of sizeCollection
+      ) {
+        if (
+          isPlainObject(
+            size
+          )
+        ) {
+          addConfiguredSize(
+            configuredSizes,
+            size.value ||
+              size.size ||
+              size.name ||
+              size.label
+          );
+        } else {
+          addConfiguredSize(
+            configuredSizes,
+            size
+          );
+        }
+      }
+    }
+
+    if (
+      Array.isArray(
+        product?.variants
+      )
+    ) {
+      for (
+        const variant
+        of product.variants
+      ) {
+        if (
+          !isPlainObject(
+            variant
+          )
+        ) {
+          continue;
+        }
+
+        addConfiguredSize(
+          configuredSizes,
+          variant.size ||
+            variant.name ||
+            variant.label ||
+            variant.value
+        );
+      }
     }
   }
 
   return {
     configuredSizes,
     sizeStockEntries,
+
+    hasSizeInventory:
+      Boolean(sizeStock),
+
     requiresSize:
-      configuredSizes.size > 0,
+      configuredSizes.size >
+      0,
   };
 }
 
@@ -536,24 +661,34 @@ function resolveTrustedProductSize(
     !sizeConfiguration.requiresSize
   ) {
     return {
-      size: normalizedRequestedSize,
-      inventoryMode: "total",
-      sizeStockField: "",
-      availableStock: getTotalProductStock(
-        product
-      ),
+      size:
+        normalizedRequestedSize,
+
+      inventoryMode:
+        "total",
+
+      sizeStockField:
+        "",
+
+      availableStock:
+        getTotalProductStock(
+          product
+        ),
     };
   }
 
   const requestedSizeKey =
-    normalizedRequestedSize.toLocaleLowerCase(
-      "en"
-    );
+    normalizedRequestedSize
+      .toLocaleLowerCase(
+        "en"
+      );
 
   const canonicalSize =
-    sizeConfiguration.configuredSizes.get(
-      requestedSizeKey
-    );
+    sizeConfiguration
+      .configuredSizes
+      .get(
+        requestedSizeKey
+      );
 
   if (!canonicalSize) {
     throwPricingError(
@@ -569,21 +704,30 @@ function resolveTrustedProductSize(
   }
 
   const sizeStockEntry =
-    sizeConfiguration.sizeStockEntries.get(
-      requestedSizeKey
-    );
+    sizeConfiguration
+      .sizeStockEntries
+      .get(
+        requestedSizeKey
+      );
 
   if (sizeStockEntry) {
     const fieldName =
       String(
-        sizeStockEntry.fieldName || ""
+        sizeStockEntry
+          .fieldName || ""
       );
 
     if (
       !fieldName ||
-      fieldName.includes(".") ||
-      fieldName.startsWith("$") ||
-      fieldName.includes("\u0000")
+      fieldName.includes(
+        "."
+      ) ||
+      fieldName.startsWith(
+        "$"
+      ) ||
+      fieldName.includes(
+        "\u0000"
+      )
     ) {
       throwPricingError(
         `${
@@ -598,21 +742,56 @@ function resolveTrustedProductSize(
     }
 
     return {
-      size: canonicalSize,
-      inventoryMode: "size",
-      sizeStockField: fieldName,
+      size:
+        canonicalSize,
+
+      inventoryMode:
+        "size",
+
+      sizeStockField:
+        fieldName,
+
       availableStock:
         sizeStockEntry.stock,
     };
   }
 
+  /*
+   * A product carrying sizeStock must have
+   * a valid entry for every enabled size.
+   * Never fall back to shared stock for a
+   * malformed size-inventory product.
+   */
+  if (
+    sizeConfiguration
+      .hasSizeInventory
+  ) {
+    throwPricingError(
+      `${
+        normalizeCatalogText(
+          product?.name,
+          "A selected product"
+        )
+      } has an incomplete size-stock configuration.`,
+      409,
+      "INVALID_SIZE_STOCK_CONFIGURATION"
+    );
+  }
+
   return {
-    size: canonicalSize,
-    inventoryMode: "total",
-    sizeStockField: "",
-    availableStock: getTotalProductStock(
-      product
-    ),
+    size:
+      canonicalSize,
+
+    inventoryMode:
+      "total",
+
+    sizeStockField:
+      "",
+
+    availableStock:
+      getTotalProductStock(
+        product
+      ),
   };
 }
 
@@ -1394,6 +1573,9 @@ function buildTrustedItems(
         image:
           getProductImage(product),
 
+        availableStock:
+          sizeResolution.availableStock,
+
         inventory: {
           mode:
             sizeResolution.inventoryMode,
@@ -1409,6 +1591,370 @@ function buildTrustedItems(
       };
     }
   );
+}
+
+export async function buildTrustedCartSnapshot({
+  database,
+  items,
+  session = null,
+}) {
+  if (!database) {
+    throwPricingError(
+      "Database connection is unavailable.",
+      500,
+      "DATABASE_UNAVAILABLE"
+    );
+  }
+
+  const requestedItems =
+    normalizeRequestedOrderItems(
+      items
+    );
+
+  const productIds =
+    Array.from(
+      new Set(
+        requestedItems.map(
+          (item) =>
+            item.id
+        )
+      )
+    );
+
+  const products =
+    await database
+      .collection(
+        PRODUCTS_COLLECTION_NAME
+      )
+      .find(
+        getPublicProductQuery({
+          id: {
+            $in:
+              productIds,
+          },
+        }),
+        createDatabaseOptions(
+          session
+        )
+      )
+      .toArray();
+
+  const productMap =
+    new Map(
+      products.map(
+        (product) => [
+          String(
+            product.id
+          ),
+          product,
+        ]
+      )
+    );
+
+  const snapshotItems =
+    requestedItems.map(
+      (requestedItem) => {
+        const product =
+          productMap.get(
+            requestedItem.id
+          );
+
+        if (!product) {
+          return {
+            id:
+              requestedItem.id,
+
+            size:
+              requestedItem.size,
+
+            requestedQuantity:
+              requestedItem.quantity,
+
+            quantity:
+              0,
+
+            availableStock:
+              0,
+
+            isAvailable:
+              false,
+
+            wasAdjusted:
+              true,
+
+            code:
+              "PRODUCT_UNAVAILABLE",
+
+            message:
+              "This product is no longer available.",
+          };
+        }
+
+        try {
+          const sizeResolution =
+            resolveTrustedProductSize(
+              product,
+              requestedItem.size
+            );
+
+          const price =
+            getProductPrice(
+              product
+            );
+
+          const availableStock =
+            Math.max(
+              0,
+
+              Math.floor(
+                Number(
+                  sizeResolution
+                    .availableStock
+                ) || 0
+              )
+            );
+
+          const quantity =
+            Math.min(
+              requestedItem
+                .quantity,
+
+              availableStock
+            );
+
+          const isAvailable =
+            availableStock > 0;
+
+          const wasAdjusted =
+            quantity !==
+            requestedItem
+              .quantity;
+
+          let code =
+            "AVAILABLE";
+
+          let message =
+            "Cart item is up to date.";
+
+          if (!isAvailable) {
+            code =
+              "OUT_OF_STOCK";
+
+            message =
+              `${
+                normalizeCatalogText(
+                  product.name,
+                  "This product"
+                )
+              }${
+                sizeResolution
+                  .size
+                  ? ` in size ${sizeResolution.size}`
+                  : ""
+              } is out of stock.`;
+          } else if (
+            wasAdjusted
+          ) {
+            code =
+              "QUANTITY_ADJUSTED";
+
+            message =
+              `Only ${availableStock} item${
+                availableStock ===
+                1
+                  ? ""
+                  : "s"
+              } currently available${
+                sizeResolution
+                  .size
+                  ? ` in size ${sizeResolution.size}`
+                  : ""
+              }.`;
+          }
+
+          return {
+            id:
+              String(
+                product.id
+              ),
+
+            name:
+              normalizeCatalogText(
+                product.name,
+                "OBSIDIAN Product"
+              ),
+
+            series:
+              normalizeSeriesName(
+                product.series
+              ),
+
+            color:
+              normalizeCatalogText(
+                product.color
+              ),
+
+            size:
+              sizeResolution
+                .size,
+
+            requestedQuantity:
+              requestedItem
+                .quantity,
+
+            quantity,
+
+            price,
+
+            lineTotal:
+              normalizeOrderMoney(
+                price *
+                  quantity
+              ),
+
+            image:
+              getProductImage(
+                product
+              ),
+
+            availableStock,
+
+            isAvailable,
+
+            wasAdjusted,
+
+            code,
+
+            message,
+          };
+        } catch (error) {
+          if (
+            !(
+              error instanceof
+              OrderPricingError
+            )
+          ) {
+            throw error;
+          }
+
+          const detailStock =
+            Number(
+              error.details
+                ?.availableStock
+            );
+
+          const availableStock =
+            Number.isFinite(
+              detailStock
+            )
+              ? Math.max(
+                  0,
+                  Math.floor(
+                    detailStock
+                  )
+                )
+              : 0;
+
+          return {
+            id:
+              requestedItem.id,
+
+            name:
+              normalizeCatalogText(
+                product.name,
+                "OBSIDIAN Product"
+              ),
+
+            series:
+              normalizeSeriesName(
+                product.series
+              ),
+
+            color:
+              normalizeCatalogText(
+                product.color
+              ),
+
+            size:
+              normalizeOrderSize(
+                error.details
+                  ?.size ||
+                  requestedItem
+                    .size
+              ),
+
+            requestedQuantity:
+              requestedItem
+                .quantity,
+
+            quantity:
+              0,
+
+            price:
+              0,
+
+            lineTotal:
+              0,
+
+            image:
+              getProductImage(
+                product
+              ),
+
+            availableStock,
+
+            isAvailable:
+              false,
+
+            wasAdjusted:
+              true,
+
+            code:
+              error.code ||
+              "PRODUCT_UNAVAILABLE",
+
+            message:
+              error.message ||
+              "This cart item is unavailable.",
+          };
+        }
+      }
+    );
+
+  const removedLines =
+    snapshotItems.filter(
+      (item) =>
+        !item.isAvailable
+    ).length;
+
+  const adjustedLines =
+    snapshotItems.filter(
+      (item) =>
+        item.isAvailable &&
+        item.wasAdjusted
+    ).length;
+
+  return {
+    items:
+      snapshotItems,
+
+    summary: {
+      requestedLines:
+        requestedItems.length,
+
+      availableLines:
+        snapshotItems.length -
+        removedLines,
+
+      removedLines,
+
+      adjustedLines,
+
+      hasCorrections:
+        removedLines > 0 ||
+        adjustedLines > 0,
+    },
+  };
 }
 
 export async function buildTrustedOrderQuote({
