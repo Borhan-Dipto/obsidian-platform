@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ComponentType } from "react";
 
+import ObsidianLogoReveal from "../components/intro/ObsidianLogoReveal";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import Hero from "../components/sections/Hero";
@@ -445,6 +446,8 @@ export default async function Home() {
           ),
         }}
       />
+
+      <ObsidianLogoReveal />
 
       <Navbar />
 
