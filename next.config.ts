@@ -65,6 +65,7 @@ const contentSecurityPolicy = [
     "script-src",
     "'self'",
     "'unsafe-inline'",
+    "https://connect.facebook.net",
 
     ...(isDevelopment
       ? ["'unsafe-eval'"]
@@ -78,6 +79,7 @@ const contentSecurityPolicy = [
     "'self'",
     "data:",
     "blob:",
+    "https://www.facebook.com",
     imageSources,
   ]
     .filter(Boolean)
@@ -88,6 +90,8 @@ const contentSecurityPolicy = [
   [
     "connect-src",
     "'self'",
+    "https://www.facebook.com",
+    "https://connect.facebook.net",
 
     ...(isDevelopment
       ? [

@@ -12,6 +12,11 @@ import { useRouter } from "next/navigation";
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
 import { useCart } from "../../context/CartContext";
+import {
+  buildInitiateCheckoutParams,
+  trackMetaEvent,
+  trackMetaPurchase,
+} from "../../lib/metaPixel";
 
 const CHECKOUT_TOKEN_KEY =
   "obsidian-checkout-token";
@@ -368,6 +373,9 @@ export default function CheckoutPage() {
 
   const quoteRequestRef = useRef(0);
 
+  const initiateCheckoutTrackedRef =
+    useRef(false);
+
   const [settings, setSettings] = useState(
     DEFAULT_SETTINGS
   );
@@ -507,6 +515,33 @@ export default function CheckoutPage() {
       total + Number(item.quantity || 0),
     0
   );
+
+  useEffect(() => {
+    if (
+      initiateCheckoutTrackedRef.current ||
+      !isStorageReady ||
+      cartItems.length === 0
+    ) {
+      return;
+    }
+
+    const params =
+      buildInitiateCheckoutParams(
+        cartItems
+      );
+
+    if (!params) {
+      return;
+    }
+
+    initiateCheckoutTrackedRef.current =
+      true;
+
+    trackMetaEvent(
+      "InitiateCheckout",
+      params
+    );
+  }, [isStorageReady, cartItems]);
 
   useEffect(() => {
     const frameId =
@@ -1189,6 +1224,21 @@ export default function CheckoutPage() {
             new Date().toISOString(),
         })
       );
+
+      /*
+       * Meta Purchase: sent only for a newly created order, using
+       * the server's trusted total. A duplicate response means
+       * this order was already counted.
+       */
+      if (!data.duplicate) {
+        trackMetaPurchase({
+          order: data.order,
+
+          pricing:
+            data.pricing ||
+            data.order.pricing,
+        });
+      }
 
       sessionStorage.removeItem(
         CHECKOUT_TOKEN_KEY

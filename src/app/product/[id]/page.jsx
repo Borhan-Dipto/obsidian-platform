@@ -18,6 +18,7 @@ import ProductSizeGuide from "../../../components/product/ProductSizeGuide";
 import RelatedProducts from "../../../components/product/RelatedProducts";
 import RecentlyViewedProducts from "../../../components/product/RecentlyViewedProducts";
 import ProductImageZoom from "../../../components/product/ProductImageZoom";
+import MetaViewContent from "../../../components/analytics/MetaViewContent";
 import Navbar from "../../../components/layout/Navbar";
 import Footer from "../../../components/layout/Footer";
 
@@ -473,6 +474,13 @@ export default async function ProductDetailsPage({ params }) {
         dangerouslySetInnerHTML={{
           __html: serializeJsonLd(breadcrumbJsonLd),
         }}
+      />
+
+      <MetaViewContent
+        productId={String(product.id)}
+        productName={productName}
+        price={price}
+        currency="BDT"
       />
 
       <Navbar />
