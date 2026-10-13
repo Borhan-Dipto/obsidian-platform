@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { useCart } from "../../context/CartContext";
 import { useToast } from "../../context/ToastContext";
+import {
+  buildAddToCartParams,
+  trackMetaEvent,
+} from "../../lib/metaPixel";
 
 import {
   OBSIDIAN_SIZE_ORDER,
@@ -177,6 +181,16 @@ export default function ProductActions({
 
       return;
     }
+
+    trackMetaEvent(
+      "AddToCart",
+      buildAddToCartParams({
+        id: product.id,
+        name: product.name,
+        price,
+        quantity,
+      })
+    );
 
     showToast({
       type: "success",

@@ -4,6 +4,7 @@ import {
   Urbanist,
 } from "next/font/google";
 import AppProviders from "../providers/AppProviders";
+import MetaPixel from "../components/analytics/MetaPixel";
 import {
   DEFAULT_SETTINGS,
   getSettings,
@@ -251,6 +252,8 @@ export default function RootLayout({
         <AppProviders>
           {children}
         </AppProviders>
+
+        <MetaPixel />
       </body>
     </html>
   );
