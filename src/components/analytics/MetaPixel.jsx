@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import {
+  usePathname,
+  useSearchParams,
+} from "next/navigation";
 import {
   initMetaPixel,
   isMetaPixelAllowedPath,
@@ -11,14 +14,18 @@ import {
 
 /*
  * Loads the Meta Pixel once for the storefront and sends one
- * PageView per route. Admin pages never load the pixel.
+ * PageView per page address (path + query), so links such as
+ * /shop?series=... from the collections page count as page views,
+ * just like a normal full page load would. Admin pages never load
+ * the pixel.
  *
- * Keyed on pathname only: query-string changes (shop filters) and
- * on-page effects such as the homepage intro replay do not create
- * extra PageViews.
+ * On-page effects such as the homepage intro replay do not change
+ * the address and therefore never create extra PageViews.
  */
-export default function MetaPixel() {
+function MetaPixelTracker() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const search = searchParams?.toString() || "";
 
   useEffect(() => {
     if (
@@ -29,9 +36,21 @@ export default function MetaPixel() {
     }
 
     if (initMetaPixel()) {
-      trackMetaPageView(pathname);
+      trackMetaPageView(pathname, search);
     }
-  }, [pathname]);
+  }, [pathname, search]);
 
   return null;
+}
+
+/*
+ * useSearchParams needs a Suspense boundary so the rest of each
+ * page can still be prerendered.
+ */
+export default function MetaPixel() {
+  return (
+    <Suspense fallback={null}>
+      <MetaPixelTracker />
+    </Suspense>
+  );
 }

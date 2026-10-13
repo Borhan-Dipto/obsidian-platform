@@ -10,6 +10,7 @@ import {
   buildMetaContents,
   buildPurchaseParams,
   buildViewContentParams,
+  createPageViewKey,
   createPurchaseEventId,
   isMetaPixelAllowedPath,
   isMetaTrackedPath,
@@ -55,6 +56,28 @@ test("admin never loads the pixel; private pages send no PageView", () => {
   }
 
   assert.equal(isMetaTrackedPath("/accounting"), true);
+});
+
+test("page view key includes the query string", () => {
+  assert.equal(createPageViewKey("/shop"), "/shop");
+  assert.equal(createPageViewKey("/shop", ""), "/shop");
+  assert.equal(
+    createPageViewKey("/shop", "series=Artifact%20Series"),
+    "/shop?series=Artifact%20Series"
+  );
+  assert.equal(createPageViewKey("/shop", "?a=1"), "/shop?a=1");
+  assert.notEqual(
+    createPageViewKey("/shop", "series=A"),
+    createPageViewKey("/shop", "series=B")
+  );
+});
+
+test("pixel tracker reads search params inside a Suspense boundary", () => {
+  const source = readSource("src/components/analytics/MetaPixel.jsx");
+
+  assert.match(source, /useSearchParams\(\)/);
+  assert.match(source, /<Suspense fallback=\{null\}>/);
+  assert.match(source, /trackMetaPageView\(pathname, search\)/);
 });
 
 test("contents merge sizes of one product and drop invalid lines", () => {

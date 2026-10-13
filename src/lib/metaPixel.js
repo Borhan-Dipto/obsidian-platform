@@ -413,18 +413,36 @@ export function trackMetaEvent(eventName, params, options = {}) {
   });
 }
 
-export function trackMetaPageView(pathname) {
+export function createPageViewKey(pathname, search = "") {
   const path = String(pathname || "");
+  const query = String(search || "").replace(/^\?/, "");
 
-  if (
-    !path ||
-    path === lastPageViewPath ||
-    !isMetaTrackedPath(path)
-  ) {
+  return query ? `${path}?${query}` : path;
+}
+
+/*
+ * One PageView per page address. Exclusions are decided by the
+ * path alone; deduplication uses path + query so that query-only
+ * navigations (e.g. /shop?series=...) are counted once each, and
+ * re-renders of the same address are never counted twice.
+ */
+export function trackMetaPageView(pathname, search = "") {
+  const path = String(pathname || "");
+  const pageKey = createPageViewKey(path, search);
+
+  if (!path || pageKey === lastPageViewPath) {
     return;
   }
 
-  lastPageViewPath = path;
+  /*
+   * Remember excluded pages too, so /shop -> /account -> /shop
+   * still counts the second /shop visit.
+   */
+  lastPageViewPath = pageKey;
+
+  if (!isMetaTrackedPath(path)) {
+    return;
+  }
 
   runWhenReady(() => {
     window.fbq("track", "PageView");
