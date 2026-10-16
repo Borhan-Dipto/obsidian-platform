@@ -10,6 +10,11 @@ import BrandStory from "../components/sections/BrandStory";
 import FeaturedProduct from "../components/sections/FeaturedProduct";
 
 import { getHomepageContent } from "../lib/getCmsContent";
+import {
+  DEFAULT_SETTINGS,
+  getSettings,
+} from "../lib/settings";
+import { buildOrganizationProfile } from "../lib/seoOrganization";
 
 export const dynamic = "force-dynamic";
 
@@ -240,7 +245,13 @@ export async function generateMetadata(): Promise<Metadata> {
     : `${seo.title} | ${SITE_NAME}`;
 
   return {
-    title: seo.title,
+    /*
+     * absolute: the homepage title must always carry the brand name
+     * (completeTitle adds "| OBSIDIAN" when the CMS title lacks it).
+     */
+    title: {
+      absolute: completeTitle,
+    },
 
     description: seo.description,
 
@@ -370,34 +381,26 @@ export default async function Home() {
     homepageContent
   );
 
+  const storeSettings = await getSettings().catch(
+    () => DEFAULT_SETTINGS
+  );
+
+  /*
+   * Organization data comes from admin Settings (contact + social
+   * links), so the schema always matches what the business has
+   * actually entered. Empty fields are omitted, never invented.
+   */
   const organizationJsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": `${SITE_URL}/#organization`,
-    name: SITE_NAME,
     url: SITE_URL,
-
-    logo: {
-      "@type": "ImageObject",
-      url: `${SITE_URL}/favicon.ico`,
-    },
-
     description: seo.description,
 
-    email:
-      "mailto:contact@obsidianwearbd.store",
-
-    contactPoint: {
-      "@type": "ContactPoint",
-      contactType: "customer support",
-      availableLanguage: [
-        "English",
-        "Bengali",
-      ],
-      areaServed: "BD",
-    },
-
-    sameAs: [],
+    ...buildOrganizationProfile(
+      storeSettings,
+      SITE_URL
+    ),
   };
 
   const websiteJsonLd = {

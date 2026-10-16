@@ -2,6 +2,7 @@ import Link from "next/link";
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
 import { getAboutContent } from "../../lib/getCmsContent";
+import { ORGANIZATION_LOGO_PATH } from "../../lib/seoOrganization";
 
 export const dynamic = "force-dynamic";
 
@@ -565,7 +566,9 @@ export default async function AboutPage() {
 
     logo: {
       "@type": "ImageObject",
-      url: `${SITE_URL}/favicon.ico`,
+      url: `${SITE_URL}${ORGANIZATION_LOGO_PATH}`,
+      width: 2048,
+      height: 2048,
     },
 
     description:

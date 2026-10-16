@@ -86,6 +86,21 @@ function getDomainVerificationTags(): Record<string, string> {
     : {};
 }
 
+/*
+ * Google Search Console (HTML tag method). Set
+ * GOOGLE_SITE_VERIFICATION in Vercel to the content value Google
+ * shows when adding a URL-prefix property.
+ */
+function getSearchConsoleVerification(): Pick<Metadata, "verification"> {
+  const code = String(
+    process.env.GOOGLE_SITE_VERIFICATION || ""
+  ).trim();
+
+  return /^[A-Za-z0-9_-]{20,100}$/.test(code)
+    ? { verification: { google: code } }
+    : {};
+}
+
 async function getMetadataSettings() {
   try {
     return await getSettings();
@@ -170,10 +185,6 @@ export async function generateMetadata(): Promise<Metadata> {
 
     referrer: "origin-when-cross-origin",
 
-    alternates: {
-      canonical: "/",
-    },
-
     icons: {
       icon: "/favicon.ico",
       shortcut: "/favicon.ico",
@@ -232,6 +243,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
       ...getDomainVerificationTags(),
     },
+
+    ...getSearchConsoleVerification(),
   };
 }
 
