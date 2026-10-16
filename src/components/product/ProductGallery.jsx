@@ -183,7 +183,7 @@ export default function ProductGallery({
                   src={src}
                   alt={index === 0 ? alt : `${alt} — photo ${index + 1}`}
                   sizes={MAIN_SIZES}
-                  priority={index === 0}
+                  preload={index === 0}
                   onError={() => markFailed(index)}
                   imageClassName="obsidian-product-media-image transition-transform duration-500 ease-out motion-reduce:transition-none"
                   style={

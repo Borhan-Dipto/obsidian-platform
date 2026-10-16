@@ -39,7 +39,7 @@ const DEFAULT_CONTENT = {
     title: "Artifact Series",
     image: "/images/collection-artifact.jpeg",
     imageAlt: "Artifact Series",
-    href: "/shop?series=Artifact%20Series",
+    href: "/collections/artifact-series",
     buttonText: "View",
     openInNewTab: false,
   },
@@ -278,7 +278,7 @@ export default function Hero({ section = null, content = null } = {}) {
               src={mobileImage}
               alt={imageAlt}
               fill
-              priority
+              fetchPriority="high"
               sizes="100vw"
               className="obsidian-hero-media object-cover"
               style={{
@@ -292,7 +292,7 @@ export default function Hero({ section = null, content = null } = {}) {
               src={desktopImage}
               alt={imageAlt}
               fill
-              priority
+              fetchPriority="high"
               sizes="100vw"
               className="obsidian-hero-media object-cover"
               style={{

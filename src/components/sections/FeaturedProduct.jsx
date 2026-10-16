@@ -262,7 +262,6 @@ export default async function FeaturedProduct({
             src={image}
             alt={imageAlt}
             fill
-            priority
             sizes="(max-width: 768px) 100vw, 50vw"
             className="obsidian-motion-media object-cover object-center motion-safe:group-hover:scale-[1.035] motion-reduce:transition-none"
           />

@@ -17,7 +17,7 @@ test("shop and collections retain accessible fail-open catalog motion", async ()
   ] = await Promise.all([
     read("src/app/globals.css"),
     read("src/app/loading.jsx"),
-    read("src/app/shop/page.jsx"),
+    read("src/components/shop/ShopPageView.jsx"),
     read("src/app/collections/page.jsx"),
     read("src/components/shop/ShopFilters.jsx"),
     read("src/components/product/QuickViewButton.jsx"),

@@ -1,3 +1,4 @@
+import { createCollectionPath } from "../../lib/collectionUrls.js";
 import Image from "next/image";
 import Link from "next/link";
 import clientPromise from "../../lib/mongodb";
@@ -116,9 +117,7 @@ function getCollectionHref(collection) {
     return "/shop";
   }
 
-  return `/shop?series=${encodeURIComponent(
-    series
-  )}`;
+  return createCollectionPath(series);
 }
 
 function renderMultilineTitle(title) {
@@ -494,7 +493,7 @@ export default async function Collections({
                             collectionTitle
                           }
                           fill
-                          priority={index < 3}
+                          
                           sizes="(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 33vw"
                           className="obsidian-motion-media object-cover object-center motion-safe:group-hover:scale-[1.035] motion-reduce:transition-none"
                         />
