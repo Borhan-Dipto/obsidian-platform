@@ -360,7 +360,7 @@ export default async function Collections({
             <div className="mb-7 flex items-center gap-4">
               <span className="h-px w-8 bg-[#b1844a]" />
 
-              <p className="text-[10px] font-semibold uppercase tracking-[0.45em] text-neutral-500">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.45em] text-neutral-500">
                 {eyebrow}
               </p>
             </div>
@@ -388,7 +388,7 @@ export default async function Collections({
             buttonHref ? (
               <Link
                 href={buttonHref}
-                className="obsidian-motion-button group inline-flex w-fit items-center gap-4 border border-black/20 px-6 py-4 text-[10px] font-semibold uppercase tracking-[0.3em] text-neutral-700 hover:border-black hover:bg-black hover:text-[#f1ece4]"
+                className="obsidian-motion-button group inline-flex w-fit items-center gap-4 border border-black/20 px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.3em] text-neutral-700 hover:border-black hover:bg-black hover:text-[#f1ece4]"
               >
                 {buttonText}
 
@@ -406,7 +406,7 @@ export default async function Collections({
             duration={900}
           >
             <div className="border border-black/10 bg-[#f1ece4] p-8 md:p-10">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-neutral-500">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-neutral-500">
                 Collections
               </p>
 
@@ -422,7 +422,7 @@ export default async function Collections({
               buttonHref ? (
                 <Link
                   href={buttonHref}
-                  className="mt-8 inline-flex border border-black/20 px-6 py-4 text-[10px] font-semibold uppercase tracking-[0.28em] transition hover:bg-black hover:text-[#f1ece4]"
+                  className="mt-8 inline-flex border border-black/20 px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.28em] transition hover:bg-black hover:text-[#f1ece4]"
                 >
                   {buttonText}
                 </Link>
@@ -514,14 +514,14 @@ export default async function Collections({
 
                         {showFeaturedBadge &&
                         collection.isFeatured ? (
-                          <div className="absolute right-5 top-5 border border-[#f1ece4]/20 bg-black/40 px-4 py-2 text-[9px] font-semibold uppercase tracking-[0.28em] text-[#f1ece4] backdrop-blur-md">
+                          <div className="absolute right-5 top-5 border border-[#f1ece4]/20 bg-black/40 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#f1ece4] backdrop-blur-md">
                             Featured
                           </div>
                         ) : null}
                       </div>
 
                       <div className="p-6 lg:p-7">
-                        <p className="text-[9px] font-semibold uppercase tracking-[0.3em] text-neutral-500">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-neutral-500">
                           {normalizeText(
                             collection.series,
                             "OBSIDIAN Series"
@@ -542,7 +542,7 @@ export default async function Collections({
                         ) : null}
 
                         <div className="mt-7 flex items-center justify-between border-t border-black/10 pt-5">
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-neutral-500">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-neutral-500">
                             {cardButtonText}
                           </p>
 

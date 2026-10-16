@@ -229,7 +229,7 @@ function TextField({
     <div>
       <label
         htmlFor={id}
-        className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-black/48"
+        className="block text-[11px] font-semibold uppercase tracking-[0.22em] text-black/48"
       >
         {label}
       </label>
@@ -287,7 +287,7 @@ function PasswordField({
     <div>
       <label
         htmlFor={id}
-        className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-black/48"
+        className="block text-[11px] font-semibold uppercase tracking-[0.22em] text-black/48"
       >
         {label}
       </label>
@@ -343,7 +343,7 @@ function LoadingPage() {
       <div className="text-center">
         <span className="mx-auto block h-9 w-9 animate-spin rounded-full border border-black/15 border-t-black" />
 
-        <p className="mt-5 text-[10px] font-semibold uppercase tracking-[0.28em] text-black/45">
+        <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.28em] text-black/45">
           Loading your profile
         </p>
       </div>
@@ -899,7 +899,7 @@ export default function ProfilePage() {
 
             <Link
               href="/account"
-              className="group inline-flex items-center gap-3 text-[9px] font-semibold uppercase tracking-[0.22em] text-white/60 transition-colors hover:text-white"
+              className="group inline-flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/60 transition-colors hover:text-white"
             >
               Account overview
 
@@ -912,7 +912,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-4">
                 <span className="h-px w-10 bg-[#cdbf9e]" />
 
-                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#d6c9aa]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#d6c9aa]">
                   Personal account
                 </p>
               </div>
@@ -932,7 +932,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="border-t border-white/10 pt-7 lg:border-l lg:border-t-0 lg:pl-9 lg:pt-0">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.25em] text-white/35">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-white/35">
                 Signed in as
               </p>
 
@@ -975,7 +975,7 @@ export default function ProfilePage() {
             <Link
               key={item.href}
               href={item.href}
-              className={`shrink-0 border px-4 py-2.5 text-[9px] font-semibold uppercase tracking-[0.2em] transition-all duration-300 ${
+              className={`shrink-0 border px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] transition-all duration-300 ${
                 item.href ===
                 "/account/profile"
                   ? "border-[#171512] bg-[#171512] text-white"
@@ -994,7 +994,7 @@ export default function ProfilePage() {
             <section className="border border-black/10 bg-[#f4f0e8]">
               <div className="flex items-start justify-between gap-6 border-b border-black/10 px-6 py-6 sm:px-8 sm:py-8">
                 <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-black/40">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-black/40">
                     Profile information
                   </p>
 
@@ -1096,7 +1096,7 @@ export default function ProfilePage() {
                       isSavingProfile ||
                       !hasProfileChanges
                     }
-                    className="group inline-flex min-h-12 shrink-0 items-center justify-center gap-3 bg-[#171512] px-6 text-[9px] font-semibold uppercase tracking-[0.23em] text-white transition-all duration-300 hover:bg-black/75 disabled:cursor-not-allowed disabled:bg-black/25"
+                    className="group inline-flex min-h-12 shrink-0 items-center justify-center gap-3 bg-[#171512] px-6 text-[11px] font-semibold uppercase tracking-[0.23em] text-white transition-all duration-300 hover:bg-black/75 disabled:cursor-not-allowed disabled:bg-black/25"
                   >
                     {isSavingProfile
                       ? "Saving..."
@@ -1113,7 +1113,7 @@ export default function ProfilePage() {
             <section className="border border-black/10 bg-[#f4f0e8]">
               <div className="flex items-start justify-between gap-6 border-b border-black/10 px-6 py-6 sm:px-8 sm:py-8">
                 <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-black/40">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-black/40">
                     Account security
                   </p>
 
@@ -1232,7 +1232,7 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="mt-7 border border-black/10 bg-black/[0.025] px-4 py-4">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-black/42">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-black/42">
                     Password requirements
                   </p>
 
@@ -1250,7 +1250,7 @@ export default function ProfilePage() {
                     disabled={
                       isChangingPassword
                     }
-                    className="group inline-flex min-h-12 items-center justify-center gap-3 bg-[#171512] px-6 text-[9px] font-semibold uppercase tracking-[0.23em] text-white transition-all duration-300 hover:bg-black/75 disabled:cursor-not-allowed disabled:bg-black/35"
+                    className="group inline-flex min-h-12 items-center justify-center gap-3 bg-[#171512] px-6 text-[11px] font-semibold uppercase tracking-[0.23em] text-white transition-all duration-300 hover:bg-black/75 disabled:cursor-not-allowed disabled:bg-black/35"
                   >
                     {isChangingPassword
                       ? "Updating..."
@@ -1274,7 +1274,7 @@ export default function ProfilePage() {
                   <AddressIcon />
                 </span>
 
-                <p className="mt-8 text-[9px] font-semibold uppercase tracking-[0.28em] text-[#cdbf9e]">
+                <p className="mt-8 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#cdbf9e]">
                   Delivery addresses
                 </p>
 
@@ -1291,7 +1291,7 @@ export default function ProfilePage() {
 
                 <Link
                   href="/account/addresses"
-                  className="group mt-8 flex min-h-12 w-full items-center justify-center gap-3 border border-white/20 px-5 text-[9px] font-semibold uppercase tracking-[0.22em] text-white transition-all duration-300 hover:border-white hover:bg-white hover:text-black"
+                  className="group mt-8 flex min-h-12 w-full items-center justify-center gap-3 border border-white/20 px-5 text-[11px] font-semibold uppercase tracking-[0.22em] text-white transition-all duration-300 hover:border-white hover:bg-white hover:text-black"
                 >
                   Manage addresses
 
@@ -1301,7 +1301,7 @@ export default function ProfilePage() {
             </section>
 
             <section className="border border-black/10 bg-[#dcd2c3] p-7 sm:p-8">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.27em] text-black/40">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.27em] text-black/40">
                 Minimal by design
               </p>
 
@@ -1335,7 +1335,7 @@ export default function ProfilePage() {
 
             <Link
               href="/account"
-              className="group flex min-h-14 items-center justify-between border border-black/10 bg-transparent px-5 text-[9px] font-semibold uppercase tracking-[0.22em] text-black/55 transition-all duration-300 hover:border-black hover:bg-[#171512] hover:text-white"
+              className="group flex min-h-14 items-center justify-between border border-black/10 bg-transparent px-5 text-[11px] font-semibold uppercase tracking-[0.22em] text-black/55 transition-all duration-300 hover:border-black hover:bg-[#171512] hover:text-white"
             >
               Back to account
 
@@ -1347,35 +1347,35 @@ export default function ProfilePage() {
 
       <footer className="border-t border-black/10 bg-[#e2dacd]">
         <div className="mx-auto flex max-w-[1480px] flex-col gap-5 px-5 py-8 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-12 xl:px-16">
-          <p className="text-[9px] font-semibold uppercase tracking-[0.25em] text-black/40">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-black/40">
             OBSIDIAN private account
           </p>
 
           <div className="flex flex-wrap gap-x-6 gap-y-3">
             <Link
               href="/contact"
-              className="text-[9px] font-semibold uppercase tracking-[0.2em] text-black/50 transition-colors hover:text-black"
+              className="text-[11px] font-semibold uppercase tracking-[0.2em] text-black/50 transition-colors hover:text-black"
             >
               Assistance
             </Link>
 
             <Link
               href="/account/orders"
-              className="text-[9px] font-semibold uppercase tracking-[0.2em] text-black/50 transition-colors hover:text-black"
+              className="text-[11px] font-semibold uppercase tracking-[0.2em] text-black/50 transition-colors hover:text-black"
             >
               Orders
             </Link>
 
             <Link
               href="/shop"
-              className="text-[9px] font-semibold uppercase tracking-[0.2em] text-black/50 transition-colors hover:text-black"
+              className="text-[11px] font-semibold uppercase tracking-[0.2em] text-black/50 transition-colors hover:text-black"
             >
               Shop
             </Link>
 
             <Link
               href="/"
-              className="text-[9px] font-semibold uppercase tracking-[0.2em] text-black/50 transition-colors hover:text-black"
+              className="text-[11px] font-semibold uppercase tracking-[0.2em] text-black/50 transition-colors hover:text-black"
             >
               Home
             </Link>

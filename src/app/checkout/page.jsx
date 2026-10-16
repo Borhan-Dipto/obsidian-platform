@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  LOW_STOCK_THRESHOLD,
+  getStockLabel,
+} from "../../lib/productImages";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -366,6 +370,13 @@ function getCouponOfferLabel(
   return "SPECIAL OFFER";
 }
 
+/* Bangladeshi mobile: 01[3-9]XXXXXXXX, optionally prefixed with 88 / +88. */
+function isValidBangladeshMobile(digits) {
+  return /^(?:88)?01[3-9]\d{8}$/.test(
+    String(digits || "")
+  );
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
 
@@ -392,8 +403,9 @@ export default function CheckoutPage() {
   const [checkoutToken, setCheckoutToken] =
     useState("");
 
+  /* No default: the customer must choose, so the charge is never wrong. */
   const [deliveryArea, setDeliveryArea] =
-    useState("inside_dhaka");
+    useState("");
 
   const [paymentMethod, setPaymentMethod] =
     useState("cash_on_delivery");
@@ -480,6 +492,7 @@ export default function CheckoutPage() {
     isStorageReady &&
     !isCartRefreshing &&
     cartItems.length > 0 &&
+    Boolean(deliveryArea) &&
     Boolean(selectedPaymentMethod);
 
   const activeQuote =
@@ -891,12 +904,9 @@ export default function CheckoutPage() {
         "Please enter your full name.";
     }
 
-    if (
-      phone.length < 10 ||
-      phone.length > 14
-    ) {
+    if (!isValidBangladeshMobile(phone)) {
       errors.phone =
-        "Please enter a valid phone number.";
+        "Please enter a valid Bangladeshi mobile number, e.g. 01712345678.";
     }
 
     if (email && !isValidEmail(email)) {
@@ -954,6 +964,15 @@ export default function CheckoutPage() {
     if (cartItems.length === 0) {
       setCouponMessage(
         "Your cart is empty."
+      );
+
+      setCouponMessageType("error");
+      return;
+    }
+
+    if (!deliveryArea) {
+      setCouponMessage(
+        "Choose your delivery area first, then apply the code."
       );
 
       setCouponMessageType("error");
@@ -1070,6 +1089,24 @@ export default function CheckoutPage() {
       setSubmitError(
         "No payment method is currently available."
       );
+
+      return;
+    }
+
+    if (!deliveryArea) {
+      const customerIsValid = validateForm();
+
+      setFieldErrors((current) => ({
+        ...current,
+        deliveryArea:
+          "Please choose your delivery area.",
+      }));
+
+      if (customerIsValid) {
+        document
+          .querySelector("[data-delivery-area]")
+          ?.focus();
+      }
 
       return;
     }
@@ -1390,6 +1427,7 @@ export default function CheckoutPage() {
                         inputMode="tel"
                         autoComplete="tel"
                         maxLength={24}
+                        placeholder="01XXXXXXXXX"
                         value={formData.phone}
                         onChange={handleChange}
                         aria-invalid={Boolean(
@@ -1441,7 +1479,12 @@ export default function CheckoutPage() {
                     Delivery
                   </p>
 
-                  <div className="mb-7 grid gap-4 sm:grid-cols-2">
+                  <div
+                    role="radiogroup"
+                    aria-label="Delivery area"
+                    aria-invalid={Boolean(fieldErrors.deliveryArea)}
+                    className="mb-3 grid gap-4 sm:grid-cols-2"
+                  >
                     {[
                       {
                         value:
@@ -1470,16 +1513,29 @@ export default function CheckoutPage() {
                       <button
                         key={area.value}
                         type="button"
-                        onClick={() =>
+                        role="radio"
+                        aria-checked={
+                          deliveryArea ===
+                          area.value
+                        }
+                        data-delivery-area={area.value}
+                        onClick={() => {
                           setDeliveryArea(
                             area.value
-                          )
-                        }
-                        className={`border px-5 py-4 text-left text-xs uppercase tracking-[0.22em] transition ${
+                          );
+
+                          setFieldErrors((current) => ({
+                            ...current,
+                            deliveryArea: "",
+                          }));
+                        }}
+                        className={`min-h-14 border px-5 py-4 text-left text-xs uppercase tracking-[0.22em] transition ${
                           deliveryArea ===
                           area.value
                             ? "border-black bg-black text-[#f1ece4]"
-                            : "border-black/20 hover:border-black"
+                            : fieldErrors.deliveryArea
+                              ? "border-red-700/60 hover:border-black"
+                              : "border-black/20 hover:border-black"
                         }`}
                       >
                         {area.label} /{" "}
@@ -1490,6 +1546,18 @@ export default function CheckoutPage() {
                       </button>
                     ))}
                   </div>
+
+                  <p
+                    className={`mb-7 text-xs ${
+                      fieldErrors.deliveryArea
+                        ? "text-red-700"
+                        : "text-neutral-500"
+                    }`}
+                    aria-live="polite"
+                  >
+                    {fieldErrors.deliveryArea ||
+                      "Choose where we deliver — the delivery charge depends on it."}
+                  </p>
 
                   <div className="grid gap-6">
                     <div>
@@ -1669,6 +1737,45 @@ export default function CheckoutPage() {
                     </div>
                   ) : null}
 
+                  <div
+                    className="mt-7 border-t border-black/10 pt-5 lg:hidden"
+                    aria-live="polite"
+                  >
+                    {deliveryArea && activeQuote ? (
+                      <>
+                        <div className="flex items-baseline justify-between gap-4">
+                          <span className="text-xs uppercase tracking-[0.25em] text-neutral-500">
+                            Total to pay
+                          </span>
+
+                          <span className="font-heading text-3xl font-light">
+                            {currencySymbol}{" "}
+                            {formatMoney(pricing.total)}
+                          </span>
+                        </div>
+
+                        <p className="mt-1 text-right text-xs text-neutral-500">
+                          {totalItems}{" "}
+                          {totalItems === 1 ? "item" : "items"}{" "}
+                          {currencySymbol}{" "}
+                          {formatMoney(pricing.subtotal)}
+                          {" + delivery "}
+                          {currencySymbol}{" "}
+                          {formatMoney(
+                            pricing.payableDeliveryCharge
+                          )}
+                          {Number(pricing.productDiscount) > 0
+                            ? ` − discount ${currencySymbol} ${formatMoney(pricing.productDiscount)}`
+                            : ""}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-neutral-500">
+                        Choose your delivery area above to see the total.
+                      </p>
+                    )}
+                  </div>
+
                   <button
                     type="submit"
                     disabled={
@@ -1677,11 +1784,12 @@ export default function CheckoutPage() {
                       isApplyingCoupon ||
                       isCartRefreshing ||
                       !isStorageReady ||
-                      !activeQuote ||
+                      (Boolean(deliveryArea) &&
+                        !activeQuote) ||
                       enabledPaymentMethods.length ===
                         0
                     }
-                    className="mt-7 w-full bg-black px-8 py-5 text-xs uppercase tracking-[0.32em] text-[#f1ece4] transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-45"
+                    className="mt-4 w-full bg-black px-8 py-5 text-xs uppercase tracking-[0.32em] text-[#f1ece4] transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     {isSubmitting
                       ? "Placing Order..."
@@ -1737,7 +1845,7 @@ export default function CheckoutPage() {
                       )}
 
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[10px] uppercase tracking-[0.24em] text-neutral-500">
+                        <p className="truncate text-[11px] uppercase tracking-[0.24em] text-neutral-500">
                           {item.series}
                         </p>
 
@@ -1762,12 +1870,16 @@ export default function CheckoutPage() {
                           Number(
                             item.availableStock
                           )
-                        ) ? (
-                          <p className="mt-1 text-xs text-neutral-500">
-                            {normalizeCheckoutStock(
-                              item.availableStock
-                            )}{" "}
-                            currently available
+                        ) &&
+                        normalizeCheckoutStock(
+                          item.availableStock
+                        ) <= LOW_STOCK_THRESHOLD ? (
+                          <p className="mt-1 text-xs text-[#9b713e]">
+                            {getStockLabel(
+                              normalizeCheckoutStock(
+                                item.availableStock
+                              )
+                            ).text}
                             {item.size
                               ? ` in size ${item.size}`
                               : ""}
@@ -1800,7 +1912,7 @@ export default function CheckoutPage() {
                     <div className="border border-black bg-black p-5 text-[#f1ece4]">
                       <div className="flex items-start justify-between gap-5">
                         <div>
-                          <p className="text-[10px] uppercase tracking-[0.28em] text-neutral-400">
+                          <p className="text-[11px] uppercase tracking-[0.28em] text-neutral-400">
                             Applied Code
                           </p>
 
@@ -1814,7 +1926,7 @@ export default function CheckoutPage() {
                           onClick={
                             handleRemoveCoupon
                           }
-                          className="text-[10px] uppercase tracking-[0.24em] text-neutral-400 underline underline-offset-4 transition hover:text-white"
+                          className="text-[11px] uppercase tracking-[0.24em] text-neutral-400 underline underline-offset-4 transition hover:text-white"
                         >
                           Remove
                         </button>
@@ -1844,7 +1956,7 @@ export default function CheckoutPage() {
                             handleApplyCoupon();
                           }
                         }}
-                        className="min-w-0 flex-1 border border-black/20 bg-transparent px-4 py-4 text-xs uppercase tracking-[0.18em] outline-none focus:border-black"
+                        className="min-w-0 flex-1 border border-black/20 bg-transparent px-4 py-4 text-base uppercase sm:text-xs tracking-[0.18em] outline-none focus:border-black"
                       />
 
                       <button
@@ -1855,7 +1967,7 @@ export default function CheckoutPage() {
                         disabled={
                           isApplyingCoupon
                         }
-                        className="border border-l-0 border-black bg-black px-5 text-[10px] uppercase tracking-[0.22em] text-[#f1ece4] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="border border-l-0 border-black bg-black px-5 text-[11px] uppercase tracking-[0.22em] text-[#f1ece4] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {isApplyingCoupon
                           ? "Checking"
@@ -1883,7 +1995,7 @@ export default function CheckoutPage() {
 
                   {!publicCouponsLoaded ? (
                     <div className="mt-6 border border-black/10 p-5">
-                      <p className="text-[10px] uppercase tracking-[0.26em] text-neutral-500">
+                      <p className="text-[11px] uppercase tracking-[0.26em] text-neutral-500">
                         Loading Available Offers
                       </p>
                     </div>
@@ -1894,7 +2006,7 @@ export default function CheckoutPage() {
                     <div className="mt-7">
                       <div className="mb-4 flex items-end justify-between gap-4">
                         <div>
-                          <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-500">
+                          <p className="text-[11px] uppercase tracking-[0.3em] text-neutral-500">
                             Available Offers
                           </p>
 
@@ -1904,7 +2016,7 @@ export default function CheckoutPage() {
                           </p>
                         </div>
 
-                        <span className="shrink-0 text-[10px] uppercase tracking-[0.2em] text-neutral-500">
+                        <span className="shrink-0 text-[11px] uppercase tracking-[0.2em] text-neutral-500">
                           {publicCoupons.length}{" "}
                           {publicCoupons.length === 1
                             ? "Offer"
@@ -1934,13 +2046,13 @@ export default function CheckoutPage() {
                                 }`}
                               >
                                 {coupon.promoted ? (
-                                  <div className="absolute right-0 top-0 bg-black px-3 py-2 text-[8px] uppercase tracking-[0.24em] text-[#f1ece4]">
+                                  <div className="absolute right-0 top-0 bg-black px-3 py-2 text-[11px] uppercase tracking-[0.24em] text-[#f1ece4]">
                                     Featured
                                   </div>
                                 ) : null}
 
                                 <div className="pr-14">
-                                  <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-neutral-500">
+                                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-neutral-500">
                                     {getCouponOfferLabel(
                                       coupon,
                                       currencySymbol
@@ -1964,7 +2076,7 @@ export default function CheckoutPage() {
                                 <div className="mt-5 space-y-2 border-t border-black/10 pt-4">
                                   {coupon.minimumOrder >
                                   0 ? (
-                                    <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+                                    <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                                       Minimum order{" "}
                                       {currencySymbol}
                                       {formatMoney(
@@ -1977,7 +2089,7 @@ export default function CheckoutPage() {
                                     "percentage" &&
                                   coupon.maximumDiscount >
                                     0 ? (
-                                    <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+                                    <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                                       Maximum discount{" "}
                                       {currencySymbol}
                                       {formatMoney(
@@ -1987,7 +2099,7 @@ export default function CheckoutPage() {
                                   ) : null}
 
                                   {expiryDate ? (
-                                    <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+                                    <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                                       Valid until{" "}
                                       {expiryDate}
                                     </p>
@@ -2006,7 +2118,7 @@ export default function CheckoutPage() {
                                       isApplyingCoupon ||
                                       isApplied
                                     }
-                                    className="border border-black bg-black px-4 py-3 text-[9px] uppercase tracking-[0.22em] text-[#f1ece4] transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="border border-black bg-black px-4 py-3 text-[11px] uppercase tracking-[0.22em] text-[#f1ece4] transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
                                   >
                                     {isApplied
                                       ? "Applied"
@@ -2048,10 +2160,16 @@ export default function CheckoutPage() {
                     </span>
 
                     <span>
-                      {currencySymbol}{" "}
-                      {formatMoney(
-                        pricing
-                          .originalDeliveryCharge
+                      {deliveryArea ? (
+                        <>
+                          {currencySymbol}{" "}
+                          {formatMoney(
+                            pricing
+                              .originalDeliveryCharge
+                          )}
+                        </>
+                      ) : (
+                        "Choose area"
                       )}
                     </span>
                   </div>
@@ -2090,6 +2208,9 @@ export default function CheckoutPage() {
                     </div>
                   ) : null}
 
+                  {Number(
+                    pricing.deliveryDiscount
+                  ) > 0 ? (
                   <div className="flex justify-between gap-6">
                     <span className="text-neutral-500">
                       Delivery Payable
@@ -2103,6 +2224,7 @@ export default function CheckoutPage() {
                       )}
                     </span>
                   </div>
+                  ) : null}
                 </div>
 
                 <div className="mt-7 border-t border-black/10 pt-7">
@@ -2112,9 +2234,15 @@ export default function CheckoutPage() {
                     </span>
 
                     <span className="font-heading text-3xl font-light">
-                      {currencySymbol}{" "}
-                      {formatMoney(
-                        pricing.total
+                      {deliveryArea && activeQuote ? (
+                        <>
+                          {currencySymbol}{" "}
+                          {formatMoney(
+                            pricing.total
+                          )}
+                        </>
+                      ) : (
+                        "—"
                       )}
                     </span>
                   </div>

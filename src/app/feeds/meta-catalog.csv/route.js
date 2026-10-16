@@ -36,6 +36,7 @@ export async function GET() {
           sizes: 1,
           sizeStock: 1,
           image: 1,
+          gallery: 1,
           color: 1,
           series: 1,
           details: 1,

@@ -286,7 +286,7 @@ export default function BrandStory({
               <div className="mb-8 flex items-center gap-4">
                 <span className="h-px w-8 bg-[#b1844a]" />
 
-                <p className="text-[10px] font-semibold uppercase tracking-[0.45em] text-[#f1ece4]/45">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.45em] text-[#f1ece4]/45">
                   {eyebrow}
                 </p>
               </div>
@@ -389,7 +389,7 @@ export default function BrandStory({
                 {normalizeText(
                   systemBlock.eyebrow
                 ) ? (
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.45em] text-[#b1844a]">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.45em] text-[#b1844a]">
                     {systemBlock.eyebrow}
                   </p>
                 ) : null}

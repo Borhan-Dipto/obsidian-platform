@@ -810,7 +810,7 @@ export default function TrackOrderClient({
 
           <div
             aria-hidden="true"
-            className="flex items-center justify-center text-[10px] uppercase tracking-[0.28em] text-neutral-400 md:h-[58px] md:px-1"
+            className="flex items-center justify-center text-[11px] uppercase tracking-[0.28em] text-neutral-400 md:h-[58px] md:px-1"
           >
             Or
           </div>
@@ -921,7 +921,7 @@ export default function TrackOrderClient({
                                 matchingOrderId
                               )
                             }
-                            className="border border-black/20 px-3 py-2 text-[10px] uppercase tracking-[0.22em] transition hover:border-black"
+                            className="border border-black/20 px-3 py-2 text-[11px] uppercase tracking-[0.22em] transition hover:border-black"
                           >
                             {copiedTrackingId ===
                             matchingOrderId
@@ -966,7 +966,7 @@ export default function TrackOrderClient({
                             matchingOrder
                           )
                         }
-                        className="shrink-0 bg-black px-5 py-4 text-[10px] uppercase tracking-[0.24em] text-[#f1ece4] transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="shrink-0 bg-black px-5 py-4 text-[11px] uppercase tracking-[0.24em] text-[#f1ece4] transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {loadingOrderId ===
                         matchingOrderId
@@ -1016,7 +1016,7 @@ export default function TrackOrderClient({
                               recentOrderId
                             )
                           }
-                          className="border border-black/20 px-3 py-2 text-[10px] uppercase tracking-[0.22em] transition hover:border-black"
+                          className="border border-black/20 px-3 py-2 text-[11px] uppercase tracking-[0.22em] transition hover:border-black"
                         >
                           {copiedTrackingId ===
                           recentOrderId
@@ -1069,7 +1069,7 @@ export default function TrackOrderClient({
               <button
                 type="button"
                 onClick={handleNewSearch}
-                className="self-start text-[10px] uppercase tracking-[0.24em] text-neutral-500 transition hover:text-black"
+                className="self-start text-[11px] uppercase tracking-[0.24em] text-neutral-500 transition hover:text-black"
               >
                 Track Another Order
               </button>
@@ -1096,7 +1096,7 @@ export default function TrackOrderClient({
                         order.orderId
                       )
                     }
-                    className="border border-black/20 px-3 py-2 text-[10px] uppercase tracking-[0.22em] transition hover:border-black"
+                    className="border border-black/20 px-3 py-2 text-[11px] uppercase tracking-[0.22em] transition hover:border-black"
                   >
                     {copiedTrackingId ===
                     cleanText(
@@ -1275,7 +1275,7 @@ export default function TrackOrderClient({
                       }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-4 inline-flex border border-black px-5 py-3 text-[10px] uppercase tracking-[0.24em] transition hover:bg-black hover:text-[#f1ece4]"
+                      className="mt-4 inline-flex border border-black px-5 py-3 text-[11px] uppercase tracking-[0.24em] transition hover:bg-black hover:text-[#f1ece4]"
                     >
                       Track With Courier
                     </a>

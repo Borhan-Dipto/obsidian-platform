@@ -51,7 +51,7 @@ export function ToastProvider({ children }) {
             </div>
 
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-[#d7bea0]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-[#d7bea0]">
                 {toast.title}
               </p>
 
@@ -65,7 +65,7 @@ export function ToastProvider({ children }) {
                 <Link
                   href={toast.actionHref}
                   onClick={hideToast}
-                  className="mt-4 inline-block text-[10px] font-semibold uppercase tracking-[0.28em] text-[#f1ece4] transition hover:text-[#d7bea0]"
+                  className="mt-4 inline-block text-[11px] font-semibold uppercase tracking-[0.28em] text-[#f1ece4] transition hover:text-[#d7bea0]"
                 >
                   {toast.actionLabel} →
                 </Link>

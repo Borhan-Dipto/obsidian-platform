@@ -1,4 +1,4 @@
-import Image from "next/image";
+import FramedImage from "../ui/FramedImage";
 import Link from "next/link";
 import Reveal from "../ui/Reveal";
 
@@ -95,18 +95,17 @@ export default function RelatedProducts({ currentProductId }) {
               className="obsidian-product-card group block h-full overflow-hidden border border-black/10 bg-[#eee7dd] transition duration-500 hover:-translate-y-1 hover:border-black/25 hover:shadow-2xl hover:shadow-black/10"
             >
               <div className="relative aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
-                <Image
+                <FramedImage
                   src={getProductImage(product)}
                   alt={product.name}
-                  fill
                   priority={index === 0}
                   sizes="(max-width: 767px) 100vw, (max-width: 1279px) 50vw, 33vw"
-                  className="object-cover object-center transition-transform duration-1000 ease-out will-change-transform group-hover:scale-105"
+                  imageClassName=" transition-transform duration-1000 ease-out will-change-transform group-hover:scale-105"
                 />
 
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent opacity-0 transition duration-500 group-hover:opacity-100" />
 
-                <div className="absolute bottom-4 right-4 translate-y-2 border border-[#f1ece4]/20 bg-black/45 px-4 py-3 text-[9px] uppercase tracking-[0.26em] text-[#f1ece4] opacity-0 backdrop-blur-md transition duration-500 group-hover:translate-y-0 group-hover:opacity-100">
+                <div className="absolute bottom-4 right-4 translate-y-2 border border-[#f1ece4]/20 bg-black/45 px-4 py-3 text-[11px] uppercase tracking-[0.26em] text-[#f1ece4] opacity-0 backdrop-blur-md transition duration-500 group-hover:translate-y-0 group-hover:opacity-100">
                   View Product
                 </div>
               </div>

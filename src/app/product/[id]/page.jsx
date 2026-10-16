@@ -22,7 +22,11 @@ import ProductActions from "../../../components/product/ProductActions";
 import ProductSizeGuide from "../../../components/product/ProductSizeGuide";
 import RelatedProducts from "../../../components/product/RelatedProducts";
 import RecentlyViewedProducts from "../../../components/product/RecentlyViewedProducts";
-import ProductImageZoom from "../../../components/product/ProductImageZoom";
+import ProductGallery from "../../../components/product/ProductGallery";
+import {
+  getProductImages,
+  getStockLabel,
+} from "../../../lib/productImages.js";
 import MetaViewContent from "../../../components/analytics/MetaViewContent";
 import Navbar from "../../../components/layout/Navbar";
 import Footer from "../../../components/layout/Footer";
@@ -244,8 +248,6 @@ export async function generateMetadata({ params }) {
       images: [
         {
           url: productImage,
-          width: 1200,
-          height: 1500,
           alt: productName,
         },
       ],
@@ -344,9 +346,14 @@ export default async function ProductDetailsPage({ params }) {
     fallbackImage
   );
 
-  const productImageUrl = getAbsoluteUrl(
-    productImage,
-    fallbackImage
+  const productImages = getProductImages(product);
+
+  if (productImages.length === 0) {
+    productImages.push(productImage);
+  }
+
+  const productImageUrls = productImages.map((image) =>
+    getAbsoluteUrl(image, fallbackImage)
   );
 
   const productPath = createProductPath(product.id);
@@ -370,15 +377,7 @@ export default async function ProductDetailsPage({ params }) {
     "en-BD"
   );
 
-  const availableText = replaceTemplate(
-    cleanText(
-      content.availableTemplate,
-      "{stock} Available"
-    ),
-    {
-      stock,
-    }
-  );
+  const stockLabel = getStockLabel(stock);
 
   const imageAlt = replaceTemplate(
     cleanText(
@@ -454,7 +453,7 @@ export default async function ProductDetailsPage({ params }) {
     "@id": `${productUrl}#product`,
     name: productName,
     description: productDescription,
-    image: [productImageUrl],
+    image: productImageUrls,
     sku: String(product.id),
     url: productUrl,
 
@@ -556,14 +555,14 @@ export default async function ProductDetailsPage({ params }) {
 
       <Navbar />
 
-      <section className="px-6 pt-32 pb-28 lg:px-10 lg:pt-40 lg:pb-36">
+      <section className="px-6 pt-28 pb-28 lg:px-10 lg:pt-40 lg:pb-36">
         <div className="mx-auto max-w-[1440px]">
           <nav
             aria-label={cleanText(
               content.breadcrumbAriaLabel,
               "Breadcrumb"
             )}
-            className="obsidian-product-breadcrumb mb-10 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.28em] text-neutral-500"
+            className="obsidian-product-breadcrumb mb-6 flex flex-wrap items-center gap-3 text-[11px] uppercase lg:mb-10 tracking-[0.28em] text-neutral-500"
           >
             <Link
               href="/"
@@ -597,20 +596,20 @@ export default async function ProductDetailsPage({ params }) {
             </span>
           </nav>
 
-          <div className="grid gap-14 lg:grid-cols-[1.1fr_0.9fr] lg:gap-20">
+          <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-20">
             <div className="obsidian-product-media-column space-y-6">
-              <ProductImageZoom
-                src={productImage}
+              <ProductGallery
+                images={productImages}
                 alt={imageAlt}
               />
             </div>
 
             <div className="obsidian-product-info-column lg:sticky lg:top-32 lg:self-start">
-              <p className="mb-5 text-xs uppercase tracking-[0.4em] text-neutral-500">
+              <p className="mb-4 text-xs uppercase tracking-[0.4em] text-neutral-500 lg:mb-5">
                 {productSeries}
               </p>
 
-              <h1 className="font-heading text-6xl font-light leading-none md:text-8xl">
+              <h1 className="font-heading text-5xl font-light leading-none sm:text-6xl md:text-8xl">
                 {productName}
               </h1>
 
@@ -618,6 +617,22 @@ export default async function ProductDetailsPage({ params }) {
                 {currencySymbol}{" "}
                 {price.toLocaleString(currencyLocale)}
               </p>
+
+              <ProductActions
+                product={product}
+                productName={productName}
+                productImage={productImage}
+              />
+
+              {featureHighlights.length > 0 && (
+                <div className="mt-10 grid gap-3 border-t border-black/10 pt-8 text-sm text-neutral-600 sm:grid-cols-2">
+                  {featureHighlights.map((item) => (
+                    <p key={item.id}>
+                      ✓ {cleanText(item.text)}
+                    </p>
+                  ))}
+                </div>
+              )}
 
               <p className="mt-8 max-w-xl text-base leading-8 text-neutral-600">
                 {productDescription}
@@ -644,7 +659,7 @@ export default async function ProductDetailsPage({ params }) {
                   </span>
 
                   {isInStock ? (
-                    <span>{availableText}</span>
+                    <span>{stockLabel.text}</span>
                   ) : (
                     <span className="text-red-700">
                       {cleanText(
@@ -705,20 +720,10 @@ export default async function ProductDetailsPage({ params }) {
                 ) : null}
               </div>
 
-              <ProductActions product={product} />
-
-              {featureHighlights.length > 0 && (
-                <div className="mt-10 grid gap-3 border-t border-black/10 pt-8 text-sm text-neutral-600 sm:grid-cols-2">
-                  {featureHighlights.map((item) => (
-                    <p key={item.id}>
-                      ✓ {cleanText(item.text)}
-                    </p>
-                  ))}
-                </div>
-              )}
-
               <div className="mt-12 space-y-7 border-t border-black/10 pt-8">
-                <div>
+                {/* Generic copy only when the owner has not entered fabric facts. */}
+                {detailRows.length === 0 ? (
+                  <div>
                   <h2 className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">
                     {cleanText(
                       content.productDetailsTitle,
@@ -736,6 +741,7 @@ export default async function ProductDetailsPage({ params }) {
                     )}
                   </p>
                 </div>
+                ) : null}
 
                 <div>
                   <h2 className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500">

@@ -84,7 +84,7 @@ export default function GlobalLoading() {
 
           <div className="mt-12 flex items-center justify-center gap-3">
             <span className="h-2 w-2 obsidian-loading-pulse rounded-full bg-[#0b0b0b]" />
-            <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-neutral-500">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-neutral-500">
               Loading Obsidian
             </p>
           </div>

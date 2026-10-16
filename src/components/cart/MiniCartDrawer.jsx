@@ -1,6 +1,7 @@
 "use client";
 
-import Image from "next/image";
+import { getStockLabel } from "../../lib/productImages";
+import FramedImage from "../ui/FramedImage";
 import Link from "next/link";
 
 import {
@@ -200,7 +201,7 @@ export default function MiniCartDrawer() {
       <aside className="absolute right-0 top-0 flex h-full w-full max-w-[460px] animate-[miniCartSlideIn_420ms_cubic-bezier(0.16,1,0.3,1)_both] flex-col bg-[#f1ece4] text-[#0b0b0b] shadow-2xl">
         <div className="flex items-center justify-between border-b border-black/10 px-6 py-6">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.35em] text-neutral-500">
+            <p className="text-[11px] uppercase tracking-[0.35em] text-neutral-500">
               Shopping Bag
             </p>
 
@@ -230,7 +231,7 @@ export default function MiniCartDrawer() {
           <div
             role="status"
             aria-live="polite"
-            className="border-b border-black/10 bg-[#eee7dd] px-6 py-3 text-[9px] uppercase tracking-[0.24em] text-neutral-500"
+            className="border-b border-black/10 bg-[#eee7dd] px-6 py-3 text-[11px] uppercase tracking-[0.24em] text-neutral-500"
           >
             Checking current stock and prices…
           </div>
@@ -239,7 +240,7 @@ export default function MiniCartDrawer() {
         {cartItems.length ===
         0 ? (
           <div className="flex flex-1 flex-col justify-center px-6">
-            <p className="text-[10px] uppercase tracking-[0.35em] text-neutral-500">
+            <p className="text-[11px] uppercase tracking-[0.35em] text-neutral-500">
               Empty Bag
             </p>
 
@@ -299,7 +300,7 @@ export default function MiniCartDrawer() {
                           className="relative block aspect-[4/5] overflow-hidden bg-[#0b0b0b]"
                           aria-label={`View ${item.name}`}
                         >
-                          <Image
+                          <FramedImage
                             src={getSafeImage(
                               item.image
                             )}
@@ -307,14 +308,13 @@ export default function MiniCartDrawer() {
                               item.name ||
                               "Obsidian product"
                             }
-                            fill
                             sizes="92px"
-                            className="object-cover object-center transition-transform duration-700 hover:scale-105"
+                            imageClassName=" transition-transform duration-700 hover:scale-105"
                           />
                         </Link>
 
                         <div>
-                          <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-500">
+                          <p className="text-[11px] uppercase tracking-[0.25em] text-neutral-500">
                             {item.series ||
                               "Obsidian"}
                           </p>
@@ -353,10 +353,7 @@ export default function MiniCartDrawer() {
                             </p>
 
                             <p>
-                              Stock:{" "}
-                              {stock > 0
-                                ? `${stock} available`
-                                : "Out of stock"}
+                              {getStockLabel(stock).text}
                             </p>
 
                             <p className="pt-1 font-medium text-[#0b0b0b]">
@@ -369,7 +366,7 @@ export default function MiniCartDrawer() {
 
                           {stock > 0 &&
                           stock <= 5 ? (
-                            <p className="mt-3 w-fit bg-black px-3 py-1.5 text-[8px] uppercase tracking-[0.2em] text-[#f1ece4]">
+                            <p className="mt-3 w-fit bg-black px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] text-[#f1ece4]">
                               Only{" "}
                               {
                                 stock
@@ -385,7 +382,7 @@ export default function MiniCartDrawer() {
                                 item
                               )
                             }
-                            className="mt-4 text-[10px] uppercase tracking-[0.24em] text-neutral-500 transition hover:text-red-700"
+                            className="mt-4 text-[11px] uppercase tracking-[0.24em] text-neutral-500 transition hover:text-red-700"
                           >
                             Remove
                           </button>

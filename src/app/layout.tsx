@@ -5,6 +5,8 @@ import {
 } from "next/font/google";
 import AppProviders from "../providers/AppProviders";
 import MetaPixel from "../components/analytics/MetaPixel";
+import FloatingWhatsApp from "../components/layout/FloatingWhatsApp";
+import { cache } from "react";
 import {
   DEFAULT_SETTINGS,
   getSettings,
@@ -101,7 +103,7 @@ function getSearchConsoleVerification(): Pick<Metadata, "verification"> {
     : {};
 }
 
-async function getMetadataSettings() {
+const getMetadataSettings = cache(async function getMetadataSettings() {
   try {
     return await getSettings();
   } catch (error) {
@@ -112,7 +114,7 @@ async function getMetadataSettings() {
 
     return DEFAULT_SETTINGS;
   }
-}
+});
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getMetadataSettings();
@@ -267,11 +269,13 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const settings = await getMetadataSettings();
+
   return (
     <html
       lang="en-BD"
@@ -282,6 +286,11 @@ export default function RootLayout({
         <AppProviders>
           {children}
         </AppProviders>
+
+        <FloatingWhatsApp
+          whatsappNumber={settings.contact?.whatsappNumber || ""}
+          storeName={settings.store?.name || "OBSIDIAN"}
+        />
 
         <MetaPixel />
       </body>

@@ -310,11 +310,11 @@ function JournalCard({ post, index }) {
     <>
       <div>
         <div className="flex items-center justify-between gap-5">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-500">
+          <p className="text-[11px] uppercase tracking-[0.3em] text-neutral-500">
             {category}
           </p>
 
-          <span className="text-[10px] uppercase tracking-[0.25em] text-neutral-400">
+          <span className="text-[11px] uppercase tracking-[0.25em] text-neutral-400">
             {String(index + 1).padStart(
               2,
               "0"
@@ -332,7 +332,7 @@ function JournalCard({ post, index }) {
       </div>
 
       <div className="mt-12 flex items-center justify-between border-t border-black/10 pt-5">
-        <p className="text-[10px] uppercase tracking-[0.27em] text-neutral-500">
+        <p className="text-[11px] uppercase tracking-[0.27em] text-neutral-500">
           {readingTime}
         </p>
 
@@ -667,7 +667,7 @@ export default async function JournalPage() {
         <div className="container-custom">
           <nav
             aria-label="Breadcrumb"
-            className="mb-12 flex items-center gap-3 text-[10px] uppercase tracking-[0.28em] text-neutral-500"
+            className="mb-12 flex items-center gap-3 text-[11px] uppercase tracking-[0.28em] text-neutral-500"
           >
             <Link
               href="/"
@@ -728,7 +728,7 @@ export default async function JournalPage() {
           ) : (
             <div className="mt-20 border border-black/10 bg-[#eee7dd] p-8 md:p-12">
               {emptyStateEyebrow ? (
-                <p className="text-[10px] uppercase tracking-[0.35em] text-neutral-500">
+                <p className="text-[11px] uppercase tracking-[0.35em] text-neutral-500">
                   {emptyStateEyebrow}
                 </p>
               ) : null}

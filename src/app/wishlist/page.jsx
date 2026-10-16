@@ -110,13 +110,13 @@ export default function WishlistPage() {
                         />
 
                         {stock <= 0 && (
-                          <div className="absolute left-4 top-4 z-10 bg-[#0b0b0b] px-4 py-2 text-[10px] uppercase tracking-[0.28em] text-[#f1ece4]">
+                          <div className="absolute left-4 top-4 z-10 bg-[#0b0b0b] px-4 py-2 text-[11px] uppercase tracking-[0.28em] text-[#f1ece4]">
                             Sold Out
                           </div>
                         )}
 
                         {stock > 0 && stock <= 5 && (
-                          <div className="absolute left-4 top-4 z-10 border border-[#f1ece4]/20 bg-black/45 px-4 py-2 text-[9px] uppercase tracking-[0.25em] text-[#f1ece4] backdrop-blur-md">
+                          <div className="absolute left-4 top-4 z-10 border border-[#f1ece4]/20 bg-black/45 px-4 py-2 text-[11px] uppercase tracking-[0.25em] text-[#f1ece4] backdrop-blur-md">
                             Only {stock} Left
                           </div>
                         )}

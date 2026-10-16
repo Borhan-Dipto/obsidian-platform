@@ -593,7 +593,7 @@ function PrintableReceipt({
       <div className="mx-auto max-w-[900px]">
         <header className="flex items-start justify-between gap-8 border-b border-black/15 pb-7">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-500">
+            <p className="text-[11px] uppercase tracking-[0.3em] text-neutral-500">
               Official Order Receipt
             </p>
 
@@ -603,7 +603,7 @@ function PrintableReceipt({
           </div>
 
           <div className="text-right">
-            <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-500">
+            <p className="text-[11px] uppercase tracking-[0.25em] text-neutral-500">
               Order ID
             </p>
 
@@ -619,7 +619,7 @@ function PrintableReceipt({
 
         <div className="grid grid-cols-2 gap-10 border-b border-black/15 py-7">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-500">
+            <p className="text-[11px] uppercase tracking-[0.25em] text-neutral-500">
               Customer
             </p>
 
@@ -646,7 +646,7 @@ function PrintableReceipt({
           </div>
 
           <div>
-            <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-500">
+            <p className="text-[11px] uppercase tracking-[0.25em] text-neutral-500">
               Order Information
             </p>
 
@@ -680,7 +680,7 @@ function PrintableReceipt({
 
         <table className="mt-7 w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b border-black/20 text-left text-[10px] uppercase tracking-[0.2em] text-neutral-500">
+            <tr className="border-b border-black/20 text-left text-[11px] uppercase tracking-[0.2em] text-neutral-500">
               <th className="py-4">
                 Product
               </th>
@@ -1258,7 +1258,7 @@ function SuccessContent() {
                           ? "Tracking ID copied"
                           : "Copy Tracking ID"
                       }
-                      className="shrink-0 border border-black/20 px-4 py-3 text-[10px] uppercase tracking-[0.24em] transition hover:border-black"
+                      className="shrink-0 border border-black/20 px-4 py-3 text-[11px] uppercase tracking-[0.24em] transition hover:border-black"
                     >
                       {isOrderIdCopied
                         ? "Copied"
@@ -1304,7 +1304,7 @@ function SuccessContent() {
                             )}
 
                             <div className="min-w-0 flex-1">
-                              <p className="text-[10px] uppercase tracking-[0.24em] text-neutral-500">
+                              <p className="text-[11px] uppercase tracking-[0.24em] text-neutral-500">
                                 {item.series}
                               </p>
 

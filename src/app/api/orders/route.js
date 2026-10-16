@@ -216,12 +216,12 @@ function validateCustomer(
     );
   }
 
+  /* Bangladeshi mobile: 01[3-9]XXXXXXXX, optional 88 prefix. */
   if (
-    phone.length < 10 ||
-    phone.length > 14
+    !/^(?:88)?01[3-9]\d{8}$/.test(phone)
   ) {
     throw new OrderPricingError(
-      "Please provide a valid phone number.",
+      "Please provide a valid Bangladeshi mobile number, e.g. 01712345678.",
       {
         status: 400,
         code:

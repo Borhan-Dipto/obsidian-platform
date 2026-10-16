@@ -1,3 +1,4 @@
+import { getStockLabel } from "../../lib/productImages";
 import Image from "next/image";
 import Link from "next/link";
 import clientPromise from "../../lib/mongodb";
@@ -235,9 +236,7 @@ export default async function FeaturedProduct({
 
   if (showStock) {
     metaItems.push(
-      stock > 0
-        ? `${stock} In Stock`
-        : "Out of Stock"
+      getStockLabel(stock).text
     );
   }
 
@@ -271,7 +270,7 @@ export default async function FeaturedProduct({
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-50" />
 
             {!databaseProduct ? (
-              <div className="absolute left-5 top-5 border border-white/15 bg-black/45 px-4 py-2 text-[9px] uppercase tracking-[0.25em] text-[#f1ece4] backdrop-blur-md">
+              <div className="absolute left-5 top-5 border border-white/15 bg-black/45 px-4 py-2 text-[11px] uppercase tracking-[0.25em] text-[#f1ece4] backdrop-blur-md">
                 Preview
               </div>
             ) : null}

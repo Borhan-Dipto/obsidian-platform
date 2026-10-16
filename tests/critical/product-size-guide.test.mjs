@@ -78,7 +78,7 @@ test(
 
     assert.match(
       page,
-      /<ProductActions product=\{product\} \/>/
+      /<ProductActions\s+product=\{product\}/
     );
 
     assert.match(

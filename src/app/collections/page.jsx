@@ -919,7 +919,7 @@ export default async function CollectionsPage() {
             aria-label="Breadcrumb"
             variant="fade-in"
             duration={700}
-            className="mb-9 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-neutral-500 sm:mb-10 sm:tracking-[0.28em]"
+            className="mb-9 flex flex-wrap items-center gap-3 text-[11px] uppercase tracking-[0.25em] text-neutral-500 sm:mb-10 sm:tracking-[0.28em]"
           >
             <Link
               href="/"
@@ -948,7 +948,7 @@ export default async function CollectionsPage() {
             className="mb-12 border-b border-black/10 pb-9 sm:mb-14 sm:pb-10"
           >
             {eyebrow ? (
-              <p className="mb-5 text-[10px] uppercase tracking-[0.38em] text-neutral-500 sm:text-xs sm:tracking-[0.45em]">
+              <p className="mb-5 text-[11px] uppercase tracking-[0.38em] text-neutral-500 sm:text-xs sm:tracking-[0.45em]">
                 {eyebrow}
               </p>
             ) : null}
@@ -970,7 +970,7 @@ export default async function CollectionsPage() {
 
             {showCollectionCount ||
             metaLabel ? (
-              <div className="mt-7 flex flex-wrap items-center gap-4 text-[9px] uppercase tracking-[0.24em] text-neutral-500 sm:mt-8 sm:text-[10px] sm:tracking-[0.28em]">
+              <div className="mt-7 flex flex-wrap items-center gap-4 text-[11px] uppercase tracking-[0.24em] text-neutral-500 sm:mt-8 sm:text-[11px] sm:tracking-[0.28em]">
                 {showCollectionCount ? (
                   <span>
                     {collections.length}{" "}
@@ -1026,7 +1026,7 @@ export default async function CollectionsPage() {
                   href={
                     emptyStateButtonHref
                   }
-                  className="mt-9 inline-flex min-h-12 items-center justify-center border border-[#0b0b0b] px-7 py-3 text-center text-[10px] uppercase tracking-[0.26em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:ring-offset-4 focus-visible:ring-offset-[#f1ece4] sm:mt-10 sm:px-8 sm:text-xs sm:tracking-[0.3em]"
+                  className="mt-9 inline-flex min-h-12 items-center justify-center border border-[#0b0b0b] px-7 py-3 text-center text-[11px] uppercase tracking-[0.26em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:ring-offset-4 focus-visible:ring-offset-[#f1ece4] sm:mt-10 sm:px-8 sm:text-xs sm:tracking-[0.3em]"
                 >
                   {emptyStateButtonText}
                 </Link>
@@ -1101,7 +1101,7 @@ export default async function CollectionsPage() {
 
                           <div className="absolute left-4 right-4 top-4 flex flex-wrap items-center gap-2 sm:left-5 sm:right-5 sm:top-5 sm:gap-3">
                             {showSeriesIndex ? (
-                              <span className="border border-[#f1ece4]/20 bg-black/45 px-3 py-2 text-[8px] uppercase tracking-[0.22em] text-[#f1ece4] backdrop-blur-md sm:px-4 sm:text-[9px] sm:tracking-[0.25em]">
+                              <span className="border border-[#f1ece4]/20 bg-black/45 px-3 py-2 text-[11px] uppercase tracking-[0.22em] text-[#f1ece4] backdrop-blur-md sm:px-4 sm:text-[11px] sm:tracking-[0.25em]">
                                 {seriesLabelPrefix}{" "}
                                 {seriesNumber}
                               </span>
@@ -1109,7 +1109,7 @@ export default async function CollectionsPage() {
 
                             {showFeaturedBadge &&
                             collection.isFeatured ? (
-                              <span className="border border-[#f1ece4]/20 bg-[#f1ece4]/90 px-3 py-2 text-[8px] uppercase tracking-[0.22em] text-[#0b0b0b] backdrop-blur-md sm:px-4 sm:text-[9px] sm:tracking-[0.25em]">
+                              <span className="border border-[#f1ece4]/20 bg-[#f1ece4]/90 px-3 py-2 text-[11px] uppercase tracking-[0.22em] text-[#0b0b0b] backdrop-blur-md sm:px-4 sm:text-[11px] sm:tracking-[0.25em]">
                                 {
                                   featuredBadgeText
                                 }
@@ -1119,7 +1119,7 @@ export default async function CollectionsPage() {
 
                           {cardHoverButtonText ? (
                             <div className="absolute inset-x-4 bottom-4 flex translate-y-0 items-center justify-between gap-4 opacity-100 transition duration-500 sm:inset-x-5 sm:bottom-5 md:translate-y-2 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:group-focus-visible:translate-y-0 md:group-focus-visible:opacity-100">
-                              <span className="border border-[#f1ece4]/20 bg-black/50 px-3 py-3 text-[8px] uppercase tracking-[0.23em] text-[#f1ece4] backdrop-blur-md sm:px-4 sm:text-[9px] sm:tracking-[0.27em]">
+                              <span className="border border-[#f1ece4]/20 bg-black/50 px-3 py-3 text-[11px] uppercase tracking-[0.23em] text-[#f1ece4] backdrop-blur-md sm:px-4 sm:text-[11px] sm:tracking-[0.27em]">
                                 {
                                   cardHoverButtonText
                                 }
@@ -1137,12 +1137,12 @@ export default async function CollectionsPage() {
 
                         <div className="p-6 sm:p-7">
                           <div className="mb-4 flex items-center justify-between gap-4">
-                            <p className="min-w-0 truncate text-[10px] uppercase tracking-[0.22em] text-neutral-500 sm:text-xs sm:tracking-[0.25em]">
+                            <p className="min-w-0 truncate text-[11px] uppercase tracking-[0.22em] text-neutral-500 sm:text-xs sm:tracking-[0.25em]">
                               {series}
                             </p>
 
                             {showSeriesIndex ? (
-                              <span className="shrink-0 text-[9px] uppercase tracking-[0.22em] text-neutral-400 sm:text-[10px] sm:tracking-[0.24em]">
+                              <span className="shrink-0 text-[11px] uppercase tracking-[0.22em] text-neutral-400 sm:text-[11px] sm:tracking-[0.24em]">
                                 {seriesNumber}
                               </span>
                             ) : null}
@@ -1163,7 +1163,7 @@ export default async function CollectionsPage() {
 
                           {cardFooterText ? (
                             <div className="mt-7 flex items-center justify-between gap-4 border-t border-black/10 pt-5">
-                              <span className="text-[10px] uppercase tracking-[0.24em] text-neutral-500 sm:text-xs sm:tracking-[0.28em]">
+                              <span className="text-[11px] uppercase tracking-[0.24em] text-neutral-500 sm:text-xs sm:tracking-[0.28em]">
                                 {
                                   cardFooterText
                                 }

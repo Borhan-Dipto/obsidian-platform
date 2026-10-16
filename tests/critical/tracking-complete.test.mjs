@@ -404,7 +404,7 @@ test("catalog CSV escapes quotes, commas and formula injection", () => {
   const lines = csv.trim().split("\n");
 
   assert.equal(lines.length, 2);
-  assert.match(lines[0], /^id,title,description,availability,condition,price,link,image_link,brand/);
+  assert.match(lines[0], /^id,title,description,availability,condition,price,link,image_link,additional_image_link,brand/);
   assert.match(lines[1], /^a,"A, tee",/);
   assert.match(lines[1], /https:\/\/obsidianwearbd\.store\/a\.jpg/);
 });

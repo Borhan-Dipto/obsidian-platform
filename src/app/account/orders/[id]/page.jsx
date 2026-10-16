@@ -500,7 +500,7 @@ function ErrorState({ message, onRetry }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#eee7dc] px-5">
       <section className="w-full max-w-xl rounded-[34px] border border-black/10 bg-[#f7f3eb] px-7 py-14 text-center shadow-[0_30px_90px_rgba(35,25,15,0.1)]">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-black/40">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-black/40">
           Order unavailable
         </p>
 
@@ -514,7 +514,7 @@ function ErrorState({ message, onRetry }) {
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <button
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#171717] px-6 text-[10px] font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-black"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#171717] px-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-black"
             onClick={onRetry}
             type="button"
           >
@@ -523,7 +523,7 @@ function ErrorState({ message, onRetry }) {
           </button>
 
           <Link
-            className="inline-flex min-h-12 items-center justify-center rounded-full border border-black/15 px-6 text-[10px] font-semibold uppercase tracking-[0.18em] text-black transition hover:border-black hover:bg-black hover:text-white"
+            className="inline-flex min-h-12 items-center justify-center rounded-full border border-black/15 px-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-black transition hover:border-black hover:bg-black hover:text-white"
             href="/account/orders"
           >
             Back to Orders
@@ -543,7 +543,7 @@ function StatusTimeline({ order }) {
   if (currentStatus === "cancelled") {
     return (
       <section className="rounded-[30px] border border-rose-200 bg-rose-50 p-7 sm:p-8">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-rose-700/60">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-rose-700/60">
           Order Status
         </p>
 
@@ -569,7 +569,7 @@ function StatusTimeline({ order }) {
     <section className="rounded-[30px] border border-black/10 bg-[#f7f3eb] p-6 shadow-[0_20px_60px_rgba(34,26,18,0.05)] sm:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-black/40">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-black/40">
             Delivery Progress
           </p>
 
@@ -845,7 +845,7 @@ export default function AccountOrderDetailsPage() {
         <div className="relative mx-auto max-w-[1440px] px-5 pb-16 pt-7 sm:px-8 lg:px-12 lg:pb-20">
           <nav className="flex items-center justify-between gap-4">
             <Link
-              className="group inline-flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/55 transition hover:text-white"
+              className="group inline-flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/55 transition hover:text-white"
               href="/account/orders"
             >
               <span className="grid h-10 w-10 place-items-center rounded-full border border-white/15 transition group-hover:border-white/30 group-hover:bg-white/[0.06]">
@@ -883,7 +883,7 @@ export default function AccountOrderDetailsPage() {
 
           <div className="mt-16 grid gap-10 lg:mt-20 lg:grid-cols-[1fr_360px] lg:items-end">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#c9b18d]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#c9b18d]">
                 Order Dossier
               </p>
 
@@ -893,7 +893,7 @@ export default function AccountOrderDetailsPage() {
 
               <div className="mt-6 flex flex-wrap items-center gap-3">
                 <span
-                  className={`rounded-full border px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.17em] ${statusDetails.className}`}
+                  className={`rounded-full border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.17em] ${statusDetails.className}`}
                 >
                   {statusDetails.label}
                 </span>
@@ -909,7 +909,7 @@ export default function AccountOrderDetailsPage() {
             </div>
 
             <div className="rounded-[28px] border border-white/10 bg-white/[0.045] p-6 backdrop-blur-xl">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/35">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">
                 Order Total
               </p>
 
@@ -919,7 +919,7 @@ export default function AccountOrderDetailsPage() {
 
               <div className="mt-6 grid grid-cols-2 gap-4 border-t border-white/10 pt-5">
                 <div>
-                  <p className="text-[9px] uppercase tracking-[0.18em] text-white/30">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/30">
                     Pieces
                   </p>
 
@@ -929,7 +929,7 @@ export default function AccountOrderDetailsPage() {
                 </div>
 
                 <div>
-                  <p className="text-[9px] uppercase tracking-[0.18em] text-white/30">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/30">
                     Payment
                   </p>
 
@@ -953,7 +953,7 @@ export default function AccountOrderDetailsPage() {
             <section className="rounded-[30px] border border-black/10 bg-[#f7f3eb] p-6 shadow-[0_20px_60px_rgba(34,26,18,0.05)] sm:p-8">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-black/40">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-black/40">
                     Selected Pieces
                   </p>
 
@@ -1015,7 +1015,7 @@ export default function AccountOrderDetailsPage() {
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-black/40">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-black/40">
                             {item?.series || "OBSIDIAN"}
                           </p>
 
@@ -1052,7 +1052,7 @@ export default function AccountOrderDetailsPage() {
                         </div>
 
                         <div className="border-t border-black/10 pt-4 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0 sm:text-right">
-                          <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/35">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/35">
                             Item Total
                           </p>
 
@@ -1079,7 +1079,7 @@ export default function AccountOrderDetailsPage() {
                   <LocationIcon className="h-5 w-5" />
                 </div>
 
-                <p className="mt-6 text-[10px] font-semibold uppercase tracking-[0.25em] text-black/40">
+                <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.25em] text-black/40">
                   Delivery Address
                 </p>
 
@@ -1105,7 +1105,7 @@ export default function AccountOrderDetailsPage() {
                 </div>
 
                 {order?.customer?.deliveryArea ? (
-                  <span className="mt-5 inline-flex rounded-full border border-black/10 bg-white/45 px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.17em] text-black/50">
+                  <span className="mt-5 inline-flex rounded-full border border-black/10 bg-white/45 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.17em] text-black/50">
                     {formatDeliveryArea(
                       order.customer.deliveryArea
                     )}
@@ -1118,7 +1118,7 @@ export default function AccountOrderDetailsPage() {
                   <WalletIcon className="h-5 w-5" />
                 </div>
 
-                <p className="mt-6 text-[10px] font-semibold uppercase tracking-[0.25em] text-black/40">
+                <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.25em] text-black/40">
                   Payment Details
                 </p>
 
@@ -1184,7 +1184,7 @@ export default function AccountOrderDetailsPage() {
 
             {order?.customer?.note ? (
               <section className="rounded-[30px] border border-black/10 bg-[#e7ddcd] p-6 sm:p-8">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-black/40">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-black/40">
                   Customer Note
                 </p>
 
@@ -1198,7 +1198,7 @@ export default function AccountOrderDetailsPage() {
               <section className="rounded-[30px] bg-[#171717] p-6 text-[#f7f0e4] shadow-[0_24px_70px_rgba(0,0,0,0.14)] sm:p-8">
                 <div className="flex items-start justify-between gap-5">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#c9b18d]">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#c9b18d]">
                       Courier Information
                     </p>
 
@@ -1215,7 +1215,7 @@ export default function AccountOrderDetailsPage() {
                 <div className="mt-7 grid gap-4 sm:grid-cols-2">
                   {courier.name ? (
                     <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4">
-                      <p className="text-[9px] uppercase tracking-[0.18em] text-white/35">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-white/35">
                         Courier
                       </p>
 
@@ -1227,7 +1227,7 @@ export default function AccountOrderDetailsPage() {
 
                   {courier.trackingNumber ? (
                     <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4">
-                      <p className="text-[9px] uppercase tracking-[0.18em] text-white/35">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-white/35">
                         Tracking Number
                       </p>
 
@@ -1239,7 +1239,7 @@ export default function AccountOrderDetailsPage() {
 
                   {courier.bookingDate ? (
                     <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4">
-                      <p className="text-[9px] uppercase tracking-[0.18em] text-white/35">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-white/35">
                         Booking Date
                       </p>
 
@@ -1253,7 +1253,7 @@ export default function AccountOrderDetailsPage() {
 
                   {courier.estimatedDelivery ? (
                     <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4">
-                      <p className="text-[9px] uppercase tracking-[0.18em] text-white/35">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-white/35">
                         Estimated Delivery
                       </p>
 
@@ -1274,7 +1274,7 @@ export default function AccountOrderDetailsPage() {
 
                 {courier.trackingUrl ? (
                   <a
-                    className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#f3eadb] px-6 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#171717] transition hover:bg-white"
+                    className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#f3eadb] px-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#171717] transition hover:bg-white"
                     href={courier.trackingUrl}
                     rel="noopener noreferrer"
                     target="_blank"
@@ -1290,7 +1290,7 @@ export default function AccountOrderDetailsPage() {
           <aside className="space-y-6 xl:sticky xl:top-6 xl:self-start">
             <section className="overflow-hidden rounded-[30px] bg-[#171717] text-[#f7f0e4] shadow-[0_28px_85px_rgba(0,0,0,0.18)]">
               <div className="border-b border-white/10 p-6 sm:p-7">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/35">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-white/35">
                   Order Summary
                 </p>
 
@@ -1356,7 +1356,7 @@ export default function AccountOrderDetailsPage() {
             </section>
 
             <section className="rounded-[30px] border border-black/10 bg-[#f7f3eb] p-6 shadow-[0_20px_60px_rgba(34,26,18,0.05)] sm:p-7">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-black/40">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-black/40">
                 Order Information
               </p>
 
@@ -1404,7 +1404,7 @@ export default function AccountOrderDetailsPage() {
             </section>
 
             <section className="rounded-[30px] border border-black/10 bg-[#e7ddcd] p-6 sm:p-7">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-black/40">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-black/40">
                 Need Assistance?
               </p>
 
@@ -1419,7 +1419,7 @@ export default function AccountOrderDetailsPage() {
 
               <div className="mt-7 flex flex-col gap-3">
                 <Link
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#171717] px-5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-black"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#171717] px-5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-black"
                   href={`/track-order?orderId=${encodeURIComponent(
                     order.orderId
                   )}`}
@@ -1429,7 +1429,7 @@ export default function AccountOrderDetailsPage() {
                 </Link>
 
                 <Link
-                  className="inline-flex min-h-12 items-center justify-center rounded-full border border-black/15 px-5 text-[10px] font-semibold uppercase tracking-[0.18em] text-black transition hover:border-black hover:bg-black hover:text-white"
+                  className="inline-flex min-h-12 items-center justify-center rounded-full border border-black/15 px-5 text-[11px] font-semibold uppercase tracking-[0.18em] text-black transition hover:border-black hover:bg-black hover:text-white"
                   href="/contact"
                 >
                   Contact Support
@@ -1442,7 +1442,7 @@ export default function AccountOrderDetailsPage() {
         <section className="mt-14 overflow-hidden rounded-[34px] bg-[#171717] text-[#f7f0e4]">
           <div className="grid lg:grid-cols-[1fr_360px]">
             <div className="p-7 sm:p-10 lg:p-12">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#c9b18d]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#c9b18d]">
                 Continue Your Collection
               </p>
 
@@ -1459,7 +1459,7 @@ export default function AccountOrderDetailsPage() {
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#f3eadb] px-6 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#171717] transition hover:bg-white"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#f3eadb] px-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#171717] transition hover:bg-white"
                   href="/shop"
                 >
                   Explore Collection
@@ -1467,7 +1467,7 @@ export default function AccountOrderDetailsPage() {
                 </Link>
 
                 <Link
-                  className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/15 px-6 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/75 transition hover:border-white/30 hover:bg-white/[0.06] hover:text-white"
+                  className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/15 px-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/75 transition hover:border-white/30 hover:bg-white/[0.06] hover:text-white"
                   href="/account/orders"
                 >
                   All Orders
@@ -1487,7 +1487,7 @@ export default function AccountOrderDetailsPage() {
                   Built under pressure.
                 </p>
 
-                <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/35">
+                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">
                   Finished with precision
                 </p>
               </div>

@@ -17,6 +17,7 @@ export const META_FEED_COLUMNS = [
   "price",
   "link",
   "image_link",
+  "additional_image_link",
   "brand",
   "color",
   "material",
@@ -89,6 +90,15 @@ export function buildMetaFeedRow(product, siteUrl) {
       siteUrl
     ),
     image_link: imageLink,
+    /* Meta accepts up to 20 extra photos, comma-separated. */
+    additional_image_link: (Array.isArray(product?.gallery)
+      ? product.gallery
+      : []
+    )
+      .map((url) => toAbsoluteUrl(cleanText(url, 2000), siteUrl))
+      .filter((url) => url && url !== imageLink)
+      .slice(0, 20)
+      .join(","),
     brand: "OBSIDIAN",
     color: cleanText(product?.color, 100),
     material: cleanText(product?.details?.material, 200),

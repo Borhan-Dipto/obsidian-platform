@@ -237,7 +237,7 @@ export default async function SizeGuidePage() {
                 )}
               </p>
 
-              <p className="mt-5 text-[10px] uppercase tracking-[0.28em] text-neutral-500">
+              <p className="mt-5 text-[11px] uppercase tracking-[0.28em] text-neutral-500">
                 Measurements:{" "}
                 {cleanText(
                   content.measurementUnit,
@@ -263,7 +263,7 @@ export default async function SizeGuidePage() {
                   <tr>
                     <th
                       scope="col"
-                      className="px-6 py-5 text-[10px] font-semibold uppercase tracking-[0.26em]"
+                      className="px-6 py-5 text-[11px] font-semibold uppercase tracking-[0.26em]"
                     >
                       {cleanText(
                         content.sizeColumnLabel,
@@ -273,7 +273,7 @@ export default async function SizeGuidePage() {
 
                     <th
                       scope="col"
-                      className="px-6 py-5 text-[10px] font-semibold uppercase tracking-[0.26em]"
+                      className="px-6 py-5 text-[11px] font-semibold uppercase tracking-[0.26em]"
                     >
                       {cleanText(
                         content.bodyChestColumnLabel,
@@ -283,7 +283,7 @@ export default async function SizeGuidePage() {
 
                     <th
                       scope="col"
-                      className="px-6 py-5 text-[10px] font-semibold uppercase tracking-[0.26em]"
+                      className="px-6 py-5 text-[11px] font-semibold uppercase tracking-[0.26em]"
                     >
                       {cleanText(
                         content.chestColumnLabel,
@@ -293,7 +293,7 @@ export default async function SizeGuidePage() {
 
                     <th
                       scope="col"
-                      className="px-6 py-5 text-[10px] font-semibold uppercase tracking-[0.26em]"
+                      className="px-6 py-5 text-[11px] font-semibold uppercase tracking-[0.26em]"
                     >
                       {cleanText(
                         content.lengthColumnLabel,
@@ -303,7 +303,7 @@ export default async function SizeGuidePage() {
 
                     <th
                       scope="col"
-                      className="px-6 py-5 text-[10px] font-semibold uppercase tracking-[0.26em]"
+                      className="px-6 py-5 text-[11px] font-semibold uppercase tracking-[0.26em]"
                     >
                       {cleanText(
                         content.shoulderColumnLabel,
