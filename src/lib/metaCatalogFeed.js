@@ -19,6 +19,7 @@ export const META_FEED_COLUMNS = [
   "image_link",
   "brand",
   "color",
+  "material",
   "product_type",
   "google_product_category",
 ];
@@ -90,6 +91,7 @@ export function buildMetaFeedRow(product, siteUrl) {
     image_link: imageLink,
     brand: "OBSIDIAN",
     color: cleanText(product?.color, 100),
+    material: cleanText(product?.details?.material, 200),
     product_type: cleanText(product?.series, 750),
     google_product_category: DEFAULT_PRODUCT_CATEGORY,
   };

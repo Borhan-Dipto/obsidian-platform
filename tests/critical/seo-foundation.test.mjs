@@ -118,3 +118,52 @@ test("sitemap lists collection pages using the canonical encoding", () => {
   assert.match(sitemap, /new URLSearchParams\(\{\s*series,?\s*\}\)/);
   assert.match(sitemap, /\.\.\.collectionRoutes/);
 });
+
+test("store policies: delivery lines use settings and never guess charges", async () => {
+  const {
+    buildDeliveryLines,
+    buildMerchantReturnPolicy,
+    RETURN_WINDOW_DAYS,
+  } = await import("../../src/lib/storePolicies.js");
+
+  const lines = buildDeliveryLines({ delivery: { insideDhaka: 90, outsideDhaka: 130 } });
+
+  assert.equal(lines[0].value, "1–3 business days · ৳90");
+  assert.equal(lines[1].value, "3–5 business days · ৳130");
+  assert.match(lines[2].value, /7 days/);
+
+  const noCharges = buildDeliveryLines({});
+
+  assert.equal(noCharges[0].value, "1–3 business days");
+
+  const policy = buildMerchantReturnPolicy("https://example.com/");
+
+  assert.equal(policy["@id"], "https://example.com/#return-policy");
+  assert.equal(policy.merchantReturnDays, RETURN_WINDOW_DAYS);
+  assert.equal(policy.applicableCountry, "BD");
+});
+
+test("product offers reference the global return policy; delivery policy states estimates", () => {
+  assert.match(readSource("src/app/product/[id]/page.jsx"), /#return-policy/);
+  assert.match(readSource("src/app/page.tsx"), /hasMerchantReturnPolicy/);
+  assert.match(readSource("src/lib/legalDefaults.js"), /1–3 business days inside Dhaka/);
+});
+
+test("owner product facts are validated and never invented", async () => {
+  const source = readSource("src/lib/catalog.js");
+
+  assert.match(source, /export function normalizeProductDetails/);
+  assert.match(source, /between 80 and 600/);
+  assert.match(readSource("src/app/product/[id]/page.jsx"), /\.filter\(\(row\) => row\.value\)/);
+});
+
+test("no unowned-domain email remains in the code", () => {
+  for (const file of [
+    "src/components/layout/Footer.jsx",
+    "src/app/contact/page.jsx",
+    "src/components/legal/LegalPolicyPage.jsx",
+    "src/lib/settings.js",
+  ]) {
+    assert.doesNotMatch(readSource(file), /@obsidianwearbd\.store|hello@obsidianwear\.com/, file);
+  }
+});

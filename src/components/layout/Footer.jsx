@@ -202,7 +202,7 @@ const DEFAULT_SETTINGS = {
   contact: {
     whatsappNumber: "",
     email:
-      "contact@obsidianwearbd.store",
+      "obsidianwear.management@gmail.com",
     location: "Dhaka, Bangladesh",
     phone: "",
   },

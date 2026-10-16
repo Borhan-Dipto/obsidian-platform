@@ -13,6 +13,11 @@ import {
 import Link from "next/link";
 import ImageUploader from "./ImageUploader";
 import ProductInventoryFields from "./ProductInventoryFields";
+import ProductDetailsFields, {
+  EMPTY_PRODUCT_DETAILS_FORM,
+  formToProductDetails,
+  productDetailsToForm,
+} from "./ProductDetailsFields";
 
 import {
   OBSIDIAN_SIZE_ORDER,
@@ -64,6 +69,7 @@ export default function EditProductClient() {
     stock: "",
     image: "",
     description: "",
+    ...EMPTY_PRODUCT_DETAILS_FORM,
     inventoryMode: "legacy",
     sizes: [
       ...OBSIDIAN_SIZE_ORDER,
@@ -134,6 +140,10 @@ export default function EditProductClient() {
             product.image || "",
           description:
             product.description || "",
+
+          ...productDetailsToForm(
+            product.details
+          ),
 
           inventoryMode:
             usesSizeInventory
@@ -337,6 +347,8 @@ export default function EditProductClient() {
         formData.color.trim(),
       description:
         formData.description.trim(),
+      details:
+        formToProductDetails(formData),
       price:
         Number(formData.price),
       image:
@@ -600,6 +612,11 @@ export default function EditProductClient() {
             rows={5}
             required
             className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none placeholder:text-neutral-600"
+          />
+
+          <ProductDetailsFields
+            formData={formData}
+            onChange={handleChange}
           />
 
           <button

@@ -13,6 +13,11 @@ import {
   getSizeGuideContent,
 } from "../../../lib/getCmsContent";
 import { normalizeActiveItems } from "../../../lib/cmsDefaults";
+import {
+  DEFAULT_SETTINGS,
+  getSettings,
+} from "../../../lib/settings";
+import { buildDeliveryLines } from "../../../lib/storePolicies";
 import ProductActions from "../../../components/product/ProductActions";
 import ProductSizeGuide from "../../../components/product/ProductSizeGuide";
 import RelatedProducts from "../../../components/product/RelatedProducts";
@@ -390,6 +395,59 @@ export default async function ProductDetailsPage({ params }) {
     content.featureHighlights
   );
 
+  /* Owner-confirmed product facts; empty ones are not shown. */
+  const productDetails =
+    product.details && typeof product.details === "object"
+      ? product.details
+      : {};
+
+  const productGsm = Number(productDetails.gsm);
+
+  const detailRows = [
+    {
+      key: "material",
+      label: "Fabric",
+      value: cleanText(productDetails.material),
+    },
+    {
+      key: "gsm",
+      label: "Fabric Weight",
+      value:
+        Number.isInteger(productGsm) && productGsm > 0
+          ? `${productGsm} GSM`
+          : "",
+    },
+    {
+      key: "fit",
+      label: "Fit",
+      value: cleanText(productDetails.fit),
+    },
+    {
+      key: "print",
+      label: "Print",
+      value: cleanText(productDetails.print),
+    },
+  ].filter((row) => row.value);
+
+  const productCare = cleanText(productDetails.care);
+
+  const storeSettings = await getSettings().catch(
+    () => DEFAULT_SETTINGS
+  );
+
+  const deliveryLines = buildDeliveryLines(
+    storeSettings,
+    currencySymbol
+  );
+
+  const additionalProperty = detailRows
+    .filter((row) => row.key !== "material")
+    .map((row) => ({
+      "@type": "PropertyValue",
+      name: row.label,
+      value: row.value,
+    }));
+
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -408,6 +466,14 @@ export default async function ProductDetailsPage({ params }) {
     category: productSeries,
     color: productColor,
 
+    ...(cleanText(productDetails.material)
+      ? { material: cleanText(productDetails.material) }
+      : {}),
+
+    ...(additionalProperty.length > 0
+      ? { additionalProperty }
+      : {}),
+
     offers: {
       "@type": "Offer",
       url: productUrl,
@@ -419,6 +485,11 @@ export default async function ProductDetailsPage({ params }) {
         : "https://schema.org/OutOfStock",
 
       itemCondition: "https://schema.org/NewCondition",
+
+      /* Global policy published on the Organization markup. */
+      hasMerchantReturnPolicy: {
+        "@id": `${SITE_URL}/#return-policy`,
+      },
 
       seller: {
         "@type": "Organization",
@@ -605,6 +676,33 @@ export default async function ProductDetailsPage({ params }) {
 
                   <span>{product.id}</span>
                 </div>
+
+                {detailRows.map((row) => (
+                  <div
+                    key={row.key}
+                    className="flex justify-between gap-8"
+                  >
+                    <span className="text-neutral-500">
+                      {row.label}
+                    </span>
+
+                    <span className="text-right">
+                      {row.value}
+                    </span>
+                  </div>
+                ))}
+
+                {productCare ? (
+                  <div className="flex justify-between gap-8">
+                    <span className="text-neutral-500">
+                      Care
+                    </span>
+
+                    <span className="max-w-[65%] text-right">
+                      {productCare}
+                    </span>
+                  </div>
+                ) : null}
               </div>
 
               <ProductActions product={product} />
@@ -653,6 +751,23 @@ export default async function ProductDetailsPage({ params }) {
                       "Delivery is available across Bangladesh. Every order is reviewed and confirmed after checkout before dispatch."
                     )}
                   </p>
+
+                  <dl className="mt-4 space-y-2 text-sm">
+                    {deliveryLines.map((line) => (
+                      <div
+                        key={line.key}
+                        className="flex justify-between gap-8"
+                      >
+                        <dt className="text-neutral-500">
+                          {line.label}
+                        </dt>
+
+                        <dd className="text-right text-neutral-700">
+                          {line.value}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
                 </div>
 
                 <div>
