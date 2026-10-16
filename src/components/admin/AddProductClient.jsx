@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ImageUploader from "./ImageUploader";
+import ProductGalleryFields from "./ProductGalleryFields";
 import ProductInventoryFields from "./ProductInventoryFields";
 import ProductDetailsFields, {
   EMPTY_PRODUCT_DETAILS_FORM,
@@ -37,6 +38,7 @@ export default function AddProductClient() {
     color: "",
     price: "",
     image: "",
+    gallery: [],
     description: "",
     ...EMPTY_PRODUCT_DETAILS_FORM,
     sizes: [
@@ -176,6 +178,7 @@ export default function AddProductClient() {
         Number(formData.price),
       image:
         formData.image,
+      gallery: formData.gallery || [],
       sizes:
         formData.sizes,
       sizeStock:
@@ -343,6 +346,16 @@ export default function AddProductClient() {
             value={formData.image}
             onChange={
               handleImageChange
+            }
+          />
+
+          <ProductGalleryFields
+            gallery={formData.gallery}
+            onChange={(gallery) =>
+              setFormData((currentFormData) => ({
+                ...currentFormData,
+                gallery,
+              }))
             }
           />
 

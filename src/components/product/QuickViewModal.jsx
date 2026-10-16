@@ -1,6 +1,7 @@
 "use client";
 
-import Image from "next/image";
+import FramedImage from "../ui/FramedImage";
+import { getStockLabel } from "../../lib/productImages";
 import Link from "next/link";
 import { useEffect } from "react";
 import { useQuickView } from "../../context/QuickViewContext";
@@ -36,29 +37,27 @@ export default function QuickViewModal() {
   const stock = Number(selectedProduct.stock || 0);
 
   return (
-    <div className="fixed inset-0 z-[100]">
+    <div className="fixed inset-0 z-[100]" role="dialog" aria-modal="true" aria-label={`${selectedProduct.name} quick view`}>
       <div
         onClick={closeQuickView}
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
       />
 
-      <div className="absolute left-1/2 top-1/2 w-[94vw] max-w-5xl -translate-x-1/2 -translate-y-1/2 overflow-hidden border border-black/10 bg-[#f1ece4] shadow-2xl">
+      <div className="absolute left-1/2 top-1/2 max-h-[92vh] w-[94vw] max-w-5xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain border border-black/10 bg-[#f1ece4] shadow-2xl">
         <button
+          type="button"
           onClick={closeQuickView}
-          className="absolute right-6 top-6 z-20 text-xs uppercase tracking-[0.3em] text-neutral-500 transition hover:text-black"
+          className="absolute right-3 top-3 z-20 min-h-11 bg-[#f1ece4]/90 px-4 text-xs uppercase tracking-[0.3em] text-neutral-700 transition hover:text-black"
         >
           Close
         </button>
 
         <div className="grid md:grid-cols-2">
-          <div className="bg-[#0b0b0b]">
-            <Image
+          <div className="relative aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
+            <FramedImage
               src={selectedProduct.image}
               alt={selectedProduct.name}
-              width={1200}
-              height={1500}
               sizes="(min-width: 768px) 50vw, 94vw"
-              className="aspect-[4/5] h-full w-full object-cover"
             />
           </div>
 
@@ -83,7 +82,7 @@ export default function QuickViewModal() {
               <span>{selectedProduct.color}</span>
 
               <span>
-                {stock > 0 ? `${stock} Available` : "Out Of Stock"}
+                {getStockLabel(stock).text}
               </span>
             </div>
 

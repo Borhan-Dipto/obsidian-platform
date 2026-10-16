@@ -22,7 +22,7 @@ export default function WishlistButton({ product, compact = false }) {
       }
       className={
         compact
-          ? `obsidian-wishlist-toggle absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border backdrop-blur-md ${
+          ? `obsidian-wishlist-toggle absolute right-2 top-2 z-20 flex h-10 w-10 sm:right-4 sm:top-4 sm:h-11 sm:w-11 items-center justify-center rounded-full border backdrop-blur-md ${
               saved
                 ? "obsidian-wishlist-toggle--saved border-[#f1ece4] bg-[#0b0b0b] text-[#f1ece4]"
                 : "border-black/10 bg-[#f1ece4]/85 text-[#0b0b0b] hover:bg-[#0b0b0b] hover:text-[#f1ece4]"

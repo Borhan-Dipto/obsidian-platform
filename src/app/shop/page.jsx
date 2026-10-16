@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { cache } from "react";
 import Navbar from "../../components/layout/Navbar";
@@ -7,6 +6,11 @@ import ShopFilters from "../../components/shop/ShopFilters";
 import WishlistButton from "../../components/product/WishlistButton";
 import QuickViewButton from "../../components/product/QuickViewButton";
 import Reveal from "../../components/ui/Reveal";
+import FramedImage from "../../components/ui/FramedImage";
+import {
+  LOW_STOCK_THRESHOLD,
+  getStockLabel,
+} from "../../lib/productImages.js";
 import {
   PRODUCTS_COLLECTION_NAME,
   getCatalogDatabase,
@@ -1190,7 +1194,7 @@ export default async function ShopPage({
 
       <section
         aria-labelledby="shop-page-title"
-        className="px-4 pb-24 pt-32 sm:px-6 sm:pb-28 sm:pt-36 lg:px-10 lg:pb-36 lg:pt-40"
+        className="px-4 pb-24 pt-28 sm:px-6 sm:pb-28 sm:pt-36 lg:px-10 lg:pb-36 lg:pt-40"
       >
         <div className="mx-auto max-w-[1440px]">
           <Reveal
@@ -1198,7 +1202,7 @@ export default async function ShopPage({
             aria-label="Breadcrumb"
             variant="fade-in"
             duration={700}
-            className="mb-9 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-neutral-500 sm:mb-10 sm:tracking-[0.28em]"
+            className="mb-6 flex flex-wrap items-center gap-3 text-[11px] uppercase tracking-[0.25em] text-neutral-500 sm:mb-10 sm:tracking-[0.28em]"
           >
             <Link
               href="/"
@@ -1251,7 +1255,7 @@ export default async function ShopPage({
             duration={900}
             className="max-w-4xl"
           >
-            <p className="mb-5 text-[10px] uppercase tracking-[0.38em] text-neutral-500 sm:text-xs sm:tracking-[0.45em]">
+            <p className="mb-4 text-[11px] uppercase tracking-[0.38em] text-neutral-500 sm:mb-5 sm:text-xs sm:tracking-[0.45em]">
               Shop
             </p>
 
@@ -1277,7 +1281,7 @@ export default async function ShopPage({
               )}
             </h1>
 
-            <p className="mt-7 max-w-xl text-base leading-8 text-neutral-600 sm:mt-8 sm:text-lg">
+            <p className="mt-5 max-w-xl text-base leading-7 text-neutral-600 sm:mt-8 sm:text-lg sm:leading-8">
               {pageDescription}
             </p>
           </Reveal>
@@ -1323,7 +1327,7 @@ export default async function ShopPage({
               duration={850}
               className="mt-10 border border-black/10 bg-[#eee7dd] p-8 sm:mt-12 sm:p-10 md:p-14"
             >
-              <p className="text-[10px] uppercase tracking-[0.32em] text-neutral-500 sm:text-xs sm:tracking-[0.35em]">
+              <p className="text-[11px] uppercase tracking-[0.32em] text-neutral-500 sm:text-xs sm:tracking-[0.35em]">
                 No Results
               </p>
 
@@ -1338,7 +1342,7 @@ export default async function ShopPage({
 
               <Link
                 href="/shop"
-                className="mt-9 inline-flex min-h-12 items-center justify-center border border-[#0b0b0b] px-7 py-3 text-center text-[10px] uppercase tracking-[0.26em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:ring-offset-4 focus-visible:ring-offset-[#f1ece4] sm:mt-10 sm:px-8 sm:text-xs sm:tracking-[0.3em]"
+                className="mt-9 inline-flex min-h-12 items-center justify-center border border-[#0b0b0b] px-7 py-3 text-center text-[11px] uppercase tracking-[0.26em] transition hover:bg-[#0b0b0b] hover:text-[#f1ece4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:ring-offset-4 focus-visible:ring-offset-[#f1ece4] sm:mt-10 sm:px-8 sm:text-xs sm:tracking-[0.3em]"
               >
                 Show All Products
               </Link>
@@ -1349,9 +1353,9 @@ export default async function ShopPage({
               aria-label="Product results"
               variant="fade-up"
               duration={850}
-              className="mt-10 sm:mt-12"
+              className="mt-6 sm:mt-12"
             >
-              <div className="grid gap-7 sm:gap-8 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:gap-8 xl:grid-cols-3">
                 {filteredProducts.map(
                   (
                     product,
@@ -1411,17 +1415,16 @@ export default async function ShopPage({
                             className="relative block h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f1ece4] focus-visible:ring-inset"
                             aria-label={`View ${productName}`}
                           >
-                            <Image
+                            <FramedImage
                               src={
                                 productImage
                               }
                               alt={`${productName} by ${SITE_NAME}`}
-                              fill
                               priority={
-                                index < 3
+                                index < 4
                               }
-                              sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1279px) 50vw, 33vw"
-                              className="obsidian-catalog-media object-cover object-center"
+                              sizes="(max-width: 1279px) 50vw, 33vw"
+                              imageClassName="obsidian-catalog-media"
                             />
                           </Link>
 
@@ -1432,14 +1435,14 @@ export default async function ShopPage({
                           />
 
                           {stock <= 0 ? (
-                            <div className="absolute left-4 top-4 z-10 bg-[#0b0b0b] px-4 py-2 text-[9px] uppercase tracking-[0.25em] text-[#f1ece4] sm:text-[10px] sm:tracking-[0.28em]">
+                            <div className="absolute left-2 top-2 z-10 bg-[#0b0b0b] px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] text-[#f1ece4] sm:left-4 sm:top-4 sm:px-4 sm:py-2 sm:tracking-[0.28em]">
                               Sold Out
                             </div>
                           ) : null}
 
                           {stock > 0 &&
-                          stock <= 5 ? (
-                            <div className="absolute left-4 top-4 z-10 border border-[#f1ece4]/20 bg-black/50 px-4 py-2 text-[9px] uppercase tracking-[0.25em] text-[#f1ece4] backdrop-blur-md">
+                          stock <= LOW_STOCK_THRESHOLD ? (
+                            <div className="absolute left-2 top-2 z-10 border border-[#f1ece4]/20 bg-black/55 px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] text-[#f1ece4] backdrop-blur-md sm:left-4 sm:top-4 sm:px-4 sm:py-2">
                               Only {stock} Left
                             </div>
                           ) : null}
@@ -1447,10 +1450,10 @@ export default async function ShopPage({
                           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent opacity-0 transition duration-500 group-hover:opacity-100" />
                         </div>
 
-                        <div className="p-5 sm:p-6">
-                          <div className="flex items-start justify-between gap-5 sm:gap-6">
+                        <div className="p-3 sm:p-6">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
                             <div className="min-w-0">
-                              <p className="truncate text-[10px] uppercase tracking-[0.25em] text-neutral-500 sm:text-xs sm:tracking-[0.28em]">
+                              <p className="truncate text-[11px] uppercase tracking-[0.18em] text-neutral-500 sm:text-xs sm:tracking-[0.28em]">
                                 {cleanText(
                                   product?.series,
                                   "OBSIDIAN"
@@ -1463,7 +1466,7 @@ export default async function ShopPage({
                                 }
                                 className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:ring-offset-4 focus-visible:ring-offset-[#eee7dd]"
                               >
-                                <h2 className="mt-3 font-heading text-3xl font-light leading-none transition duration-300 group-hover:opacity-65 sm:text-[2rem]">
+                                <h2 className="mt-2 font-heading text-xl font-light leading-tight transition duration-300 group-hover:opacity-65 sm:mt-3 sm:text-[2rem] sm:leading-none">
                                   {
                                     productName
                                   }
@@ -1482,18 +1485,16 @@ export default async function ShopPage({
                             </p>
                           </div>
 
-                          <div className="mt-6 flex items-center justify-between gap-4 border-t border-black/10 pt-5">
-                            <p className="min-w-0 truncate text-[10px] uppercase tracking-[0.22em] text-neutral-500 sm:text-xs sm:tracking-[0.25em]">
+                          <div className="mt-3 flex items-center justify-between gap-4 border-t border-black/10 pt-3 sm:mt-6 sm:pt-5">
+                            <p className="min-w-0 truncate text-[11px] uppercase tracking-[0.18em] text-neutral-500 sm:text-xs sm:tracking-[0.25em]">
                               {cleanText(
                                 product?.color,
                                 "Obsidian Black"
                               )}
                             </p>
 
-                            <p className="shrink-0 text-[10px] uppercase tracking-[0.22em] text-neutral-500 sm:text-xs sm:tracking-[0.25em]">
-                              {stock > 0
-                                ? `${stock} In Stock`
-                                : "Out of Stock"}
+                            <p className="hidden shrink-0 text-xs uppercase tracking-[0.25em] text-neutral-500 sm:block">
+                              {getStockLabel(stock).text}
                             </p>
                           </div>
                         </div>

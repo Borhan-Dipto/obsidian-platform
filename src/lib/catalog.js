@@ -4,6 +4,7 @@ import clientPromise from "./mongodb";
 import {
   OBSIDIAN_SIZE_ORDER,
 } from "./sizeGuide";
+import { MAX_GALLERY_IMAGES } from "./productImages.js";
 
 export const PRODUCTS_COLLECTION_NAME = "products";
 export const COLLECTIONS_COLLECTION_NAME = "collections";
@@ -557,6 +558,53 @@ const PRODUCT_DETAIL_LIMITS = {
   care: 400,
 };
 
+/*
+ * Extra product photos (back, print close-up, fabric, on-model).
+ * Each URL is validated like the main image; duplicates of the main
+ * image and of each other are dropped.
+ */
+export function normalizeProductGallery(value, mainImage = "") {
+  if (value === undefined || value === null || value === "") {
+    return { error: "", value: [] };
+  }
+
+  if (!Array.isArray(value)) {
+    return {
+      error: "Product gallery must be a list of image URLs.",
+      value: null,
+    };
+  }
+
+  const seen = new Set([normalizeCatalogText(mainImage)]);
+  const gallery = [];
+
+  for (const entry of value) {
+    const text = normalizeCatalogText(entry);
+
+    if (!text || seen.has(text)) {
+      continue;
+    }
+
+    const result = validateProductImage(text);
+
+    if (result.error) {
+      return { error: `Gallery: ${result.error}`, value: null };
+    }
+
+    seen.add(result.value);
+    gallery.push(result.value);
+  }
+
+  if (gallery.length > MAX_GALLERY_IMAGES) {
+    return {
+      error: `A product can have at most ${MAX_GALLERY_IMAGES} extra photos.`,
+      value: null,
+    };
+  }
+
+  return { error: "", value: gallery };
+}
+
 export function normalizeProductDetails(value) {
   const source = isPlainObject(value) ? value : {};
   const details = {};
@@ -704,6 +752,19 @@ export function normalizeProductPayload(
     };
   }
 
+  const galleryResult = normalizeProductGallery(
+    mergedProduct.gallery,
+    imageResult.value
+  );
+
+  if (galleryResult.error) {
+    return {
+      success: false,
+      message: galleryResult.error,
+      product: null,
+    };
+  }
+
   const priceResult = validateProductPrice(
     mergedProduct.price
   );
@@ -830,6 +891,7 @@ export function normalizeProductPayload(
         : {}),
 
       image: imageResult.value,
+      gallery: galleryResult.value,
       description: descriptionResult.value,
       details: detailsResult.value,
       isActive,

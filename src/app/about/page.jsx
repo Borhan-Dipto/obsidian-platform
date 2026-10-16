@@ -279,7 +279,7 @@ function HeroTextSection({ section }) {
       <div className="container-custom max-w-5xl">
         <nav
           aria-label="Breadcrumb"
-          className="mb-10 flex items-center gap-3 text-[10px] uppercase tracking-[0.28em] text-neutral-500"
+          className="mb-10 flex items-center gap-3 text-[11px] uppercase tracking-[0.28em] text-neutral-500"
         >
           <Link
             href="/"

@@ -79,7 +79,7 @@ export default function ProductSizeGuide({
           className="grid gap-6 border-b border-black/10 pb-9 lg:grid-cols-[minmax(0,0.8fr)_minmax(320px,0.45fr)] lg:items-end lg:gap-16"
         >
           <div>
-            <p className="text-[9px] font-semibold uppercase tracking-[0.32em] text-neutral-500">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-neutral-500">
               {cleanText(
                 resolvedContent.eyebrow,
                 "Size Guide"
@@ -124,35 +124,35 @@ export default function ProductSizeGuide({
               <tr>
                 <th
                   scope="col"
-                  className="w-[14%] px-6 py-5 text-[9px] font-semibold uppercase tracking-[0.24em]"
+                  className="w-[14%] px-6 py-5 text-[11px] font-semibold uppercase tracking-[0.24em]"
                 >
                   Size
                 </th>
 
                 <th
                   scope="col"
-                  className="px-6 py-5 text-[9px] font-semibold uppercase tracking-[0.24em]"
+                  className="px-6 py-5 text-[11px] font-semibold uppercase tracking-[0.24em]"
                 >
                   Fits Body Chest
                 </th>
 
                 <th
                   scope="col"
-                  className="px-6 py-5 text-[9px] font-semibold uppercase tracking-[0.24em]"
+                  className="px-6 py-5 text-[11px] font-semibold uppercase tracking-[0.24em]"
                 >
                   Garment Chest
                 </th>
 
                 <th
                   scope="col"
-                  className="px-6 py-5 text-[9px] font-semibold uppercase tracking-[0.24em]"
+                  className="px-6 py-5 text-[11px] font-semibold uppercase tracking-[0.24em]"
                 >
                   Length
                 </th>
 
                 <th
                   scope="col"
-                  className="px-6 py-5 text-[9px] font-semibold uppercase tracking-[0.24em]"
+                  className="px-6 py-5 text-[11px] font-semibold uppercase tracking-[0.24em]"
                 >
                   Shoulder
                 </th>
@@ -228,7 +228,7 @@ export default function ProductSizeGuide({
                 className="obsidian-product-size-card border border-black/10 bg-[#f1ece4] p-5"
               >
                 <div className="flex items-center justify-between border-b border-black/10 pb-4">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.25em] text-neutral-500">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-neutral-500">
                     OBSIDIAN Size
                   </p>
 
@@ -239,7 +239,7 @@ export default function ProductSizeGuide({
 
                 <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-5">
                   <div>
-                    <dt className="text-[8px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                    <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
                       Fits Body Chest
                     </dt>
 
@@ -254,7 +254,7 @@ export default function ProductSizeGuide({
                   </div>
 
                   <div>
-                    <dt className="text-[8px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                    <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
                       Garment Chest
                     </dt>
 
@@ -269,7 +269,7 @@ export default function ProductSizeGuide({
                   </div>
 
                   <div>
-                    <dt className="text-[8px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                    <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
                       Length
                     </dt>
 
@@ -284,7 +284,7 @@ export default function ProductSizeGuide({
                   </div>
 
                   <div>
-                    <dt className="text-[8px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                    <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
                       Shoulder
                     </dt>
 
@@ -303,7 +303,7 @@ export default function ProductSizeGuide({
           )}
         </div>
 
-        <div className="obsidian-product-size-note mt-7 flex flex-col gap-3 border-t border-black/10 pt-6 text-[10px] leading-5 text-neutral-500 sm:flex-row sm:items-start sm:justify-between">
+        <div className="obsidian-product-size-note mt-7 flex flex-col gap-3 border-t border-black/10 pt-6 text-[11px] leading-5 text-neutral-500 sm:flex-row sm:items-start sm:justify-between">
           <p>
             Garment measurements represent the
             finished product.

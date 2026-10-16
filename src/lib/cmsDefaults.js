@@ -881,7 +881,7 @@ const DEFAULT_PRODUCT_PAGE = {
       },
       {
         id: "product-highlight-delivery",
-        text: "2–5 Days Delivery",
+        text: "Delivery in 1–5 Days",
         order: 5,
         isActive: true,
       },

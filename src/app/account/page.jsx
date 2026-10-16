@@ -688,7 +688,7 @@ function DetailRow({
 
   return (
     <div className="flex flex-col gap-2 border-b border-black/10 py-5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
-      <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-black/40">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-black/40">
         {label}
       </span>
 
@@ -750,7 +750,7 @@ function StatisticCard({
 
       <div className="relative flex items-start justify-between gap-5">
         <div>
-          <p className="text-[9px] font-semibold uppercase tracking-[0.25em] text-black/38">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-black/38">
             {label}
           </p>
 
@@ -802,7 +802,7 @@ function ActionCard({
       </div>
 
       <div className="relative mt-14">
-        <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-black/38">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-black/38">
           {eyebrow}
         </p>
 
@@ -814,7 +814,7 @@ function ActionCard({
           {description}
         </p>
 
-        <div className="mt-8 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.24em] text-black">
+        <div className="mt-8 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-black">
           <span>{actionLabel}</span>
 
           <span className="h-px w-8 bg-black transition-all duration-500 group-hover:w-14" />
@@ -834,7 +834,7 @@ function SecurityItem({
   return (
     <div className="flex items-center justify-between gap-5 border-b border-white/10 py-4 last:border-b-0">
       <div>
-        <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-white/40">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/40">
           {label}
         </p>
 
@@ -922,7 +922,7 @@ function RecentOrderCard({ order }) {
       <div className="min-w-0 p-5 sm:p-6">
         <div className="flex flex-wrap items-center gap-3">
           <span
-            className={`inline-flex items-center gap-2 border px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.18em] ${status.backgroundClass} ${status.borderClass} ${status.textClass}`}
+            className={`inline-flex items-center gap-2 border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] ${status.backgroundClass} ${status.borderClass} ${status.textClass}`}
           >
             <span
               className={`h-1.5 w-1.5 rounded-full ${status.dotClass}`}
@@ -931,12 +931,12 @@ function RecentOrderCard({ order }) {
             {status.label}
           </span>
 
-          <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/35">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/35">
             {formatShortDate(order?.createdAt)}
           </span>
         </div>
 
-        <p className="mt-4 text-[9px] font-semibold uppercase tracking-[0.22em] text-black/35">
+        <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-black/35">
           Order reference
         </p>
 
@@ -969,7 +969,7 @@ function RecentOrderCard({ order }) {
 
       <div className="flex flex-col justify-between border-t border-black/10 p-5 sm:p-6 md:border-l md:border-t-0">
         <div>
-          <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-black/35">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-black/35">
             Order total
           </p>
 
@@ -984,7 +984,7 @@ function RecentOrderCard({ order }) {
           href={`/account/orders/${encodeURIComponent(
             orderReference
           )}`}
-          className="group/link mt-6 inline-flex items-center gap-3 text-[9px] font-semibold uppercase tracking-[0.2em] text-black"
+          className="group/link mt-6 inline-flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-black"
         >
           View details
 
@@ -1020,7 +1020,7 @@ function AddressSummaryCard({
 
       <div className="relative flex items-start justify-between gap-5">
         <div>
-          <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-black/40">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-black/40">
             Default delivery
           </p>
 
@@ -1048,7 +1048,7 @@ function AddressSummaryCard({
             {phone ? <p>{phone}</p> : null}
           </div>
 
-          <p className="mt-7 text-[9px] font-semibold uppercase tracking-[0.2em] text-black/38">
+          <p className="mt-7 text-[11px] font-semibold uppercase tracking-[0.2em] text-black/38">
             {addressCount} saved{" "}
             {addressCount === 1 ? "address" : "addresses"}
           </p>
@@ -1062,7 +1062,7 @@ function AddressSummaryCard({
 
       <Link
         href="/account/addresses"
-        className="group relative mt-8 inline-flex min-h-12 w-full items-center justify-center gap-3 bg-[#171512] px-5 text-[9px] font-semibold uppercase tracking-[0.22em] text-white transition-colors duration-300 hover:bg-black/75"
+        className="group relative mt-8 inline-flex min-h-12 w-full items-center justify-center gap-3 bg-[#171512] px-5 text-[11px] font-semibold uppercase tracking-[0.22em] text-white transition-colors duration-300 hover:bg-black/75"
       >
         {address ? "Manage addresses" : "Add an address"}
 
@@ -1197,7 +1197,7 @@ export default async function AccountPage() {
             <div className="flex items-center gap-3 sm:gap-5">
               <Link
                 href="/shop"
-                className="hidden text-[10px] font-semibold uppercase tracking-[0.22em] text-white/55 transition-colors duration-300 hover:text-white sm:inline"
+                className="hidden text-[11px] font-semibold uppercase tracking-[0.22em] text-white/55 transition-colors duration-300 hover:text-white sm:inline"
               >
                 Continue shopping
               </Link>
@@ -1205,7 +1205,7 @@ export default async function AccountPage() {
               <form action={signOutAction}>
                 <button
                   type="submit"
-                  className="group relative inline-flex min-h-10 items-center justify-center overflow-hidden border border-white/20 px-4 text-[9px] font-semibold uppercase tracking-[0.22em] text-white transition-all duration-300 hover:border-white hover:text-black sm:px-5"
+                  className="group relative inline-flex min-h-10 items-center justify-center overflow-hidden border border-white/20 px-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-white transition-all duration-300 hover:border-white hover:text-black sm:px-5"
                 >
                   <span className="absolute inset-0 -translate-x-full bg-white transition-transform duration-500 group-hover:translate-x-0" />
 
@@ -1220,7 +1220,7 @@ export default async function AccountPage() {
               <div className="flex items-center gap-4">
                 <span className="h-px w-10 bg-[#cdbf9e]" />
 
-                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#d6c9aa]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#d6c9aa]">
                   Private member account
                 </p>
               </div>
@@ -1241,7 +1241,7 @@ export default async function AccountPage() {
               <div className="mt-9 flex flex-wrap gap-3">
                 <Link
                   href="/shop"
-                  className="group inline-flex min-h-12 items-center justify-center gap-4 bg-[#eee5d3] px-6 text-[9px] font-semibold uppercase tracking-[0.24em] text-[#171512] transition-all duration-300 hover:bg-white"
+                  className="group inline-flex min-h-12 items-center justify-center gap-4 bg-[#eee5d3] px-6 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#171512] transition-all duration-300 hover:bg-white"
                 >
                   Enter the collection
 
@@ -1250,7 +1250,7 @@ export default async function AccountPage() {
 
                 <Link
                   href="/account/orders"
-                  className="inline-flex min-h-12 items-center justify-center border border-white/20 px-6 text-[9px] font-semibold uppercase tracking-[0.24em] text-white transition-all duration-300 hover:border-white/50 hover:bg-white/[0.05]"
+                  className="inline-flex min-h-12 items-center justify-center border border-white/20 px-6 text-[11px] font-semibold uppercase tracking-[0.24em] text-white transition-all duration-300 hover:border-white/50 hover:bg-white/[0.05]"
                 >
                   Review orders
                 </Link>
@@ -1258,7 +1258,7 @@ export default async function AccountPage() {
             </div>
 
             <div className="border-t border-white/10 pt-7 lg:border-l lg:border-t-0 lg:pl-9 lg:pt-0">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-[#d6c9aa]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#d6c9aa]">
                 Member identity
               </p>
 
@@ -1283,14 +1283,14 @@ export default async function AccountPage() {
                   }`}
                 />
 
-                <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-white/45">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/45">
                   {accountStatus.label}
                 </span>
               </div>
 
               <div className="mt-8 grid grid-cols-2 gap-px bg-white/10">
                 <div className="bg-[#151411] py-4 pr-4">
-                  <p className="text-[8px] font-semibold uppercase tracking-[0.25em] text-white/30">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-white/30">
                     Member since
                   </p>
 
@@ -1300,7 +1300,7 @@ export default async function AccountPage() {
                 </div>
 
                 <div className="bg-[#151411] py-4 pl-4">
-                  <p className="text-[8px] font-semibold uppercase tracking-[0.25em] text-white/30">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-white/30">
                     Active orders
                   </p>
 
@@ -1341,7 +1341,7 @@ export default async function AccountPage() {
             <Link
               key={item.href}
               href={item.href}
-              className={`shrink-0 border px-4 py-2.5 text-[9px] font-semibold uppercase tracking-[0.2em] transition-all duration-300 ${
+              className={`shrink-0 border px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] transition-all duration-300 ${
                 index === 0
                   ? "border-[#171512] bg-[#171512] text-white"
                   : "border-transparent text-black/45 hover:border-black/15 hover:text-black"
@@ -1391,7 +1391,7 @@ export default async function AccountPage() {
             <div className="border border-black/10 bg-[#f4f0e8] p-6 sm:p-8">
               <div className="flex items-start justify-between gap-6">
                 <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-black/40">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-black/40">
                     Member profile
                   </p>
 
@@ -1437,7 +1437,7 @@ export default async function AccountPage() {
 
               <div className="mt-7">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-[9px] font-semibold uppercase tracking-[0.22em] text-black/40">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/40">
                     Profile completion
                   </span>
 
@@ -1458,7 +1458,7 @@ export default async function AccountPage() {
 
               <Link
                 href="/account/profile"
-                className="group mt-8 flex min-h-12 w-full items-center justify-center gap-3 bg-[#171512] px-5 text-[9px] font-semibold uppercase tracking-[0.24em] text-white transition-all duration-300 hover:bg-black/75"
+                className="group mt-8 flex min-h-12 w-full items-center justify-center gap-3 bg-[#171512] px-5 text-[11px] font-semibold uppercase tracking-[0.24em] text-white transition-all duration-300 hover:bg-black/75"
               >
                 Manage profile
 
@@ -1476,7 +1476,7 @@ export default async function AccountPage() {
 
               <div className="relative flex items-start justify-between gap-5">
                 <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-[#cdbf9e]">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#cdbf9e]">
                     Account security
                   </p>
 
@@ -1530,7 +1530,7 @@ export default async function AccountPage() {
 
               <Link
                 href="/account/profile#security"
-                className="relative mt-7 flex min-h-12 w-full items-center justify-center border border-white/20 px-5 text-[9px] font-semibold uppercase tracking-[0.22em] text-white transition-all duration-300 hover:border-white hover:bg-white hover:text-black"
+                className="relative mt-7 flex min-h-12 w-full items-center justify-center border border-white/20 px-5 text-[11px] font-semibold uppercase tracking-[0.22em] text-white transition-all duration-300 hover:border-white hover:bg-white hover:text-black"
               >
                 Security settings
               </Link>
@@ -1540,7 +1540,7 @@ export default async function AccountPage() {
           <div className="min-w-0">
             <div className="flex flex-col gap-6 border-b border-black/10 pb-8 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-black/40">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-black/40">
                   Account overview
                 </p>
 
@@ -1562,7 +1562,7 @@ export default async function AccountPage() {
             <div className="mt-8">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-black/40">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-black/40">
                     Recent purchases
                   </p>
 
@@ -1573,7 +1573,7 @@ export default async function AccountPage() {
 
                 <Link
                   href="/account/orders"
-                  className="group inline-flex items-center gap-3 text-[9px] font-semibold uppercase tracking-[0.22em] text-black"
+                  className="group inline-flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-black"
                 >
                   Complete order history
 
@@ -1597,7 +1597,7 @@ export default async function AccountPage() {
                   <div className="relative overflow-hidden border border-black/10 bg-[#f4f0e8] px-6 py-12 text-center sm:px-10 sm:py-16">
                     <div className="absolute -right-20 -top-20 h-52 w-52 rounded-full border border-black/[0.04]" />
 
-                    <p className="relative text-[9px] font-semibold uppercase tracking-[0.28em] text-black/35">
+                    <p className="relative text-[11px] font-semibold uppercase tracking-[0.28em] text-black/35">
                       {orderOverview.available
                         ? "No purchases yet"
                         : "Order overview"}
@@ -1621,7 +1621,7 @@ export default async function AccountPage() {
                           ? "/shop"
                           : "/account/orders"
                       }
-                      className="relative mt-7 inline-flex min-h-12 items-center justify-center bg-[#171512] px-7 text-[9px] font-semibold uppercase tracking-[0.22em] text-white transition-colors duration-300 hover:bg-black/75"
+                      className="relative mt-7 inline-flex min-h-12 items-center justify-center bg-[#171512] px-7 text-[11px] font-semibold uppercase tracking-[0.22em] text-white transition-colors duration-300 hover:bg-black/75"
                     >
                       {orderOverview.available
                         ? "Explore the collection"
@@ -1634,7 +1634,7 @@ export default async function AccountPage() {
 
             <div className="mt-12 border-t border-black/10 pt-10">
               <div>
-                <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-black/40">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-black/40">
                   Account destinations
                 </p>
 
@@ -1662,7 +1662,7 @@ export default async function AccountPage() {
               <div className="absolute -right-32 top-1/2 h-72 w-72 -translate-y-1/2 rotate-45 border border-white/[0.04]" />
 
               <div className="relative">
-                <p className="text-[9px] font-semibold uppercase tracking-[0.3em] text-[#cdbf9e]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#cdbf9e]">
                   Continue the collection
                 </p>
 
@@ -1681,7 +1681,7 @@ export default async function AccountPage() {
 
                 <Link
                   href="/shop"
-                  className="group mt-9 inline-flex min-h-12 w-fit items-center justify-center gap-4 border border-white/20 px-6 text-[9px] font-semibold uppercase tracking-[0.24em] text-white transition-all duration-300 hover:border-white hover:bg-white hover:text-black"
+                  className="group mt-9 inline-flex min-h-12 w-fit items-center justify-center gap-4 border border-white/20 px-6 text-[11px] font-semibold uppercase tracking-[0.24em] text-white transition-all duration-300 hover:border-white hover:bg-white hover:text-black"
                 >
                   Enter the shop
 
@@ -1695,35 +1695,35 @@ export default async function AccountPage() {
 
       <footer className="border-t border-black/10 bg-[#e2dacd]">
         <div className="mx-auto flex max-w-[1480px] flex-col gap-5 px-5 py-8 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-12 xl:px-16">
-          <p className="text-[9px] font-semibold uppercase tracking-[0.25em] text-black/40">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-black/40">
             OBSIDIAN private account
           </p>
 
           <div className="flex flex-wrap gap-x-6 gap-y-3">
             <Link
               href="/contact"
-              className="text-[9px] font-semibold uppercase tracking-[0.2em] text-black/50 transition-colors hover:text-black"
+              className="text-[11px] font-semibold uppercase tracking-[0.2em] text-black/50 transition-colors hover:text-black"
             >
               Assistance
             </Link>
 
             <Link
               href="/track-order"
-              className="text-[9px] font-semibold uppercase tracking-[0.2em] text-black/50 transition-colors hover:text-black"
+              className="text-[11px] font-semibold uppercase tracking-[0.2em] text-black/50 transition-colors hover:text-black"
             >
               Track order
             </Link>
 
             <Link
               href="/shop"
-              className="text-[9px] font-semibold uppercase tracking-[0.2em] text-black/50 transition-colors hover:text-black"
+              className="text-[11px] font-semibold uppercase tracking-[0.2em] text-black/50 transition-colors hover:text-black"
             >
               Shop
             </Link>
 
             <Link
               href="/"
-              className="text-[9px] font-semibold uppercase tracking-[0.2em] text-black/50 transition-colors hover:text-black"
+              className="text-[11px] font-semibold uppercase tracking-[0.2em] text-black/50 transition-colors hover:text-black"
             >
               Home
             </Link>

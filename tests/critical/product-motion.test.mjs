@@ -22,7 +22,7 @@ const guide = readSource(
 );
 
 const zoom = readSource(
-  "src/components/product/ProductImageZoom.jsx"
+  "src/components/product/ProductGallery.jsx"
 );
 
 const recent = readSource(

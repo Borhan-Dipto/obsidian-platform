@@ -1349,3 +1349,18 @@ header[data-obsidian-nav-contrast="light"] nav .obsidian-liquid-control:focus-vi
     will-change: auto !important;
   }
 }
+
+/* ---------- Customer experience fixes (UX audit, Oct 2026) ---------- */
+
+/* Lift the WhatsApp button above the phone buy bar when it shows. */
+@media (max-width: 1023px) {
+  html[data-sticky-cta="true"] .obsidian-whatsapp-fab {
+    bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media print {
+  .obsidian-whatsapp-fab {
+    display: none;
+  }
+}

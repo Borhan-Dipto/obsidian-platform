@@ -23,12 +23,60 @@ type RevealPhase =
   | "leaving"
   | "hidden";
 
-function hasSeenReveal() {
+/* Re-show the brand intro at most once a month per browser. */
+const REVEAL_REPEAT_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
+
+/*
+ * Visitors from ads or social apps came to shop, so they go straight
+ * to the content (Facebook / Instagram in-app browsers also lose
+ * session storage on every visit).
+ */
+function arrivedFromCampaignOrSocialApp() {
   try {
-    return (
+    const params = new URLSearchParams(window.location.search);
+
+    if (
+      ["fbclid", "gclid", "utm_source", "utm_medium", "utm_campaign"].some(
+        (key) => params.has(key)
+      )
+    ) {
+      return true;
+    }
+
+    return /FBAN|FBAV|FB_IAB|Instagram|Messenger/i.test(
+      window.navigator.userAgent || ""
+    );
+  } catch {
+    return false;
+  }
+}
+
+function hasSeenReveal() {
+  if (arrivedFromCampaignOrSocialApp()) {
+    return true;
+  }
+
+  try {
+    if (
       window.sessionStorage.getItem(
         SESSION_STORAGE_KEY
       ) === "true"
+    ) {
+      return true;
+    }
+  } catch {
+    /* Storage blocked: fall through to localStorage check. */
+  }
+
+  try {
+    const lastSeen = Number(
+      window.localStorage.getItem(SESSION_STORAGE_KEY)
+    );
+
+    return (
+      Number.isFinite(lastSeen) &&
+      lastSeen > 0 &&
+      Date.now() - lastSeen < REVEAL_REPEAT_AFTER_MS
     );
   } catch {
     return false;
@@ -46,6 +94,15 @@ function markRevealAsSeen() {
      * Continue normally when browser storage
      * is blocked or unavailable.
      */
+  }
+
+  try {
+    window.localStorage.setItem(
+      SESSION_STORAGE_KEY,
+      String(Date.now())
+    );
+  } catch {
+    /* Storage unavailable: intro may show again next visit. */
   }
 }
 

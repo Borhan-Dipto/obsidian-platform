@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import FramedImage from "../ui/FramedImage";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Reveal from "../ui/Reveal";
@@ -166,22 +166,21 @@ export default function RecentlyViewedProducts({ product }) {
               className="obsidian-product-card group block h-full overflow-hidden border border-black/10 bg-[#eee7dd] transition duration-500 hover:-translate-y-1 hover:border-black/25 hover:shadow-xl hover:shadow-black/10"
             >
               <div className="relative aspect-[4/5] overflow-hidden bg-[#0b0b0b]">
-                <Image
+                <FramedImage
                   src={item.image || FALLBACK_IMAGE}
                   alt={item.name}
-                  fill
                   sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, (max-width: 1279px) 33vw, 17vw"
-                  className="object-cover object-center transition-transform duration-700 ease-out will-change-transform group-hover:scale-105"
+                  imageClassName=" transition-transform duration-700 ease-out will-change-transform group-hover:scale-105"
                 />
 
                 {item.stock <= 0 && (
-                  <div className="absolute left-3 top-3 z-10 bg-[#0b0b0b]/85 px-3 py-2 text-[9px] uppercase tracking-[0.24em] text-[#f1ece4] backdrop-blur-sm">
+                  <div className="absolute left-3 top-3 z-10 bg-[#0b0b0b]/85 px-3 py-2 text-[11px] uppercase tracking-[0.24em] text-[#f1ece4] backdrop-blur-sm">
                     Sold Out
                   </div>
                 )}
 
                 {item.stock > 0 && item.stock <= 5 && (
-                  <div className="absolute left-3 top-3 z-10 border border-[#f1ece4]/20 bg-black/45 px-3 py-2 text-[9px] uppercase tracking-[0.24em] text-[#f1ece4] backdrop-blur-sm">
+                  <div className="absolute left-3 top-3 z-10 border border-[#f1ece4]/20 bg-black/45 px-3 py-2 text-[11px] uppercase tracking-[0.24em] text-[#f1ece4] backdrop-blur-sm">
                     Only {item.stock} Left
                   </div>
                 )}
@@ -190,7 +189,7 @@ export default function RecentlyViewedProducts({ product }) {
               </div>
 
               <div className="p-4">
-                <p className="truncate text-[9px] uppercase tracking-[0.24em] text-neutral-500">
+                <p className="truncate text-[11px] uppercase tracking-[0.24em] text-neutral-500">
                   {item.series}
                 </p>
 

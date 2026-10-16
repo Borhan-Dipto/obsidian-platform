@@ -1,6 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useCart } from "../../context/CartContext";
 import { useToast } from "../../context/ToastContext";
 import {
@@ -20,10 +25,17 @@ import {
 } from "../../lib/productInventory";
 
 import WishlistButton from "./WishlistButton";
+import { LOW_STOCK_THRESHOLD } from "../../lib/productImages";
 
 export default function ProductActions({
   product,
+  productName,
+  productImage,
 }) {
+  const primaryButtonRef = useRef(null);
+  const sizeSectionRef = useRef(null);
+  const [showStickyBar, setShowStickyBar] = useState(false);
+  const [highlightSizes, setHighlightSizes] = useState(false);
   const {
     addToCart,
     openMiniCart,
@@ -68,6 +80,51 @@ export default function ProductActions({
 
   const isOutOfStock =
     totalStock <= 0;
+
+  /*
+   * Phones: when the main Add to Cart button is off screen, a slim
+   * bar stays at the bottom so buying never needs scrolling back.
+   */
+  useEffect(() => {
+    const target = primaryButtonRef.current;
+
+    if (!target || typeof IntersectionObserver === "undefined") {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowStickyBar(!entry.isIntersecting),
+      { threshold: 0 }
+    );
+
+    observer.observe(target);
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+
+    if (showStickyBar) {
+      root.dataset.stickyCta = "true";
+    } else {
+      delete root.dataset.stickyCta;
+    }
+
+    return () => {
+      delete root.dataset.stickyCta;
+    };
+  }, [showStickyBar]);
+
+  function promptForSize() {
+    sizeSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+
+    setHighlightSizes(true);
+    window.setTimeout(() => setHighlightSizes(false), 1600);
+  }
 
   function decreaseQuantity() {
     setQuantity(
@@ -129,6 +186,8 @@ export default function ProductActions({
     }
 
     if (!selectedSize) {
+      promptForSize();
+
       showToast({
         type: "error",
         title: "Select Size",
@@ -224,12 +283,17 @@ export default function ProductActions({
   return (
     <div className="obsidian-product-actions mt-10 space-y-7">
       <section
+        ref={sizeSectionRef}
         aria-labelledby="product-size-selector-title"
-        className="obsidian-product-size-selector border-y border-black/10 py-6"
+        className={`obsidian-product-size-selector border-y py-6 transition-colors duration-500 ${
+          highlightSizes
+            ? "border-[#b1844a] bg-[#b1844a]/[0.07]"
+            : "border-black/10"
+        }`}
       >
         <div className="mb-4 flex items-end justify-between gap-5">
           <div>
-            <p className="text-[9px] font-semibold uppercase tracking-[0.3em] text-neutral-500">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-neutral-500">
               Size
             </p>
 
@@ -243,7 +307,7 @@ export default function ProductActions({
 
           <p
             aria-live="polite"
-            className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.2em] text-neutral-500"
+            className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500"
           >
             {selectedSize
               ? `Selected: ${selectedSize}`
@@ -286,9 +350,11 @@ export default function ProductActions({
                     isSelected
                   }
                   aria-label={
-                    isAvailable
-                      ? `${size}, ${sizeStock} available`
-                      : `${size}, unavailable`
+                    !isAvailable
+                      ? `${size}, unavailable`
+                      : sizeStock <= LOW_STOCK_THRESHOLD
+                        ? `${size}, only ${sizeStock} left`
+                        : size
                   }
                   disabled={
                     !isAvailable
@@ -296,7 +362,7 @@ export default function ProductActions({
                   onClick={() =>
                     selectSize(size)
                   }
-                  className={`obsidian-product-size-button flex min-h-12 items-center justify-center border px-2 text-[10px] font-semibold uppercase tracking-[0.16em] transition duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-3 focus-visible:ring-offset-[#f1ece4] disabled:cursor-not-allowed disabled:border-black/10 disabled:bg-black/[0.025] disabled:text-neutral-400 disabled:opacity-55 ${
+                  className={`obsidian-product-size-button flex min-h-12 items-center justify-center border px-2 text-xs font-semibold uppercase tracking-[0.16em] transition duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-3 focus-visible:ring-offset-[#f1ece4] disabled:cursor-not-allowed disabled:border-black/10 disabled:bg-black/[0.025] disabled:text-neutral-400 disabled:opacity-55 ${
                     isSelected
                       ? "obsidian-product-size-button--selected border-[#0b0b0b] bg-[#0b0b0b] text-[#f1ece4]"
                       : "border-black/20 text-[#0b0b0b] hover:border-[#0b0b0b] hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
@@ -311,34 +377,21 @@ export default function ProductActions({
           )}
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[9px] leading-5 text-neutral-500">
-          <p>
-            Unavailable sizes are disabled automatically.
-          </p>
-
-          {selectedSize ? (
-            <p>
-              {selectedStock}{" "}
-              {selectedStock === 1
-                ? "unit"
-                : "units"}{" "}
-              available in size{" "}
-              {selectedSize}.
-            </p>
-          ) : null}
-        </div>
+        <p className="mt-4 text-[11px] leading-5 text-neutral-500">
+          Sold-out sizes can’t be selected. Not sure? See the size guide below.
+        </p>
       </section>
 
       {selectedSize &&
       selectedStock > 0 &&
-      selectedStock <= 5 ? (
+      selectedStock <= LOW_STOCK_THRESHOLD ? (
         <div className="flex items-center gap-3">
           <span
             aria-hidden="true"
             className="h-2 w-2 animate-pulse rounded-full bg-[#b1844a] motion-reduce:animate-none"
           />
 
-          <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#9b713e]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#9b713e]">
             Only {selectedStock} left in size{" "}
             {selectedSize}
           </p>
@@ -394,7 +447,7 @@ export default function ProductActions({
         selectedStock > 0 &&
         quantity >=
           selectedStock ? (
-          <p className="mt-3 text-[10px] uppercase tracking-[0.22em] text-neutral-500">
+          <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-neutral-500">
             Maximum available quantity selected
           </p>
         ) : null}
@@ -402,6 +455,7 @@ export default function ProductActions({
 
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(180px,0.42fr)]">
         <button
+          ref={primaryButtonRef}
           type="button"
           onClick={
             handleAddToCart
@@ -426,6 +480,54 @@ export default function ProductActions({
         <WishlistButton
           product={product}
         />
+      </div>
+
+      <div
+        aria-hidden={!showStickyBar}
+        className={`fixed inset-x-0 bottom-0 z-[80] border-t border-black/10 bg-[#f1ece4]/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-12px_32px_rgba(11,11,11,0.08)] backdrop-blur-xl transition-transform duration-300 lg:hidden ${
+          showStickyBar
+            ? "translate-y-0"
+            : "pointer-events-none translate-y-full"
+        }`}
+      >
+        <div className="mx-auto flex max-w-xl items-center gap-3">
+          {productImage ? (
+            <span className="relative h-12 w-10 shrink-0 overflow-hidden bg-[#eee7dd]">
+              <Image
+                src={productImage}
+                alt=""
+                fill
+                sizes="40px"
+                className="object-cover"
+              />
+            </span>
+          ) : null}
+
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm">
+              {productName || product?.name}
+            </p>
+
+            <p className="text-xs text-neutral-600">
+              ৳ {price.toLocaleString("en-BD")}
+              {selectedSize ? ` · Size ${selectedSize}` : ""}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            tabIndex={showStickyBar ? 0 : -1}
+            onClick={selectedSize || isOutOfStock ? handleAddToCart : promptForSize}
+            disabled={isOutOfStock}
+            className="min-h-12 shrink-0 bg-[#0b0b0b] px-5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#f1ece4] transition active:opacity-80 disabled:opacity-40"
+          >
+            {isOutOfStock
+              ? "Out of stock"
+              : selectedSize
+                ? "Add to cart"
+                : "Select size"}
+          </button>
+        </div>
       </div>
     </div>
   );

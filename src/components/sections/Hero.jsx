@@ -327,7 +327,7 @@ export default function Hero({ section = null, content = null } = {}) {
             >
               <span className="h-px w-10 bg-[#b1844a]" />
 
-              <p className="text-[10px] font-semibold uppercase tracking-[0.45em] text-[#d7bea0]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.45em] text-[#d7bea0]">
                 {hero.eyebrow}
               </p>
             </div>
@@ -361,7 +361,7 @@ export default function Hero({ section = null, content = null } = {}) {
                   {...getLinkProps(
                     hero.primaryCta.openInNewTab
                   )}
-                  className="obsidian-motion-button group inline-flex items-center gap-5 rounded-full bg-[#f1ece4] px-9 py-4 text-[10px] font-semibold uppercase tracking-[0.28em] text-[#0b0b0b] hover:bg-[#d7bea0]"
+                  className="obsidian-motion-button group inline-flex items-center gap-5 rounded-full bg-[#f1ece4] px-9 py-4 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#0b0b0b] hover:bg-[#d7bea0]"
                 >
                   {hero.primaryCta.label}
 
@@ -377,7 +377,7 @@ export default function Hero({ section = null, content = null } = {}) {
                   {...getLinkProps(
                     hero.secondaryCta.openInNewTab
                   )}
-                  className="inline-flex border-b border-[#d7bea0]/70 pb-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-[#f1ece4]/85 transition-transform duration-300 motion-safe:hover:-translate-y-px hover:text-[#d7bea0]"
+                  className="inline-flex border-b border-[#d7bea0]/70 pb-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#f1ece4]/85 transition-transform duration-300 motion-safe:hover:-translate-y-px hover:text-[#d7bea0]"
                 >
                   {hero.secondaryCta.label}
                 </Link>
@@ -415,7 +415,7 @@ export default function Hero({ section = null, content = null } = {}) {
                 {normalizeText(
                   hero.featuredCard.eyebrow
                 ) ? (
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.34em] text-[#b1844a]">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-[#b1844a]">
                     {hero.featuredCard.eyebrow}
                   </p>
                 ) : null}
@@ -427,7 +427,7 @@ export default function Hero({ section = null, content = null } = {}) {
                 {normalizeText(
                   hero.featuredCard.buttonText
                 ) ? (
-                  <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-[#d7bea0]">
+                  <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#d7bea0]">
                     {hero.featuredCard.buttonText} →
                   </p>
                 ) : null}
@@ -444,7 +444,7 @@ export default function Hero({ section = null, content = null } = {}) {
             "--motion-delay": "760ms",
           }}
         >
-          <p className="text-[10px] font-semibold uppercase tracking-[0.32em]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.32em]">
             {hero.sideCard.title}
           </p>
 
@@ -465,7 +465,7 @@ export default function Hero({ section = null, content = null } = {}) {
               {...getLinkProps(
                 hero.sideCard.openInNewTab
               )}
-              className="mt-7 inline-block text-[10px] font-semibold uppercase tracking-[0.28em] text-[#d7bea0]"
+              className="mt-7 inline-block text-[11px] font-semibold uppercase tracking-[0.28em] text-[#d7bea0]"
             >
               {hero.sideCard.buttonText} →
             </Link>
@@ -483,7 +483,7 @@ export default function Hero({ section = null, content = null } = {}) {
           {normalizeText(
             hero.metaLabel.lineOne
           ) ? (
-            <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-[#f1ece4]/65">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-[#f1ece4]/65">
               {hero.metaLabel.lineOne}
             </p>
           ) : null}
@@ -491,7 +491,7 @@ export default function Hero({ section = null, content = null } = {}) {
           {normalizeText(
             hero.metaLabel.lineTwo
           ) ? (
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.34em] text-[#f1ece4]/65">
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-[#f1ece4]/65">
               {hero.metaLabel.lineTwo}
             </p>
           ) : null}

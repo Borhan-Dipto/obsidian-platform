@@ -729,7 +729,7 @@ function MobileNavigationLink({
 
   const content = (
     <>
-      <span className="w-7 shrink-0 text-[8px] font-semibold tracking-[0.22em] text-black/38">
+      <span className="w-7 shrink-0 text-[11px] font-semibold tracking-[0.22em] text-black/38">
         {String(index + 1).padStart(
           2,
           "0"
@@ -823,7 +823,7 @@ function AnnouncementBar({
   );
 
   const className =
-    "group max-w-full text-[8px] font-semibold uppercase tracking-[0.28em] text-white/85 transition-colors duration-300 hover:text-white";
+    "group max-w-full text-[11px] font-semibold uppercase tracking-[0.28em] text-white/85 transition-colors duration-300 hover:text-white";
 
   return (
     <div className="relative z-[4] flex h-[26px] items-center justify-center overflow-hidden border-b border-white/10 bg-black/78 px-4 backdrop-blur-[28px]">
@@ -2708,7 +2708,7 @@ export default function Navbar() {
             >
               <div className="mb-4 flex items-end justify-between border-b border-black/10 pb-4">
                 <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.3em] text-black/46">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-black/46">
                     Discover{" "}
                     {storeName}
                   </p>
@@ -2721,7 +2721,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={closeSearch}
-                  className="text-[9px] font-semibold uppercase tracking-[0.25em] text-black/50 transition-colors hover:text-black"
+                  className="text-[11px] font-semibold uppercase tracking-[0.25em] text-black/50 transition-colors hover:text-black"
                 >
                   Close
                 </button>
@@ -2762,14 +2762,14 @@ export default function Navbar() {
               </form>
 
               <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2">
-                <span className="text-[9px] font-semibold uppercase tracking-[0.26em] text-black/42">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-black/42">
                   Explore
                 </span>
 
                 <Link
                   href="/shop"
                   onClick={closeSearch}
-                  className="text-[10px] font-semibold uppercase tracking-[0.19em] text-black/67 transition-colors hover:text-black"
+                  className="text-[11px] font-semibold uppercase tracking-[0.19em] text-black/67 transition-colors hover:text-black"
                 >
                   Shop All
                 </Link>
@@ -2777,7 +2777,7 @@ export default function Navbar() {
                 <Link
                   href="/collections"
                   onClick={closeSearch}
-                  className="text-[10px] font-semibold uppercase tracking-[0.19em] text-black/67 transition-colors hover:text-black"
+                  className="text-[11px] font-semibold uppercase tracking-[0.19em] text-black/67 transition-colors hover:text-black"
                 >
                   Collections
                 </Link>
@@ -2785,7 +2785,7 @@ export default function Navbar() {
                 <Link
                   href="/size-guide"
                   onClick={closeSearch}
-                  className="text-[10px] font-semibold uppercase tracking-[0.19em] text-black/67 transition-colors hover:text-black"
+                  className="text-[11px] font-semibold uppercase tracking-[0.19em] text-black/67 transition-colors hover:text-black"
                 >
                   Size Guide
                 </Link>
@@ -2826,11 +2826,11 @@ export default function Navbar() {
                       : "translate-y-2 opacity-0"
                   }`}
                 >
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-black/45">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-black/45">
                     Navigation
                   </p>
 
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-black/32">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/32">
                     {String(
                       navigationItems.length
                     ).padStart(2, "0")}{" "}
@@ -2865,6 +2865,38 @@ export default function Navbar() {
                     )
                   )}
                 </div>
+
+                {/* Help links customers look for before buying. */}
+                <div
+                  className={`mt-5 flex flex-wrap gap-2 transition-all duration-700 delay-150 ${
+                    isOpen
+                      ? "translate-y-0 opacity-100"
+                      : "translate-y-2 opacity-0"
+                  }`}
+                >
+                  {[
+                    { href: "/size-guide", label: "Size Guide" },
+                    { href: "/contact", label: "Contact" },
+                    { href: "/delivery-policy", label: "Delivery" },
+                    { href: "/exchange-return-policy", label: "Exchange" },
+                  ]
+                    .filter(
+                      (link) =>
+                        !navigationItems.some(
+                          (item) => item.href === link.href
+                        )
+                    )
+                    .map((link) => (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        onClick={closeMenu}
+                        className="inline-flex min-h-11 items-center border border-black/12 px-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-black/70 transition hover:border-black hover:text-black"
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                </div>
               </div>
 
               <aside className="space-y-3 md:border-l md:border-black/10 md:pl-7">
@@ -2891,7 +2923,7 @@ export default function Navbar() {
                         </span>
 
                         <span className="min-w-0 flex-1">
-                          <span className="block text-[8px] font-semibold uppercase tracking-[0.24em] text-black/42">
+                          <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-black/42">
                             {customer
                               ? "Member Access"
                               : "Private Access"}
@@ -2929,7 +2961,7 @@ export default function Navbar() {
                         >
                           <SearchIcon className="transition-transform duration-300 group-hover:scale-110" />
 
-                          <span className="text-[8px] font-semibold uppercase tracking-[0.2em]">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.2em]">
                             Search
                           </span>
                         </button>
@@ -2958,7 +2990,7 @@ export default function Navbar() {
                             />
                           </span>
 
-                          <span className="text-[8px] font-semibold uppercase tracking-[0.2em]">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.2em]">
                             Wishlist
                           </span>
                         </Link>
@@ -2987,7 +3019,7 @@ export default function Navbar() {
                             />
                           </span>
 
-                          <span className="text-[8px] font-semibold uppercase tracking-[0.2em]">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.2em]">
                             Bag
                           </span>
                         </button>
@@ -3010,7 +3042,7 @@ export default function Navbar() {
                             01
                           </span>
 
-                          <span className="text-[8px] font-semibold uppercase tracking-[0.2em]">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.2em]">
                             Orders
                           </span>
                         </Link>
@@ -3033,12 +3065,12 @@ export default function Navbar() {
                   {storeTagline}
                 </p>
 
-                <p className="mt-1 text-[8px] font-semibold uppercase tracking-[0.23em] text-black/40">
+                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.23em] text-black/40">
                   An OBSIDIAN Standard
                 </p>
               </div>
 
-              <p className="text-[8px] font-semibold uppercase tracking-[0.22em] text-black/32">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/32">
                 {storeName}
               </p>
             </div>

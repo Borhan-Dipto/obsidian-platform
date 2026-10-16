@@ -766,7 +766,7 @@ function ContactRow({
       </span>
 
       <span className="min-w-0">
-        <span className="block text-[8px] font-semibold uppercase tracking-[0.25em] text-white/28">
+        <span className="block text-[11px] font-semibold uppercase tracking-[0.25em] text-white/28">
           {eyebrow}
         </span>
 
@@ -805,7 +805,7 @@ function TrustItem({
 }) {
   return (
     <div className="group relative min-w-0 border-l border-white/10 pl-5">
-      <span className="text-[8px] font-semibold uppercase tracking-[0.25em] text-white/24">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-white/24">
         {number}
       </span>
 
@@ -1458,7 +1458,7 @@ export default function Footer() {
         <div className="relative mx-auto max-w-[1640px] px-5 pb-8 pt-16 sm:px-7 sm:pt-20 lg:px-10 xl:px-12 xl:pt-24">
           <div className="grid gap-12 border-b border-white/10 pb-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-end lg:gap-20 lg:pb-18">
             <div>
-              <p className="text-[8px] font-semibold uppercase tracking-[0.34em] text-white/28 sm:text-[9px]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-white/28 sm:text-[11px]">
                 Private Releases · Editorial Notes
               </p>
 
@@ -1475,7 +1475,7 @@ export default function Footer() {
               <div className="lg:pb-1">
                 <div className="flex items-end justify-between gap-6">
                   <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-white/32">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/32">
                       {normalizeText(
                         newsletter.title,
                         "Stay In Touch"
@@ -1549,7 +1549,7 @@ export default function Footer() {
                       disabled={
                         isNewsletterLoading
                       }
-                      className="group/button inline-flex shrink-0 items-center gap-3 py-4 text-[9px] font-semibold uppercase tracking-[0.25em] text-white/68 transition-all duration-300 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                      className="group/button inline-flex shrink-0 items-center gap-3 py-4 text-[11px] font-semibold uppercase tracking-[0.25em] text-white/68 transition-all duration-300 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {isNewsletterLoading
                         ? "Joining"
@@ -1562,7 +1562,7 @@ export default function Footer() {
                     </button>
                   </div>
 
-                  <p className="mt-3 text-[10px] leading-5 text-white/32">
+                  <p className="mt-3 text-[11px] leading-5 text-white/32">
                     By joining, you agree to
                     receive marketing updates
                     and acknowledge our{" "}
@@ -1668,7 +1668,7 @@ export default function Footer() {
                           href={item.href}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="group inline-flex items-center gap-2 text-[8px] font-semibold uppercase tracking-[0.24em] text-white/32 transition-colors duration-300 hover:text-white"
+                          className="group inline-flex min-h-11 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/32 transition-colors duration-300 hover:text-white"
                         >
                           {item.label}
 
@@ -1743,20 +1743,20 @@ export default function Footer() {
                     }
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-[8px] font-semibold tracking-[0.22em] text-white/18">
+                      <span className="text-[11px] font-semibold tracking-[0.22em] text-white/18">
                         {String(
                           columnIndex + 1
                         ).padStart(2, "0")}
                       </span>
 
-                      <h3 className="text-[9px] font-semibold uppercase tracking-[0.27em] text-white/38">
+                      <h3 className="text-[11px] font-semibold uppercase tracking-[0.27em] text-white/38">
                         {column.title}
                       </h3>
                     </div>
 
                     {column.links.length >
                     0 ? (
-                      <ul className="mt-6 space-y-3.5">
+                      <ul className="mt-4 space-y-0.5">
                         {column.links.map(
                           (link) => (
                             <li
@@ -1775,7 +1775,7 @@ export default function Footer() {
                                 openInNewTab={
                                   link.openInNewTab
                                 }
-                                className="group inline-flex items-center gap-2 font-heading text-[18px] font-medium leading-none text-white/52 transition-all duration-300 hover:translate-x-1 hover:text-white"
+                                className="group inline-flex min-h-11 items-center gap-2 font-heading text-[18px] font-medium leading-none text-white/52 transition-all duration-300 hover:translate-x-1 hover:text-white"
                               >
                                 <span>
                                   {
@@ -1851,7 +1851,7 @@ export default function Footer() {
             />
           </div>
 
-          <div className="flex flex-col gap-6 py-8 text-[8px] font-semibold uppercase tracking-[0.22em] text-white/24 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-6 py-8 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/24 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6">
               <p className="leading-5">
                 {legal.showCurrentYear !==
@@ -1890,7 +1890,7 @@ export default function Footer() {
               ) : null}
             </div>
 
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
               {legalLinks.map(
                 (link) => (
                   <FooterLink
@@ -1903,7 +1903,7 @@ export default function Footer() {
                     openInNewTab={
                       link.openInNewTab
                     }
-                    className="transition-colors duration-300 hover:text-white"
+                    className="inline-flex min-h-11 items-center transition-colors duration-300 hover:text-white"
                   />
                 )
               )}

@@ -526,7 +526,7 @@ export default async function LegalPolicyPage({
             </p>
           ) : null}
 
-          <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3 text-[10px] uppercase tracking-[0.24em] text-neutral-500">
+          <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3 text-[11px] uppercase tracking-[0.24em] text-neutral-500">
             {version ? (
               <p>
                 Version {version}
@@ -551,7 +551,7 @@ export default async function LegalPolicyPage({
 
         <div className="mx-auto grid max-w-[1180px] gap-12 pt-12 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-20 lg:pt-16">
           <aside className="h-fit lg:sticky lg:top-28">
-            <p className="text-[10px] uppercase tracking-[0.34em] text-neutral-500">
+            <p className="text-[11px] uppercase tracking-[0.34em] text-neutral-500">
               Contents
             </p>
 
@@ -668,7 +668,7 @@ export default async function LegalPolicyPage({
             </div>
 
             <section className="mt-12 border border-black/15 bg-[#e9e2d8] p-6 sm:p-8 md:mt-16 md:p-10">
-              <p className="text-[10px] uppercase tracking-[0.34em] text-neutral-500">
+              <p className="text-[11px] uppercase tracking-[0.34em] text-neutral-500">
                 Support
               </p>
 
@@ -692,7 +692,7 @@ export default async function LegalPolicyPage({
                 {contactEmail ? (
                   <a
                     href={`mailto:${contactEmail}`}
-                    className="border border-black bg-black px-5 py-3 text-[10px] uppercase tracking-[0.24em] text-[#f1ece4] transition hover:opacity-80"
+                    className="border border-black bg-black px-5 py-3 text-[11px] uppercase tracking-[0.24em] text-[#f1ece4] transition hover:opacity-80"
                   >
                     Email Support
                   </a>
@@ -704,7 +704,7 @@ export default async function LegalPolicyPage({
                       /[^\d+]/g,
                       ""
                     )}`}
-                    className="border border-black/25 px-5 py-3 text-[10px] uppercase tracking-[0.24em] transition hover:border-black"
+                    className="border border-black/25 px-5 py-3 text-[11px] uppercase tracking-[0.24em] transition hover:border-black"
                   >
                     Call Support
                   </a>
@@ -715,7 +715,7 @@ export default async function LegalPolicyPage({
             {relatedPolicies.length >
             0 ? (
               <section className="mt-12 md:mt-16">
-                <p className="text-[10px] uppercase tracking-[0.34em] text-neutral-500">
+                <p className="text-[11px] uppercase tracking-[0.34em] text-neutral-500">
                   Related Policies
                 </p>
 

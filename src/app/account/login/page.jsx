@@ -169,7 +169,7 @@ function LuxuryField({
     <div className="auth-field group relative">
       <label
         htmlFor={name}
-        className={`mb-3 flex items-center gap-1.5 text-[9px] font-medium uppercase tracking-[0.3em] transition-colors duration-300 ${
+        className={`mb-3 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.3em] transition-colors duration-300 ${
           error
             ? "text-[#94433b]"
             : "text-[#6d665e] group-focus-within:text-[#0b0b0b]"
@@ -245,7 +245,7 @@ function LuxuryPasswordField({
     <div className="auth-field group relative">
       <label
         htmlFor={name}
-        className={`mb-3 flex items-center gap-1.5 text-[9px] font-medium uppercase tracking-[0.3em] transition-colors duration-300 ${
+        className={`mb-3 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.3em] transition-colors duration-300 ${
           error
             ? "text-[#94433b]"
             : "text-[#6d665e] group-focus-within:text-[#0b0b0b]"
@@ -403,7 +403,7 @@ function SuccessOverlay() {
           <CheckIcon />
         </div>
 
-        <p className="auth-success-copy mb-5 text-[9px] uppercase tracking-[0.43em] text-white/38">
+        <p className="auth-success-copy mb-5 text-[11px] uppercase tracking-[0.43em] text-white/38">
           Identity confirmed
         </p>
 
@@ -889,7 +889,7 @@ function LoginPageContent() {
                 OBSIDIAN
               </Link>
 
-              <span className="text-[8px] uppercase tracking-[0.4em] text-white/27">
+              <span className="text-[11px] uppercase tracking-[0.4em] text-white/27">
                 Private Membership
               </span>
             </header>
@@ -898,7 +898,7 @@ function LoginPageContent() {
               <div className="max-w-[35rem]">
                 <span className="auth-line mb-8 block h-px w-14 bg-[#f1ece4]/32" />
 
-                <p className="auth-reveal text-[9px] uppercase tracking-[0.43em] text-white/34">
+                <p className="auth-reveal text-[11px] uppercase tracking-[0.43em] text-white/34">
                   Return to the circle
                 </p>
 
@@ -918,7 +918,7 @@ function LoginPageContent() {
                   OBSIDIAN order shaped around you.
                 </p>
 
-                <div className="auth-reveal auth-delay-3 mt-10 flex flex-wrap gap-x-8 gap-y-3 text-[8px] uppercase tracking-[0.32em] text-white/24">
+                <div className="auth-reveal auth-delay-3 mt-10 flex flex-wrap gap-x-8 gap-y-3 text-[11px] uppercase tracking-[0.32em] text-white/24">
                   <span>Your Orders</span>
                   <span>Saved Pieces</span>
                   <span>Private Profile</span>
@@ -946,7 +946,7 @@ function LoginPageContent() {
 
               <Link
                 href="/"
-                className="group ml-auto flex items-center gap-4 text-[9px] uppercase tracking-[0.3em] text-[#6c655d] transition-colors duration-300 hover:text-[#0b0b0b]"
+                className="group ml-auto flex items-center gap-4 text-[11px] uppercase tracking-[0.3em] text-[#6c655d] transition-colors duration-300 hover:text-[#0b0b0b]"
               >
                 <span>Return to store</span>
 
@@ -959,7 +959,7 @@ function LoginPageContent() {
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.08),transparent_35%)]" />
 
                 <div className="relative z-10">
-                  <p className="text-[8px] uppercase tracking-[0.38em] text-white/35">
+                  <p className="text-[11px] uppercase tracking-[0.38em] text-white/35">
                     Private Membership
                   </p>
 
@@ -976,7 +976,7 @@ function LoginPageContent() {
             <div className="relative z-10 flex flex-1 items-center px-6 pb-14 pt-5 sm:px-10 lg:px-12 xl:px-16">
               <div className="mx-auto w-full max-w-[620px]">
                 <div className="auth-reveal">
-                  <p className="mb-5 text-[9px] font-medium uppercase tracking-[0.4em] text-[#736c64]">
+                  <p className="mb-5 text-[11px] font-medium uppercase tracking-[0.4em] text-[#736c64]">
                     Member sign in
                   </p>
 
@@ -1050,7 +1050,7 @@ function LoginPageContent() {
 
                     <Link
                       href="/account/forgot-password"
-                      className="w-fit text-[9px] font-medium uppercase tracking-[0.24em] text-[#625c55] transition-colors duration-300 hover:text-[#0b0b0b]"
+                      className="w-fit text-[11px] font-medium uppercase tracking-[0.24em] text-[#625c55] transition-colors duration-300 hover:text-[#0b0b0b]"
                     >
                       Forgot password?
                     </Link>
@@ -1076,7 +1076,7 @@ function LoginPageContent() {
                   >
                     <span className="absolute inset-0 -translate-x-[115%] bg-[linear-gradient(110deg,transparent_20%,rgba(255,255,255,0.12)_48%,transparent_75%)] transition-transform duration-1000 ease-out group-hover:translate-x-[115%]" />
 
-                    <span className="relative z-10 text-[9px] font-medium uppercase tracking-[0.36em]">
+                    <span className="relative z-10 text-[11px] font-medium uppercase tracking-[0.36em]">
                       {isSubmitting
                         ? "Confirming identity"
                         : "Enter my account"}
@@ -1091,7 +1091,7 @@ function LoginPageContent() {
                     </span>
                   </button>
 
-                  <div className="flex items-center justify-center gap-3 pt-1 text-center text-[8px] uppercase tracking-[0.28em] text-[#847c73]">
+                  <div className="flex items-center justify-center gap-3 pt-1 text-center text-[11px] uppercase tracking-[0.28em] text-[#847c73]">
                     <span className="h-px w-8 bg-[#bbb2a6]" />
 
                     <LockIcon />
@@ -1125,7 +1125,7 @@ function LoginPageFallback() {
       <div className="flex flex-col items-center gap-5">
         <span className="h-8 w-8 animate-spin rounded-full border border-black/15 border-t-black" />
 
-        <p className="text-[8px] uppercase tracking-[0.35em] text-black/45">
+        <p className="text-[11px] uppercase tracking-[0.35em] text-black/45">
           Preparing private access
         </p>
       </div>

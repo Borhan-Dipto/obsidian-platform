@@ -354,7 +354,7 @@ export default function CustomerOrdersPage() {
                   {formatCurrency(summary.totalSpent)}
                 </p>
 
-                <span className="rounded-full border border-white/15 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-white/60">
+                <span className="rounded-full border border-white/15 px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white/60">
                   Delivered orders
                 </span>
               </div>
@@ -366,7 +366,7 @@ export default function CustomerOrdersPage() {
                   <p className="text-2xl font-medium">
                     {summary.totalOrders}
                   </p>
-                  <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-white/40">
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-white/40">
                     Total
                   </p>
                 </div>
@@ -375,7 +375,7 @@ export default function CustomerOrdersPage() {
                   <p className="text-2xl font-medium">
                     {summary.activeOrders}
                   </p>
-                  <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-white/40">
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-white/40">
                     Active
                   </p>
                 </div>
@@ -384,7 +384,7 @@ export default function CustomerOrdersPage() {
                   <p className="text-2xl font-medium">
                     {summary.completedOrders}
                   </p>
-                  <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-white/40">
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-white/40">
                     Delivered
                   </p>
                 </div>
@@ -509,7 +509,7 @@ export default function CustomerOrdersPage() {
                   <div className="border-b border-black/8 px-6 py-6 sm:px-8">
                     <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-black/35">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/35">
                           Order reference
                         </p>
 
@@ -519,7 +519,7 @@ export default function CustomerOrdersPage() {
                           </h3>
 
                           <span
-                            className={`rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] ${status.tone}`}
+                            className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] ${status.tone}`}
                           >
                             {status.label}
                           </span>
@@ -527,7 +527,7 @@ export default function CustomerOrdersPage() {
                       </div>
 
                       <div className="sm:text-right">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-black/35">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-black/35">
                           Placed
                         </p>
                         <p className="mt-2 text-sm font-medium">
@@ -563,7 +563,7 @@ export default function CustomerOrdersPage() {
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <p className="text-[10px] uppercase tracking-[0.2em] text-black/35">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-black/35">
                             {primaryItem?.series ||
                               "OBSIDIAN Collection"}
                           </p>
@@ -614,7 +614,7 @@ export default function CustomerOrdersPage() {
 
                       <div className="mt-7 grid gap-3 sm:grid-cols-3">
                         <div className="rounded-2xl bg-[#f6f2ea] px-4 py-4">
-                          <p className="text-[9px] uppercase tracking-[0.18em] text-black/35">
+                          <p className="text-[11px] uppercase tracking-[0.18em] text-black/35">
                             Payment
                           </p>
                           <p className="mt-2 text-sm font-medium">
@@ -625,7 +625,7 @@ export default function CustomerOrdersPage() {
                         </div>
 
                         <div className="rounded-2xl bg-[#f6f2ea] px-4 py-4">
-                          <p className="text-[9px] uppercase tracking-[0.18em] text-black/35">
+                          <p className="text-[11px] uppercase tracking-[0.18em] text-black/35">
                             Payment status
                           </p>
                           <p className="mt-2 text-sm font-medium capitalize">
@@ -634,7 +634,7 @@ export default function CustomerOrdersPage() {
                         </div>
 
                         <div className="rounded-2xl bg-[#f6f2ea] px-4 py-4">
-                          <p className="text-[9px] uppercase tracking-[0.18em] text-black/35">
+                          <p className="text-[11px] uppercase tracking-[0.18em] text-black/35">
                             Pieces
                           </p>
                           <p className="mt-2 text-sm font-medium">
@@ -650,7 +650,7 @@ export default function CustomerOrdersPage() {
                     </div>
 
                     <div className="border-t border-black/8 bg-[#181613] p-6 text-white sm:p-8 lg:border-l lg:border-t-0">
-                      <p className="text-[10px] uppercase tracking-[0.22em] text-white/35">
+                      <p className="text-[11px] uppercase tracking-[0.22em] text-white/35">
                         Order total
                       </p>
 

@@ -12,6 +12,7 @@ import {
 
 import Link from "next/link";
 import ImageUploader from "./ImageUploader";
+import ProductGalleryFields from "./ProductGalleryFields";
 import ProductInventoryFields from "./ProductInventoryFields";
 import ProductDetailsFields, {
   EMPTY_PRODUCT_DETAILS_FORM,
@@ -68,6 +69,7 @@ export default function EditProductClient() {
     price: "",
     stock: "",
     image: "",
+    gallery: [],
     description: "",
     ...EMPTY_PRODUCT_DETAILS_FORM,
     inventoryMode: "legacy",
@@ -138,6 +140,9 @@ export default function EditProductClient() {
             ),
           image:
             product.image || "",
+          gallery: Array.isArray(product.gallery)
+            ? product.gallery
+            : [],
           description:
             product.description || "",
 
@@ -353,6 +358,7 @@ export default function EditProductClient() {
         Number(formData.price),
       image:
         formData.image,
+      gallery: formData.gallery || [],
     };
 
     const productData =
@@ -599,6 +605,16 @@ export default function EditProductClient() {
             value={formData.image}
             onChange={
               handleImageChange
+            }
+          />
+
+          <ProductGalleryFields
+            gallery={formData.gallery}
+            onChange={(gallery) =>
+              setFormData((currentFormData) => ({
+                ...currentFormData,
+                gallery,
+              }))
             }
           />
 

@@ -556,7 +556,7 @@ export default async function ContactPage() {
         <div className="container-custom">
           <nav
             aria-label="Breadcrumb"
-            className="mb-12 flex items-center gap-3 text-[10px] uppercase tracking-[0.28em] text-neutral-500"
+            className="mb-12 flex items-center gap-3 text-[11px] uppercase tracking-[0.28em] text-neutral-500"
           >
             <Link
               href="/"
@@ -600,7 +600,7 @@ export default async function ContactPage() {
               <div className="mt-12 grid gap-6 sm:grid-cols-2">
                 <div className="border-t border-black/10 pt-6">
                   {supportTitle ? (
-                    <p className="text-[10px] uppercase tracking-[0.32em] text-neutral-500">
+                    <p className="text-[11px] uppercase tracking-[0.32em] text-neutral-500">
                       {supportTitle}
                     </p>
                   ) : null}
@@ -614,7 +614,7 @@ export default async function ContactPage() {
 
                 <div className="border-t border-black/10 pt-6">
                   {collaborationTitle ? (
-                    <p className="text-[10px] uppercase tracking-[0.32em] text-neutral-500">
+                    <p className="text-[11px] uppercase tracking-[0.32em] text-neutral-500">
                       {collaborationTitle}
                     </p>
                   ) : null}

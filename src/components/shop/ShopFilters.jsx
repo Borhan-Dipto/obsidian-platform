@@ -337,7 +337,7 @@ function FilterChip({
   removeLabel,
 }) {
   return (
-    <span className="obsidian-filter-chip inline-flex min-h-10 items-center border border-black/15 bg-[#eee7dd] text-[9px] uppercase tracking-[0.2em] text-neutral-700 sm:text-[10px]">
+    <span className="obsidian-filter-chip inline-flex min-h-10 items-center border border-black/15 bg-[#eee7dd] text-[11px] uppercase tracking-[0.2em] text-neutral-700 sm:text-[11px]">
       <span className="px-3 py-2">
         {children}
       </span>
@@ -555,6 +555,11 @@ export default function ShopFilters({
         values.values()
       );
     }, [colorOptions]);
+
+  const [
+    mobileFiltersOpen,
+    setMobileFiltersOpen,
+  ] = useState(false);
 
   const activeFilterCount =
     useMemo(() => {
@@ -826,7 +831,7 @@ export default function ShopFilters({
     <section
       aria-label="Shop filters"
       aria-busy={isPending}
-      className="obsidian-filter-shell mt-12 overflow-hidden border-y border-black/10 sm:mt-14"
+      className="obsidian-filter-shell mt-8 overflow-hidden border-y border-black/10 sm:mt-14"
     >
       <span
         aria-hidden="true"
@@ -836,7 +841,7 @@ export default function ShopFilters({
       <div className="py-6 sm:py-7">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-500">
+            <p className="text-[11px] uppercase tracking-[0.3em] text-neutral-500">
               Instant Filters
             </p>
 
@@ -864,7 +869,7 @@ export default function ShopFilters({
           <div className="flex flex-wrap gap-3">
             <Link
               href="/wishlist"
-              className="obsidian-motion-button inline-flex min-h-11 items-center justify-center border border-black/20 px-4 py-2 text-[10px] uppercase tracking-[0.23em] text-neutral-600 transition hover:bg-black hover:text-[#f1ece4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 focus-visible:ring-offset-[#f1ece4] sm:text-xs sm:tracking-[0.25em]"
+              className="obsidian-motion-button inline-flex min-h-11 items-center justify-center border border-black/20 px-4 py-2 text-[11px] uppercase tracking-[0.23em] text-neutral-600 transition hover:bg-black hover:text-[#f1ece4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 focus-visible:ring-offset-[#f1ece4] sm:text-xs sm:tracking-[0.25em]"
             >
               Wishlist
             </Link>
@@ -876,16 +881,43 @@ export default function ShopFilters({
                 activeFilterCount === 0 ||
                 isPending
               }
-              className="obsidian-motion-button inline-flex min-h-11 items-center justify-center bg-[#0b0b0b] px-4 py-2 text-[10px] uppercase tracking-[0.23em] text-[#f1ece4] transition disabled:cursor-not-allowed disabled:opacity-40 sm:px-5 sm:text-xs sm:tracking-[0.25em]"
+              className="obsidian-motion-button inline-flex min-h-11 items-center justify-center bg-[#0b0b0b] px-4 py-2 text-[11px] uppercase tracking-[0.23em] text-[#f1ece4] transition disabled:cursor-not-allowed disabled:opacity-40 sm:px-5 sm:text-xs sm:tracking-[0.25em]"
             >
               Show All Products
             </button>
           </div>
         </div>
 
+        <button
+          type="button"
+          onClick={() =>
+            setMobileFiltersOpen((open) => !open)
+          }
+          aria-expanded={mobileFiltersOpen}
+          aria-controls="shop-filter-controls"
+          className="mt-5 flex min-h-12 w-full items-center justify-between border border-black/15 bg-[#eee7dd] px-4 text-xs uppercase tracking-[0.22em] text-neutral-800 lg:hidden"
+        >
+          <span>
+            Filter &amp; Sort
+            {activeFilterCount > 0
+              ? ` (${activeFilterCount})`
+              : ""}
+          </span>
+
+          <span aria-hidden="true" className="text-lg leading-none">
+            {mobileFiltersOpen ? "−" : "+"}
+          </span>
+        </button>
+
+        <div
+          id="shop-filter-controls"
+          className={`${
+            mobileFiltersOpen ? "block" : "hidden"
+          } lg:block`}
+        >
         <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-[1.35fr_0.85fr_0.85fr_0.95fr]">
           <label className="relative block">
-            <span className="mb-2 block text-[9px] uppercase tracking-[0.22em] text-neutral-500">
+            <span className="mb-2 block text-[11px] uppercase tracking-[0.22em] text-neutral-500">
               Search
             </span>
 
@@ -922,7 +954,7 @@ export default function ShopFilters({
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-[9px] uppercase tracking-[0.22em] text-neutral-500">
+            <span className="mb-2 block text-[11px] uppercase tracking-[0.22em] text-neutral-500">
               Series
             </span>
 
@@ -954,7 +986,7 @@ export default function ShopFilters({
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-[9px] uppercase tracking-[0.22em] text-neutral-500">
+            <span className="mb-2 block text-[11px] uppercase tracking-[0.22em] text-neutral-500">
               Color
             </span>
 
@@ -986,7 +1018,7 @@ export default function ShopFilters({
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-[9px] uppercase tracking-[0.22em] text-neutral-500">
+            <span className="mb-2 block text-[11px] uppercase tracking-[0.22em] text-neutral-500">
               Sort
             </span>
 
@@ -1018,7 +1050,7 @@ export default function ShopFilters({
 
         <div className="mt-5 grid gap-5 border-t border-black/10 pt-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
           <fieldset>
-            <legend className="text-[9px] uppercase tracking-[0.22em] text-neutral-500">
+            <legend className="text-[11px] uppercase tracking-[0.22em] text-neutral-500">
               Price Range
             </legend>
 
@@ -1103,7 +1135,7 @@ export default function ShopFilters({
               </label>
             </div>
 
-            <p className="mt-2 text-[10px] leading-5 text-neutral-500">
+            <p className="mt-2 text-[11px] leading-5 text-neutral-500">
               Catalog range: ৳
               {formatMoney(
                 minimumCatalogPrice
@@ -1116,7 +1148,7 @@ export default function ShopFilters({
           </fieldset>
 
           <fieldset>
-            <legend className="text-[9px] uppercase tracking-[0.22em] text-neutral-500">
+            <legend className="text-[11px] uppercase tracking-[0.22em] text-neutral-500">
               Availability
             </legend>
 
@@ -1140,7 +1172,7 @@ export default function ShopFilters({
                       aria-pressed={
                         isSelected
                       }
-                      className={`obsidian-filter-control min-h-11 border px-4 py-2 text-[10px] uppercase tracking-[0.22em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 focus-visible:ring-offset-[#f1ece4] sm:text-xs ${
+                      className={`obsidian-filter-control min-h-11 border px-4 py-2 text-[11px] uppercase tracking-[0.22em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 focus-visible:ring-offset-[#f1ece4] sm:text-xs ${
                         isSelected
                           ? "border-black bg-black text-[#f1ece4]"
                           : "border-black/20 text-neutral-600 hover:bg-black hover:text-[#f1ece4]"
@@ -1154,11 +1186,12 @@ export default function ShopFilters({
             </div>
           </fieldset>
         </div>
+        </div>
 
         {activeFilterCount > 0 ? (
           <div className="mt-6 border-t border-black/10 pt-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-              <p className="shrink-0 pt-3 text-[9px] uppercase tracking-[0.24em] text-neutral-500">
+              <p className="shrink-0 pt-3 text-[11px] uppercase tracking-[0.24em] text-neutral-500">
                 Active Filters
               </p>
 
@@ -1271,7 +1304,7 @@ export default function ShopFilters({
             </div>
           </div>
         ) : (
-          <p className="mt-6 border-t border-black/10 pt-5 text-[10px] uppercase tracking-[0.23em] text-neutral-500">
+          <p className="mt-6 border-t border-black/10 pt-5 text-[11px] uppercase tracking-[0.23em] text-neutral-500">
             Showing all{" "}
             {Number(
               totalProductCount || 0

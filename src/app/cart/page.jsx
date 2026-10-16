@@ -1,6 +1,7 @@
 "use client";
 
-import Image from "next/image";
+import { getStockLabel } from "../../lib/productImages";
+import FramedImage from "../../components/ui/FramedImage";
 import Link from "next/link";
 
 import {
@@ -247,7 +248,7 @@ export default function CartPage() {
                     !isStorageReady ||
                     isCartRefreshing
                   }
-                  className="border border-black/20 px-5 py-3 text-[10px] uppercase tracking-[0.28em] transition hover:border-black hover:bg-black hover:text-[#f1ece4] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="border border-black/20 px-5 py-3 text-[11px] uppercase tracking-[0.28em] transition hover:border-black hover:bg-black hover:text-[#f1ece4] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {isCartRefreshing
                     ? "Checking Stock..."
@@ -324,7 +325,7 @@ export default function CartPage() {
                           className="relative aspect-[4/5] w-full overflow-hidden bg-[#0b0b0b] md:w-[140px]"
                           aria-label={`View ${item.name}`}
                         >
-                          <Image
+                          <FramedImage
                             src={getSafeImage(
                               item.image
                             )}
@@ -332,9 +333,8 @@ export default function CartPage() {
                               item.name ||
                               "Obsidian product"
                             }
-                            fill
                             sizes="(max-width: 767px) 100vw, 140px"
-                            className="object-cover object-center transition-transform duration-700 hover:scale-105"
+                            imageClassName=" transition-transform duration-700 hover:scale-105"
                           />
                         </Link>
 
@@ -376,16 +376,13 @@ export default function CartPage() {
                             </p>
 
                             <p>
-                              Stock:{" "}
-                              {stock > 0
-                                ? `${stock} Available`
-                                : "Out of Stock"}
+                              {getStockLabel(stock).text}
                             </p>
                           </div>
 
                           {stock > 0 &&
                           stock <= 5 ? (
-                            <p className="mt-4 w-fit bg-[#0b0b0b] px-4 py-2 text-[10px] uppercase tracking-[0.24em] text-[#f1ece4]">
+                            <p className="mt-4 w-fit bg-[#0b0b0b] px-4 py-2 text-[11px] uppercase tracking-[0.24em] text-[#f1ece4]">
                               Only{" "}
                               {
                                 stock
@@ -577,7 +574,7 @@ export default function CartPage() {
                   </p>
 
                   <p>
-                    ✓ 2–5 Days Delivery
+                    ✓ Delivery in 1–5 Days
                   </p>
 
                   <p>
