@@ -18,6 +18,10 @@ import {
   getSettings,
 } from "../../../lib/settings";
 import { buildDeliveryLines } from "../../../lib/storePolicies";
+import {
+  buildFaqJsonLd,
+  buildProductFaq,
+} from "../../../lib/productFaq.js";
 import ProductActions from "../../../components/product/ProductActions";
 import ProductSizeGuide from "../../../components/product/ProductSizeGuide";
 import RelatedProducts from "../../../components/product/RelatedProducts";
@@ -439,6 +443,12 @@ export default async function ProductDetailsPage({ params }) {
     currencySymbol
   );
 
+  const faqItems = buildProductFaq({
+    settings: storeSettings,
+    details: productDetails,
+    currencySymbol,
+  });
+
   const additionalProperty = detailRows
     .filter((row) => row.key !== "material")
     .map((row) => ({
@@ -543,6 +553,15 @@ export default async function ProductDetailsPage({ params }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: serializeJsonLd(breadcrumbJsonLd),
+        }}
+      />
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd(
+            buildFaqJsonLd(faqItems, productUrl)
+          ),
         }}
       />
 
@@ -791,6 +810,50 @@ export default async function ProductDetailsPage({ params }) {
                     )}
                   </p>
                 </div>
+
+                <section aria-labelledby="product-faq-title">
+                  <h2
+                    id="product-faq-title"
+                    className="mb-3 text-xs uppercase tracking-[0.35em] text-neutral-500"
+                  >
+                    Questions
+                  </h2>
+
+                  <div className="divide-y divide-black/10 border-y border-black/10">
+                    {faqItems.map((item) => (
+                      <details
+                        key={item.id}
+                        className="group py-1"
+                      >
+                        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-6 py-2 text-sm text-[#0b0b0b] [&::-webkit-details-marker]:hidden">
+                          {item.question}
+
+                          <span
+                            aria-hidden="true"
+                            className="text-lg leading-none text-neutral-500 transition-transform duration-300 group-open:rotate-45"
+                          >
+                            +
+                          </span>
+                        </summary>
+
+                        <p className="pb-4 text-sm leading-7 text-neutral-600">
+                          {item.answer}
+                          {item.link ? (
+                            <>
+                              {" "}
+                              <Link
+                                href={item.link.href}
+                                className="border-b border-black/30 text-[#0b0b0b]"
+                              >
+                                {item.link.label}
+                              </Link>
+                            </>
+                          ) : null}
+                        </p>
+                      </details>
+                    ))}
+                  </div>
+                </section>
               </div>
             </div>
           </div>

@@ -320,7 +320,7 @@ const DEFAULT_HOMEPAGE = {
           title: "Artifact Series",
           image: "/images/collection-artifact.jpeg",
           imageAlt: "Artifact Series",
-          href: "/shop?series=Artifact%20Series",
+          href: "/collections/artifact-series",
           buttonText: "View",
         },
 

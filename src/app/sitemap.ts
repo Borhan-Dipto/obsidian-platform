@@ -6,6 +6,10 @@ import {
 } from "../lib/catalog";
 
 import clientPromise from "../lib/mongodb";
+import { createCollectionPath } from "../lib/collectionUrls.js";
+
+/* Rebuild at most hourly so new products and collections appear without a redeploy. */
+export const revalidate = 3600;
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
@@ -153,10 +157,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const productRoutes: MetadataRoute.Sitemap = [];
 
     /*
-     * Collection pages (/shop?series=...) are indexable landing
+     * Collection pages (/collections/<slug>) are indexable landing
      * pages with self-referencing canonicals, so list each series
-     * that has at least one public product. URL encoding matches
-     * the canonical the shop page declares.
+     * that has at least one public product (one URL per slug).
      */
     const collectionLastModified = new Map<string, Date>();
 
@@ -198,14 +201,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     const collectionRoutes: MetadataRoute.Sitemap = Array.from(
       collectionLastModified.entries()
-    ).map(([series, lastModified]) => ({
-      url: `${SITE_URL}/shop?${new URLSearchParams({
-        series,
-      }).toString()}`,
-      lastModified,
-      changeFrequency: "weekly",
-      priority: 0.7,
-    }));
+    ).reduce<MetadataRoute.Sitemap>((routes, [series, lastModified]) => {
+      const url = `${SITE_URL}${createCollectionPath(series)}`;
+
+      if (!routes.some((route) => route.url === url)) {
+        routes.push({
+          url,
+          lastModified,
+          changeFrequency: "weekly",
+          priority: 0.7,
+        });
+      }
+
+      return routes;
+    }, []);
 
     return [
       ...staticRoutes,

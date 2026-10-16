@@ -205,7 +205,7 @@ const nextConfig: NextConfig = {
       {
         source: "/artifact",
         destination:
-          "/shop?series=Artifact%20Series",
+          "/collections/artifact-series",
         permanent: true,
       },
     ];

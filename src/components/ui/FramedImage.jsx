@@ -15,7 +15,7 @@ export default function FramedImage({
   src,
   alt,
   sizes,
-  priority = false,
+  preload = false,
   className = "",
   imageClassName = "",
   style,
@@ -33,7 +33,6 @@ export default function FramedImage({
         aria-hidden="true"
         fill
         sizes={sizes}
-        priority={priority}
         className={`pointer-events-none scale-110 object-cover object-center opacity-70 blur-2xl ${className}`}
       />
 
@@ -42,7 +41,7 @@ export default function FramedImage({
         alt={alt}
         fill
         sizes={sizes}
-        priority={priority}
+        preload={preload}
         onError={onError}
         style={style}
         className={`object-contain object-center ${imageClassName}`}

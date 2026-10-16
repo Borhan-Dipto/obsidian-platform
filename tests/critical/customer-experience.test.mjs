@@ -41,7 +41,7 @@ test("stock wording hides exact counts unless stock is low", () => {
 
   for (const file of [
     "src/app/product/[id]/page.jsx",
-    "src/app/shop/page.jsx",
+    "src/components/shop/ShopPageView.jsx",
     "src/components/product/QuickViewModal.jsx",
     "src/components/cart/MiniCartDrawer.jsx",
     "src/app/cart/page.jsx",
@@ -96,7 +96,7 @@ test("gallery is validated server-side and editable in admin", () => {
 test("product photos are never cropped in product frames", () => {
   for (const file of [
     "src/components/product/ProductGallery.jsx",
-    "src/app/shop/page.jsx",
+    "src/components/shop/ShopPageView.jsx",
     "src/components/product/RelatedProducts.jsx",
     "src/components/product/RecentlyViewedProducts.jsx",
     "src/components/product/QuickViewModal.jsx",
@@ -122,7 +122,7 @@ test("phones get a sticky buy bar and a touch-friendly zoom hint", () => {
 });
 
 test("shop shows two products per row on phones and folds filters away", () => {
-  assert.match(readSource("src/app/shop/page.jsx"), /grid grid-cols-2/);
+  assert.match(readSource("src/components/shop/ShopPageView.jsx"), /grid grid-cols-2/);
 
   const filters = readSource("src/components/shop/ShopFilters.jsx");
 

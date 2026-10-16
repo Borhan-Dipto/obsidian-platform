@@ -98,7 +98,6 @@ export default function RelatedProducts({ currentProductId }) {
                 <FramedImage
                   src={getProductImage(product)}
                   alt={product.name}
-                  priority={index === 0}
                   sizes="(max-width: 767px) 100vw, (max-width: 1279px) 50vw, 33vw"
                   imageClassName=" transition-transform duration-1000 ease-out will-change-transform group-hover:scale-105"
                 />

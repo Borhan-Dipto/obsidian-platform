@@ -108,14 +108,14 @@ test("legacy /artifact page redirects permanently to its collection", () => {
   const config = readSource("next.config.ts");
 
   assert.match(config, /source:\s*"\/artifact"/);
-  assert.match(config, /destination:\s*\n?\s*"\/shop\?series=Artifact%20Series"/);
+  assert.match(config, /destination:\s*\n?\s*"\/collections\/artifact-series"/);
   assert.match(config, /permanent:\s*true/);
 });
 
 test("sitemap lists collection pages using the canonical encoding", () => {
   const sitemap = readSource("src/app/sitemap.ts");
 
-  assert.match(sitemap, /new URLSearchParams\(\{\s*series,?\s*\}\)/);
+  assert.match(sitemap, /createCollectionPath\(series\)/);
   assert.match(sitemap, /\.\.\.collectionRoutes/);
 });
 

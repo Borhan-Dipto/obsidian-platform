@@ -1,3 +1,4 @@
+import { createCollectionPath } from "../../lib/collectionUrls.js";
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "../../components/layout/Navbar";
@@ -214,9 +215,9 @@ function getAbsoluteUrl(pathOrUrl) {
 }
 
 function createCollectionShopPath(series) {
-  return `/shop?series=${encodeURIComponent(
+  return createCollectionPath(
     normalizeSeriesName(series)
-  )}`;
+  );
 }
 
 function serializeJsonLd(data) {

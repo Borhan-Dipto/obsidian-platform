@@ -190,17 +190,32 @@ function normalizeFiltersForNavigation(filters) {
 
 function createShopPath(
   pathname,
-  filters
+  filters,
+  collectionSeries = ""
 ) {
   const normalizedFilters =
     normalizeFiltersForNavigation(
       filters
     );
 
+  /*
+   * On /collections/<slug> the series is part of the path. Changing
+   * the series (or leaving the page's series) goes back to /shop.
+   */
+  const staysOnCollection =
+    Boolean(collectionSeries) &&
+    normalizedFilters.selectedSeries ===
+      collectionSeries;
+
+  const basePath = staysOnCollection
+    ? pathname
+    : "/shop";
+
   const searchParams =
     new URLSearchParams();
 
   if (
+    !staysOnCollection &&
     normalizedFilters.selectedSeries &&
     normalizedFilters.selectedSeries !==
       "All"
@@ -269,8 +284,8 @@ function createShopPath(
     searchParams.toString();
 
   return query
-    ? `${pathname}?${query}`
-    : pathname;
+    ? `${basePath}?${query}`
+    : basePath;
 }
 
 function normalizeInitialFilters(
@@ -357,6 +372,7 @@ function FilterChip({
 export default function ShopFilters({
   initialFilters = DEFAULT_FILTERS,
   seriesOptions = [],
+  collectionSeries = "",
   colorOptions = [],
   resultCount = 0,
   totalProductCount = 0,
@@ -654,7 +670,8 @@ export default function ShopFilters({
     const nextPath =
       createShopPath(
         pathname,
-        normalizedFilters
+        normalizedFilters,
+        collectionSeries
       );
 
     startTransition(() => {
@@ -811,7 +828,7 @@ export default function ShopFilters({
     setFilters(nextFilters);
 
     startTransition(() => {
-      router.push(pathname, {
+      router.push("/shop", {
         scroll: false,
       });
     });
