@@ -3,6 +3,7 @@ import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
 import { getContactContent } from "../../lib/getCmsContent";
 import clientPromise from "../../lib/mongodb";
+import { ORGANIZATION_LOGO_PATH } from "../../lib/seoOrganization";
 
 export const dynamic = "force-dynamic";
 
@@ -467,7 +468,9 @@ export default async function ContactPage() {
 
     logo: {
       "@type": "ImageObject",
-      url: `${SITE_URL}/favicon.ico`,
+      url: `${SITE_URL}${ORGANIZATION_LOGO_PATH}`,
+      width: 2048,
+      height: 2048,
     },
 
     email: email || undefined,

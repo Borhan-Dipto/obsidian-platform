@@ -13,6 +13,7 @@ const SITE_URL =
 
 type ProductSitemapRecord = {
   id?: string;
+  series?: string;
   createdAt?: Date | string;
   updatedAt?: Date | string;
 };
@@ -137,6 +138,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           projection: {
             _id: 0,
             id: 1,
+            series: 1,
             createdAt: 1,
             updatedAt: 1,
           },
@@ -150,12 +152,37 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     const productRoutes: MetadataRoute.Sitemap = [];
 
+    /*
+     * Collection pages (/shop?series=...) are indexable landing
+     * pages with self-referencing canonicals, so list each series
+     * that has at least one public product. URL encoding matches
+     * the canonical the shop page declares.
+     */
+    const collectionLastModified = new Map<string, Date>();
+
     for (const product of products) {
       const productId =
         typeof product.id === "string" ? product.id.trim() : "";
 
       if (!productId) {
         continue;
+      }
+
+      const series =
+        typeof product.series === "string"
+          ? product.series.replace(/\s+/g, " ").trim()
+          : "";
+
+      if (series) {
+        const modified = getValidDate(
+          product.updatedAt || product.createdAt,
+          generatedAt
+        );
+        const previous = collectionLastModified.get(series);
+
+        if (!previous || modified > previous) {
+          collectionLastModified.set(series, modified);
+        }
       }
 
       productRoutes.push({
@@ -169,7 +196,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       });
     }
 
-    return [...staticRoutes, ...productRoutes];
+    const collectionRoutes: MetadataRoute.Sitemap = Array.from(
+      collectionLastModified.entries()
+    ).map(([series, lastModified]) => ({
+      url: `${SITE_URL}/shop?${new URLSearchParams({
+        series,
+      }).toString()}`,
+      lastModified,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    }));
+
+    return [
+      ...staticRoutes,
+      ...collectionRoutes,
+      ...productRoutes,
+    ];
   } catch (error) {
     console.error("Sitemap generation error:", error);
 

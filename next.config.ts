@@ -194,6 +194,23 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
 
+  /*
+   * /artifact was an early static page that duplicated the
+   * Artifact Series collection (and declared the homepage as its
+   * canonical). Send visitors and search engines to the live
+   * collection instead.
+   */
+  async redirects() {
+    return [
+      {
+        source: "/artifact",
+        destination:
+          "/shop?series=Artifact%20Series",
+        permanent: true,
+      },
+    ];
+  },
+
   images: {
     formats: [
       "image/avif",
