@@ -236,6 +236,9 @@ export function createLegalCmsDefaults(
 
           paragraphs: [
             "The website may use cookies or browser storage for essential sessions, cart and wishlist functions, security, preferences, and performance. Blocking essential storage may prevent parts of the website from working correctly.",
+            "We use advertising and analytics tools, including the Meta Pixel and Meta Conversions API (Facebook and Instagram) and Google Analytics, to measure visits, product views, cart activity, checkouts and purchases, and to show and improve our ads. These tools may use cookies and similar identifiers, and may receive technical information such as your IP address, browser details, the pages you visit and the products and order value involved.",
+            "When an order is placed, we may share limited order information with Meta to measure our advertising. Contact details such as your phone number or email may be included only in hashed (one-way encrypted) form, and we never share your delivery address, order notes or payment details with advertising partners. Meta and Google process this information under their own privacy policies.",
+            "You can limit this tracking by blocking or deleting cookies in your browser, using your Facebook and Instagram ad preferences, or using the Google Analytics opt-out browser add-on. Doing so will not prevent you from shopping on the website.",
           ],
         }),
 

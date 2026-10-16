@@ -5,6 +5,10 @@ import {
   buildViewContentParams,
   trackMetaEvent,
 } from "../../lib/metaPixel";
+import {
+  buildGa4ItemEventParams,
+  trackGa4Event,
+} from "../../lib/googleAnalytics";
 
 /*
  * Sends one ViewContent per product page view. The product data
@@ -41,6 +45,13 @@ export default function MetaViewContent({
 
     trackedProductRef.current = id;
     trackMetaEvent("ViewContent", params);
+
+    trackGa4Event(
+      "view_item",
+      buildGa4ItemEventParams([
+        { id, name: productName, price, quantity: 1 },
+      ])
+    );
   }, [productId, productName, price, currency]);
 
   return null;

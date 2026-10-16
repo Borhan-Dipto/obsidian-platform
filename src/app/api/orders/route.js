@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { after } from "next/server";
 
 import {
   requireAdminApiPermission,
@@ -13,6 +14,10 @@ import {
   LegalConsentError,
 } from "../../../lib/legalConsent";
 import { PRODUCTS_COLLECTION_NAME } from "../../../lib/catalog";
+import {
+  collectMetaRequestContext,
+  sendMetaPurchaseEvent,
+} from "../../../lib/metaConversionsApi";
 
 import {
   dispatchOrderPlacedNotifications,
@@ -1399,6 +1404,27 @@ export async function POST(
         request,
       }
     );
+
+    /*
+     * Meta Conversions API: server-side Purchase for new orders
+     * only (never for duplicate/idempotent replays). Runs after the
+     * response so checkout is never slowed down or broken by it.
+     */
+    const metaRequestContext =
+      collectMetaRequestContext(
+        request,
+        process.env.NEXT_PUBLIC_SITE_URL ||
+          getRequestOrigin(request) ||
+          "https://obsidianwearbd.store"
+      );
+
+    after(async () => {
+      await sendMetaPurchaseEvent({
+        order: savedOrder,
+        context:
+          metaRequestContext,
+      });
+    });
 
     return jsonResponse(
       {

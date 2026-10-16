@@ -1,6 +1,6 @@
 import {
   OBSIDIAN_SIZE_ORDER,
-} from "./sizeGuide";
+} from "./sizeGuide.js";
 
 function isPlainRecord(value) {
   return Boolean(

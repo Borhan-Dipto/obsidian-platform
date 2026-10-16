@@ -295,6 +295,95 @@ export async function createPurchaseEventId(orderId) {
   return hash ? `purchase_${hash.slice(0, 40)}` : "";
 }
 
+/* ---------------- First-party click IDs ---------------- */
+
+const META_COOKIE_MAX_AGE_SECONDS = 90 * 24 * 60 * 60;
+
+export function createFbcValue(fbclid, timestampMs = Date.now()) {
+  const clickId = String(fbclid || "").trim();
+
+  if (!/^[A-Za-z0-9_\-.]{10,500}$/.test(clickId)) {
+    return "";
+  }
+
+  return `fb.1.${Math.floor(timestampMs)}.${clickId}`;
+}
+
+export function createFbpValue(
+  timestampMs = Date.now(),
+  random = Math.floor(Math.random() * 2147483647)
+) {
+  return `fb.1.${Math.floor(timestampMs)}.${Math.floor(random)}`;
+}
+
+function readBrowserCookie(name) {
+  try {
+    const prefix = `${name}=`;
+
+    for (const part of document.cookie.split(";")) {
+      const cookie = part.trim();
+
+      if (cookie.startsWith(prefix)) {
+        return decodeURIComponent(cookie.slice(prefix.length));
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return "";
+}
+
+function writeBrowserCookie(name, value) {
+  try {
+    const secure =
+      window.location.protocol === "https:" ? "; Secure" : "";
+
+    document.cookie = `${name}=${encodeURIComponent(
+      value
+    )}; Max-Age=${META_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax${secure}`;
+  } catch {
+    /* ignore */
+  }
+}
+
+/*
+ * Keeps Meta's first-party identifiers (_fbc from an ad click's
+ * fbclid, and _fbp) even when the Meta script is blocked, so the
+ * server-side Conversions API can still attribute the order to the
+ * ad. Uses Meta's documented cookie formats.
+ */
+export function persistMetaIdentifiers(search = "") {
+  if (!hasWindow() || !isMetaPixelEnabled()) {
+    return;
+  }
+
+  try {
+    const params = new URLSearchParams(
+      String(search || "").replace(/^\?/, "")
+    );
+    const fbclid = params.get("fbclid");
+
+    if (fbclid) {
+      const currentFbc = readBrowserCookie("_fbc");
+
+      if (!currentFbc.endsWith(`.${fbclid}`)) {
+        const fbc = createFbcValue(fbclid);
+
+        if (fbc) {
+          writeBrowserCookie("_fbc", fbc);
+        }
+      }
+    }
+
+    if (!readBrowserCookie("_fbp")) {
+      writeBrowserCookie("_fbp", createFbpValue());
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 /* ---------------- Browser runtime ---------------- */
 
 let isInitialized = false;
