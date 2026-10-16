@@ -38,6 +38,7 @@ export async function GET() {
           image: 1,
           color: 1,
           series: 1,
+          details: 1,
         },
       })
       .sort({ createdAt: -1 })

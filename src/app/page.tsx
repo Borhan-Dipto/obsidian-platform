@@ -15,6 +15,7 @@ import {
   getSettings,
 } from "../lib/settings";
 import { buildOrganizationProfile } from "../lib/seoOrganization";
+import { buildMerchantReturnPolicy } from "../lib/storePolicies";
 
 export const dynamic = "force-dynamic";
 
@@ -401,6 +402,9 @@ export default async function Home() {
       storeSettings,
       SITE_URL
     ),
+
+    hasMerchantReturnPolicy:
+      buildMerchantReturnPolicy(SITE_URL),
   };
 
   const websiteJsonLd = {

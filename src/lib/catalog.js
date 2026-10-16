@@ -537,6 +537,70 @@ function validateProductSizeInventory(
   };
 }
 
+/*
+ * Optional, owner-entered product facts (fabric, weight, fit, print,
+ * care). Shown on the product page and in structured data only when
+ * filled in, so nothing is ever invented for a product.
+ */
+export const PRODUCT_DETAIL_FIELDS = [
+  "material",
+  "gsm",
+  "fit",
+  "print",
+  "care",
+];
+
+const PRODUCT_DETAIL_LIMITS = {
+  material: 120,
+  fit: 80,
+  print: 80,
+  care: 400,
+};
+
+export function normalizeProductDetails(value) {
+  const source = isPlainObject(value) ? value : {};
+  const details = {};
+
+  for (const [field, maximumLength] of Object.entries(
+    PRODUCT_DETAIL_LIMITS
+  )) {
+    const text = normalizeCatalogText(source[field]);
+
+    if (text.length > maximumLength) {
+      return {
+        error: `Product ${field} must not exceed ${maximumLength} characters.`,
+        value: null,
+      };
+    }
+
+    details[field] = text;
+  }
+
+  const rawGsm = normalizeCatalogText(source.gsm);
+
+  if (!rawGsm) {
+    details.gsm = "";
+  } else {
+    const gsm = Number(rawGsm);
+
+    if (
+      !Number.isInteger(gsm) ||
+      gsm < 80 ||
+      gsm > 600
+    ) {
+      return {
+        error:
+          "Fabric weight (GSM) must be a whole number between 80 and 600.",
+        value: null,
+      };
+    }
+
+    details.gsm = gsm;
+  }
+
+  return { error: "", value: details };
+}
+
 export function normalizeProductPayload(
   incomingProduct = {},
   existingProduct = null
@@ -611,6 +675,19 @@ export function normalizeProductPayload(
     return {
       success: false,
       message: descriptionResult.error,
+      product: null,
+    };
+  }
+
+  const detailsResult =
+    normalizeProductDetails(
+      mergedProduct.details
+    );
+
+  if (detailsResult.error) {
+    return {
+      success: false,
+      message: detailsResult.error,
       product: null,
     };
   }
@@ -754,6 +831,7 @@ export function normalizeProductPayload(
 
       image: imageResult.value,
       description: descriptionResult.value,
+      details: detailsResult.value,
       isActive,
     },
   };

@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ImageUploader from "./ImageUploader";
 import ProductInventoryFields from "./ProductInventoryFields";
+import ProductDetailsFields, {
+  EMPTY_PRODUCT_DETAILS_FORM,
+  formToProductDetails,
+} from "./ProductDetailsFields";
 import {
   OBSIDIAN_SIZE_ORDER,
   createEmptySizeStock,
@@ -34,6 +38,7 @@ export default function AddProductClient() {
     price: "",
     image: "",
     description: "",
+    ...EMPTY_PRODUCT_DETAILS_FORM,
     sizes: [
       ...OBSIDIAN_SIZE_ORDER,
     ],
@@ -165,6 +170,8 @@ export default function AddProductClient() {
         formData.color.trim(),
       description:
         formData.description.trim(),
+      details:
+        formToProductDetails(formData),
       price:
         Number(formData.price),
       image:
@@ -349,6 +356,11 @@ export default function AddProductClient() {
             rows={5}
             required
             className="w-full border border-white/10 bg-white/5 px-5 py-4 outline-none placeholder:text-neutral-600"
+          />
+
+          <ProductDetailsFields
+            formData={formData}
+            onChange={handleChange}
           />
 
           <button

@@ -18,7 +18,7 @@ const DEFAULT_SETTINGS = {
 
   contact: {
     whatsappNumber: "8801814455199",
-    email: "hello@obsidianwear.com",
+    email: "obsidianwear.management@gmail.com",
     location: "Dhaka, Bangladesh",
     phone: "",
   },
@@ -2906,7 +2906,7 @@ export default function SettingsEditor({
                       event.target.value
                     )
                   }
-                  placeholder="hello@obsidianwear.com"
+                  placeholder="obsidianwear.management@gmail.com"
                   maxLength={254}
                   error={
                     fieldErrors[

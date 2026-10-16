@@ -376,7 +376,7 @@ export default async function LegalPolicyPage({
     normalizeText(
       settings?.contact
         ?.email,
-      "contact@obsidianwearbd.store"
+      "obsidianwear.management@gmail.com"
     );
 
   const contactPhone =

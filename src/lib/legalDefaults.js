@@ -665,6 +665,7 @@ export function createLegalCmsDefaults(
             order: 3,
 
             paragraphs: [
+              "Confirmed orders are usually delivered within 1–3 business days inside Dhaka and 3–5 business days outside Dhaka. Remote areas may take longer.",
               "The estimated delivery period shown at checkout, in order communication, or by support is an estimate rather than a guaranteed deadline unless expressly confirmed otherwise. Launches, holidays, severe weather, public disruption, or unusually high demand may cause delay.",
             ],
           }),

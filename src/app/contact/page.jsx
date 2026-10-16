@@ -24,7 +24,7 @@ const DEFAULT_SETTINGS = {
   },
 
   contact: {
-    email: "contact@obsidianwearbd.store",
+    email: "obsidianwear.management@gmail.com",
     phone: "+8801814455199",
     whatsappNumber: "8801814455199",
     location: "Dhaka, Bangladesh",

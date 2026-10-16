@@ -15,7 +15,7 @@ export const DEFAULT_SETTINGS = {
 
   contact: {
     whatsappNumber: "8801814455199",
-    email: "hello@obsidianwear.com",
+    email: "obsidianwear.management@gmail.com",
     location: "Dhaka, Bangladesh",
     phone: "",
   },
