@@ -88,3 +88,12 @@ test("only the LCP image is preloaded", () => {
   assert.doesNotMatch(read("src/components/sections/Collections.js"), /priority=/);
   assert.doesNotMatch(read("src/components/sections/FeaturedProduct.jsx"), /\n\s*priority\n/);
 });
+
+test("collection redirects are real 308s answered by the proxy", () => {
+  const proxy = read("src/proxy.js");
+
+  assert.match(proxy, /export function proxy/);
+  assert.match(proxy, /isSeriesOnlyQuery\(params\)/);
+  assert.match(proxy, /NextResponse\.redirect\([^)]*\), 308\)/);
+  assert.match(proxy, /matcher: \["\/shop", "\/collections\/:slug"\]/);
+});

@@ -493,7 +493,7 @@ export default function ObsidianLogoReveal() {
               src="/brand/reveal/obsidian-symbol.webp"
               alt=""
               fill
-              priority
+              loading="eager"
               sizes="(max-width: 767px) 56vw, 250px"
               className="obsidian-cinematic-reveal__image"
             />
@@ -509,7 +509,7 @@ export default function ObsidianLogoReveal() {
             src="/brand/reveal/obsidian-wordmark.webp"
             alt=""
             fill
-            priority
+            loading="eager"
             sizes="(max-width: 767px) 82vw, 540px"
             className="obsidian-cinematic-reveal__image"
           />
