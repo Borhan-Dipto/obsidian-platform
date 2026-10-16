@@ -14,9 +14,15 @@ import Footer from "../../components/layout/Footer";
 import { useCart } from "../../context/CartContext";
 import {
   buildInitiateCheckoutParams,
+  createPurchaseEventId,
   trackMetaEvent,
   trackMetaPurchase,
 } from "../../lib/metaPixel";
+import {
+  buildGa4ItemEventParams,
+  trackGa4Event,
+  trackGa4Purchase,
+} from "../../lib/googleAnalytics";
 
 const CHECKOUT_TOKEN_KEY =
   "obsidian-checkout-token";
@@ -540,6 +546,13 @@ export default function CheckoutPage() {
     trackMetaEvent(
       "InitiateCheckout",
       params
+    );
+
+    trackGa4Event(
+      "begin_checkout",
+      buildGa4ItemEventParams(
+        cartItems
+      )
     );
   }, [isStorageReady, cartItems]);
 
@@ -1231,13 +1244,30 @@ export default function CheckoutPage() {
        * this order was already counted.
        */
       if (!data.duplicate) {
-        trackMetaPurchase({
+        const purchase = {
           order: data.order,
 
           pricing:
             data.pricing ||
             data.order.pricing,
-        });
+        };
+
+        trackMetaPurchase(purchase);
+
+        /*
+         * GA4 uses the same one-way hashed ID as Meta for
+         * transaction_id, never the raw order ID.
+         */
+        createPurchaseEventId(
+          data.order.id
+        )
+          .then((transactionId) =>
+            trackGa4Purchase({
+              ...purchase,
+              transactionId,
+            })
+          )
+          .catch(() => {});
       }
 
       sessionStorage.removeItem(

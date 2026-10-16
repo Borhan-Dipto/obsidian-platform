@@ -7,6 +7,10 @@ import {
   buildAddToCartParams,
   trackMetaEvent,
 } from "../../lib/metaPixel";
+import {
+  buildGa4ItemEventParams,
+  trackGa4Event,
+} from "../../lib/googleAnalytics";
 
 import {
   OBSIDIAN_SIZE_ORDER,
@@ -190,6 +194,20 @@ export default function ProductActions({
         price,
         quantity,
       })
+    );
+
+    trackGa4Event(
+      "add_to_cart",
+      buildGa4ItemEventParams([
+        {
+          id: product.id,
+          name: product.name,
+          series: product.series,
+          size: selectedSize,
+          price,
+          quantity,
+        },
+      ])
     );
 
     showToast({

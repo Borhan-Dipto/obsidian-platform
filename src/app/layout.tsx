@@ -71,6 +71,21 @@ function normalizeKeywords(
     .filter(Boolean);
 }
 
+/*
+ * Meta Business domain verification (meta-tag method). Set
+ * META_DOMAIN_VERIFICATION in Vercel to the code Meta shows under
+ * Business Settings -> Brand safety -> Domains.
+ */
+function getDomainVerificationTags(): Record<string, string> {
+  const code = String(
+    process.env.META_DOMAIN_VERIFICATION || ""
+  ).trim();
+
+  return /^[a-z0-9]{10,64}$/i.test(code)
+    ? { "facebook-domain-verification": code }
+    : {};
+}
+
 async function getMetadataSettings() {
   try {
     return await getSettings();
@@ -214,6 +229,8 @@ export async function generateMetadata(): Promise<Metadata> {
       "theme-color": "#f1ece4",
       "color-scheme": "light",
       "brand-tagline": siteTagline,
+
+      ...getDomainVerificationTags(),
     },
   };
 }

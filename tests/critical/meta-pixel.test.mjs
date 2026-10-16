@@ -190,7 +190,8 @@ test("storefront wiring and CSP allow Meta only where needed", () => {
   const checkout = readSource("src/app/checkout/page.jsx");
 
   assert.match(checkout, /"InitiateCheckout"/);
-  assert.match(checkout, /if \(!data\.duplicate\)\s*\{\s*trackMetaPurchase/);
+  assert.match(checkout, /if \(!data\.duplicate\)\s*\{\s*const purchase/);
+  assert.match(checkout, /trackMetaPurchase\(purchase\)/);
 
   const config = readSource("next.config.ts");
 

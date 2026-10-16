@@ -66,6 +66,7 @@ const contentSecurityPolicy = [
     "'self'",
     "'unsafe-inline'",
     "https://connect.facebook.net",
+    "https://www.googletagmanager.com",
 
     ...(isDevelopment
       ? ["'unsafe-eval'"]
@@ -80,6 +81,8 @@ const contentSecurityPolicy = [
     "data:",
     "blob:",
     "https://www.facebook.com",
+    "https://*.google-analytics.com",
+    "https://*.googletagmanager.com",
     imageSources,
   ]
     .filter(Boolean)
@@ -92,6 +95,9 @@ const contentSecurityPolicy = [
     "'self'",
     "https://www.facebook.com",
     "https://connect.facebook.net",
+    "https://*.google-analytics.com",
+    "https://*.analytics.google.com",
+    "https://*.googletagmanager.com",
 
     ...(isDevelopment
       ? [
