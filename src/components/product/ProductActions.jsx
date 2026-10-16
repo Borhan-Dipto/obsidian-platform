@@ -5,7 +5,9 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
+import { createPortal } from "react-dom";
 import { useCart } from "../../context/CartContext";
 import { useToast } from "../../context/ToastContext";
 import {
@@ -27,6 +29,10 @@ import {
 import WishlistButton from "./WishlistButton";
 import { LOW_STOCK_THRESHOLD } from "../../lib/productImages";
 
+function subscribeNoop() {
+  return () => {};
+}
+
 export default function ProductActions({
   product,
   productName,
@@ -36,6 +42,13 @@ export default function ProductActions({
   const sizeSectionRef = useRef(null);
   const [showStickyBar, setShowStickyBar] = useState(false);
   const [highlightSizes, setHighlightSizes] = useState(false);
+  /* true only in the browser (portal target exists), false on the server */
+  const canPortal = useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false
+  );
+
   const {
     addToCart,
     openMiniCart,
@@ -482,6 +495,13 @@ export default function ProductActions({
         />
       </div>
 
+      {/*
+        Rendered into <body>: the product column animates with
+        transforms, which would otherwise pin this "fixed" bar to the
+        column instead of the screen.
+      */}
+      {canPortal
+        ? createPortal(
       <div
         aria-hidden={!showStickyBar}
         className={`fixed inset-x-0 bottom-0 z-[80] border-t border-black/10 bg-[#f1ece4]/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-12px_32px_rgba(11,11,11,0.08)] backdrop-blur-xl transition-transform duration-300 lg:hidden ${
@@ -528,7 +548,10 @@ export default function ProductActions({
                 : "Select size"}
           </button>
         </div>
-      </div>
+      </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

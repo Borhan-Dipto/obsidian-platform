@@ -6,9 +6,15 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
+import { createPortal } from "react-dom";
 
 import FramedImage from "../ui/FramedImage";
+
+function subscribeNoop() {
+  return () => {};
+}
 
 const MAIN_SIZES = "(max-width: 1024px) 100vw, 55vw";
 
@@ -33,6 +39,12 @@ export default function ProductGallery({
   const [viewerOpen, setViewerOpen] = useState(false);
   const [failed, setFailed] = useState(() => new Set());
   const [zoom, setZoom] = useState({ active: false, x: 50, y: 50 });
+
+  const canPortal = useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false
+  );
 
   const count = photos.length;
   const hasMany = count > 1;
@@ -258,7 +270,9 @@ export default function ProductGallery({
         </div>
       ) : null}
 
-      {viewerOpen ? (
+      {/* Portalled to <body> so the animated column can't trap it. */}
+      {viewerOpen && canPortal
+        ? createPortal(
         <div
           role="dialog"
           aria-modal="true"
@@ -323,8 +337,10 @@ export default function ProductGallery({
               </button>
             </div>
           ) : null}
-        </div>
-      ) : null}
+        </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }
