@@ -641,6 +641,10 @@ export default async function ProductDetailsPage({ params }) {
                 product={product}
                 productName={productName}
                 productImage={productImage}
+                whatsappNumber={
+                  storeSettings?.contact?.whatsappNumber || ""
+                }
+                modelInfo={cleanText(productDetails.model)}
               />
 
               {featureHighlights.length > 0 && (

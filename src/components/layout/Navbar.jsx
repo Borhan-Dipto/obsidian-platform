@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import PredictiveSearch from "./PredictiveSearch";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -988,6 +989,9 @@ export default function Navbar() {
 
   const menuButtonRef =
     useRef(null);
+
+  const [searchQuery, setSearchQuery] =
+    useState("");
 
   const searchInputRef =
     useRef(null);
@@ -2749,6 +2753,9 @@ export default function Navbar() {
                   name="q"
                   autoComplete="off"
                   placeholder="Search products or collections"
+                  onChange={(event) =>
+                    setSearchQuery(event.target.value)
+                  }
                   className="h-14 w-full border-b border-black/25 bg-transparent pr-14 font-heading text-[24px] font-semibold text-black outline-none transition-colors placeholder:text-black/32 focus:border-black sm:text-[29px]"
                 />
 
@@ -2760,6 +2767,12 @@ export default function Navbar() {
                   <ArrowIcon className="transition-transform duration-300 group-hover:translate-x-0.5" />
                 </button>
               </form>
+
+              <PredictiveSearch
+                query={searchQuery}
+                active={isSearchOpen}
+                onNavigate={closeSearch}
+              />
 
               <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-black/42">
