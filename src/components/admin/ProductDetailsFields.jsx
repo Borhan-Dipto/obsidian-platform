@@ -12,6 +12,7 @@ export const EMPTY_PRODUCT_DETAILS_FORM = {
   detailFit: "",
   detailPrint: "",
   detailCare: "",
+  detailModel: "",
 };
 
 export function productDetailsToForm(details) {
@@ -27,6 +28,7 @@ export function productDetailsToForm(details) {
     detailFit: String(source.fit || ""),
     detailPrint: String(source.print || ""),
     detailCare: String(source.care || ""),
+    detailModel: String(source.model || ""),
   };
 }
 
@@ -37,6 +39,7 @@ export function formToProductDetails(formData) {
     fit: String(formData.detailFit || "").trim(),
     print: String(formData.detailPrint || "").trim(),
     care: String(formData.detailCare || "").trim(),
+    model: String(formData.detailModel || "").trim(),
   };
 }
 
@@ -97,6 +100,15 @@ export default function ProductDetailsFields({ formData, onChange }) {
         onChange={onChange}
         maxLength={400}
         rows={3}
+        className={inputClassName}
+      />
+
+      <input
+        name="detailModel"
+        placeholder={'Model info, e.g. Model is 6\'0" and wears size L'}
+        value={formData.detailModel}
+        onChange={onChange}
+        maxLength={120}
         className={inputClassName}
       />
     </fieldset>

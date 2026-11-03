@@ -549,6 +549,7 @@ export const PRODUCT_DETAIL_FIELDS = [
   "fit",
   "print",
   "care",
+  "model",
 ];
 
 const PRODUCT_DETAIL_LIMITS = {
@@ -556,6 +557,7 @@ const PRODUCT_DETAIL_LIMITS = {
   fit: 80,
   print: 80,
   care: 400,
+  model: 120,
 };
 
 /*

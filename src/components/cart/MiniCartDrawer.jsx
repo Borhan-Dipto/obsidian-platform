@@ -2,6 +2,7 @@
 
 import { getStockLabel } from "../../lib/productImages";
 import FramedImage from "../ui/FramedImage";
+import CartSuggestions from "./CartSuggestions";
 import Link from "next/link";
 
 import {
@@ -392,6 +393,11 @@ export default function MiniCartDrawer() {
                   }
                 )}
               </div>
+
+              <CartSuggestions
+                cartItems={cartItems}
+                onNavigate={closeMiniCart}
+              />
             </div>
 
             <div className="border-t border-black/10 bg-[#eee7dd] px-6 py-6">

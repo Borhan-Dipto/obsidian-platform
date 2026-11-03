@@ -1439,6 +1439,18 @@ export async function renderShopPage(
                               sizes="(max-width: 1279px) 50vw, 33vw"
                               imageClassName="obsidian-catalog-media"
                             />
+
+                            {/* Second photo on hover (desktop), when the product has one. */}
+                            {Array.isArray(product?.gallery) &&
+                            product.gallery[0] ? (
+                              <span className="pointer-events-none absolute inset-0 z-[1] hidden opacity-0 transition-opacity duration-500 [@media(hover:hover)]:block [@media(hover:hover)]:group-hover:opacity-100">
+                                <FramedImage
+                                  src={product.gallery[0]}
+                                  alt=""
+                                  sizes="(max-width: 1279px) 50vw, 33vw"
+                                />
+                              </span>
+                            ) : null}
                           </Link>
 
                           <QuickViewButton

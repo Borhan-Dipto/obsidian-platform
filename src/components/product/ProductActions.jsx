@@ -37,6 +37,8 @@ export default function ProductActions({
   product,
   productName,
   productImage,
+  whatsappNumber = "",
+  modelInfo = "",
 }) {
   const primaryButtonRef = useRef(null);
   const sizeSectionRef = useRef(null);
@@ -93,6 +95,20 @@ export default function ProductActions({
 
   const isOutOfStock =
     totalStock <= 0;
+
+  /* Offered sizes that are currently sold out (for "notify me"). */
+  const soldOutSizes =
+    OBSIDIAN_SIZE_ORDER.filter(
+      (size) =>
+        enabledSizeSet.has(size) &&
+        getProductSizeStock(product, size) <= 0
+    );
+
+  const whatsappDigits = String(
+    whatsappNumber || ""
+  )
+    .replace(/\D/g, "")
+    .slice(0, 15);
 
   /*
    * Phones: when the main Add to Cart button is off screen, a slim
@@ -381,8 +397,23 @@ export default function ProductActions({
                       : "border-black/20 text-[#0b0b0b] hover:border-[#0b0b0b] hover:bg-[#0b0b0b] hover:text-[#f1ece4]"
                   }`}
                 >
-                  <span>
-                    {size}
+                  <span className="flex flex-col items-center leading-tight">
+                    <span
+                      className={
+                        isEnabled && !isAvailable
+                          ? "line-through"
+                          : ""
+                      }
+                    >
+                      {size}
+                    </span>
+
+                    {isAvailable &&
+                    sizeStock <= LOW_STOCK_THRESHOLD ? (
+                      <span className="mt-0.5 text-[10px] font-medium normal-case tracking-normal text-[#9b713e] [.obsidian-product-size-button--selected_&]:text-[#e8c99c]">
+                        {sizeStock} left
+                      </span>
+                    ) : null}
                   </span>
                 </button>
               );
@@ -393,6 +424,26 @@ export default function ProductActions({
         <p className="mt-4 text-[11px] leading-5 text-neutral-500">
           Sold-out sizes can’t be selected. Not sure? See the size guide below.
         </p>
+
+        {modelInfo ? (
+          <p className="mt-3 text-xs text-neutral-700">
+            <span className="text-neutral-500">Fit reference: </span>
+            {modelInfo}
+          </p>
+        ) : null}
+
+        {soldOutSizes.length > 0 && whatsappDigits ? (
+          <a
+            href={`https://wa.me/${whatsappDigits}?text=${encodeURIComponent(
+              `Hello, please let me know when ${productName || product?.name} is back in size ${soldOutSizes.join(" / ")}.`
+            )}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 inline-flex min-h-11 items-center gap-2 border-b border-black/30 text-xs text-[#0b0b0b] transition hover:border-black"
+          >
+            Size {soldOutSizes.join(", ")} sold out — notify me on WhatsApp →
+          </a>
+        ) : null}
       </section>
 
       {selectedSize &&
