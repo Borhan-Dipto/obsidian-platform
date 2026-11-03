@@ -123,6 +123,12 @@ const contentSecurityPolicy = [
   .replace(/\s{2,}/g, " ")
   .trim();
 
+/* Test copy (OBSIDIAN LAB): tell search engines not to index anything. */
+const labHeaders =
+  process.env.NEXT_PUBLIC_OBSIDIAN_LAB === "true"
+    ? [{ key: "X-Robots-Tag", value: "noindex, nofollow" }]
+    : [];
+
 const securityHeaders = [
   {
     key:
@@ -235,8 +241,10 @@ const nextConfig: NextConfig = {
         source:
           "/:path*",
 
-        headers:
-          securityHeaders,
+        headers: [
+          ...securityHeaders,
+          ...labHeaders,
+        ],
       },
     ];
   },

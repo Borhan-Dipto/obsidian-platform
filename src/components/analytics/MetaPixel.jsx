@@ -18,6 +18,7 @@ import {
   isGa4Enabled,
   trackGa4PageView,
 } from "../../lib/googleAnalytics";
+import { isLabMode } from "../../lib/labMode";
 
 /*
  * Storefront analytics loader (Meta Pixel + GA4).
@@ -62,6 +63,11 @@ function AnalyticsTracker() {
  * page can still be prerendered.
  */
 export default function MetaPixel() {
+  /* Test copy: never send analytics. */
+  if (isLabMode()) {
+    return null;
+  }
+
   return (
     <Suspense fallback={null}>
       <AnalyticsTracker />

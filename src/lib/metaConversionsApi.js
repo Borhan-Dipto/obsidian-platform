@@ -47,6 +47,7 @@ export function getMetaCapiConfig() {
       readEnv("META_CAPI_SEND_HASHED_CONTACT").toLowerCase() ===
       "true",
     enabled:
+      process.env.NEXT_PUBLIC_OBSIDIAN_LAB !== "true" &&
       /^\d{10,20}$/.test(pixelId) &&
       accessToken.length >= 20,
   };

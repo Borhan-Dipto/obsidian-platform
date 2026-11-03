@@ -6,6 +6,7 @@ import {
 import AppProviders from "../providers/AppProviders";
 import MetaPixel from "../components/analytics/MetaPixel";
 import FloatingWhatsApp from "../components/layout/FloatingWhatsApp";
+import LabBadge from "../components/layout/LabBadge";
 import { cache } from "react";
 import {
   DEFAULT_SETTINGS,
@@ -291,6 +292,8 @@ export default async function RootLayout({
           whatsappNumber={settings.contact?.whatsappNumber || ""}
           storeName={settings.store?.name || "OBSIDIAN"}
         />
+
+        <LabBadge />
 
         <MetaPixel />
       </body>

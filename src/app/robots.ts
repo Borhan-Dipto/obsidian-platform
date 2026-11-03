@@ -5,6 +5,11 @@ const siteUrl =
   "https://obsidianwearbd.store";
 
 export default function robots(): MetadataRoute.Robots {
+  /* Test copy: keep every crawler out. */
+  if (process.env.NEXT_PUBLIC_OBSIDIAN_LAB === "true") {
+    return { rules: [{ userAgent: "*", disallow: "/" }] };
+  }
+
   return {
     rules: [
       {
