@@ -47,6 +47,11 @@ export function isValidMetaPixelId(value) {
 }
 
 export function isMetaPixelEnabled() {
+  /* OBSIDIAN LAB test copy never sends Meta events. */
+  if (process.env.NEXT_PUBLIC_OBSIDIAN_LAB === "true") {
+    return false;
+  }
+
   return isValidMetaPixelId(
     META_PIXEL_ID
   );

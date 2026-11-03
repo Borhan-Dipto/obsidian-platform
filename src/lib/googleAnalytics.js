@@ -31,6 +31,11 @@ export function isValidGa4MeasurementId(value) {
 }
 
 export function isGa4Enabled() {
+  /* OBSIDIAN LAB test copy never sends analytics. */
+  if (process.env.NEXT_PUBLIC_OBSIDIAN_LAB === "true") {
+    return false;
+  }
+
   return isValidGa4MeasurementId(GA4_MEASUREMENT_ID);
 }
 
