@@ -147,11 +147,15 @@ function getGridClasses(itemCount) {
     return "grid max-w-xl gap-7";
   }
 
+  /* Phones: swipe sideways instead of one long stack. */
+  const mobileRow =
+    "flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:gap-7 md:overflow-visible md:pb-0";
+
   if (itemCount === 2) {
-    return "grid gap-7 md:grid-cols-2";
+    return `${mobileRow} md:grid-cols-2`;
   }
 
-  return "grid gap-7 md:grid-cols-2 lg:grid-cols-3";
+  return `${mobileRow} md:grid-cols-2 lg:grid-cols-3`;
 }
 
 async function getCollections({
@@ -476,6 +480,11 @@ export default async function Collections({
                       index * 90,
                       450
                     )}
+                    className={
+                      collections.length > 1
+                        ? "w-[78%] shrink-0 snap-start sm:w-[60%] md:w-auto"
+                        : ""
+                    }
                   >
                     <Link
                       href={

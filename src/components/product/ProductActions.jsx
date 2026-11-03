@@ -347,7 +347,7 @@ export default function ProductActions({
         <div
           role="radiogroup"
           aria-label="Choose product size"
-          className="grid grid-cols-3 gap-2 sm:grid-cols-6"
+          className="grid grid-cols-3 gap-2 sm:grid-cols-6 lg:grid-cols-3 xl:grid-cols-6"
         >
           {OBSIDIAN_SIZE_ORDER.map(
             (size) => {

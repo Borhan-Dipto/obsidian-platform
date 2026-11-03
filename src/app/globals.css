@@ -1109,8 +1109,8 @@ header[data-obsidian-nav-contrast="light"] nav .obsidian-liquid-control:focus-vi
 .obsidian-product-media-column {
   animation:
     obsidianProductMediaEnter
-    1150ms
-    100ms
+    600ms
+    0ms
     var(--motion-ease-soft)
     both;
 }
@@ -1118,7 +1118,7 @@ header[data-obsidian-nav-contrast="light"] nav .obsidian-liquid-control:focus-vi
 .obsidian-product-info-column > * {
   animation:
     obsidianProductInfoEnter
-    900ms
+    500ms
     var(--motion-ease-soft)
     both;
 }

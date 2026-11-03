@@ -55,14 +55,15 @@ export default function Reveal({
       ? variant
       : "fade-up";
 
-  const safeDelay = Math.max(
-    0,
-    normalizeNumber(delay, 0)
+  /* Kept short so content never waits long to appear. */
+  const safeDelay = Math.min(
+    160,
+    Math.max(0, normalizeNumber(delay, 0))
   );
 
-  const safeDuration = Math.max(
-    180,
-    normalizeNumber(duration, 960)
+  const safeDuration = Math.min(
+    600,
+    Math.max(180, normalizeNumber(duration, 960))
   );
 
   const safeDistance = Math.max(

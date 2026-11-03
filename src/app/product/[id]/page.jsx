@@ -628,7 +628,7 @@ export default async function ProductDetailsPage({ params }) {
                 {productSeries}
               </p>
 
-              <h1 className="font-heading text-5xl font-light leading-none sm:text-6xl md:text-8xl">
+              <h1 className="font-heading text-5xl font-light leading-none [overflow-wrap:anywhere] sm:text-6xl md:text-7xl lg:text-6xl xl:text-7xl 2xl:text-8xl">
                 {productName}
               </h1>
 
