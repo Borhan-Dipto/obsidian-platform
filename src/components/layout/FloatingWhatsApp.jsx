@@ -39,7 +39,7 @@ export default function FloatingWhatsApp({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`Chat with ${storeName} on WhatsApp`}
-      className="obsidian-whatsapp-fab fixed bottom-5 right-4 z-[70] flex min-h-12 items-center gap-2 rounded-full border border-[#f1ece4]/15 bg-[#0b0b0b] px-4 text-[#f1ece4] shadow-[0_14px_34px_rgba(11,11,11,0.28)] transition-[transform,bottom] duration-300 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b1844a] focus-visible:ring-offset-2 sm:bottom-6 sm:right-6"
+      className="obsidian-whatsapp-fab fixed bottom-4 right-3 z-[70] flex h-12 w-12 items-center justify-center gap-2 rounded-full border border-[#f1ece4]/15 bg-[#0b0b0b] text-[#f1ece4] xl:w-auto xl:px-4 shadow-[0_14px_34px_rgba(11,11,11,0.28)] transition-[transform,bottom] duration-300 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b1844a] focus-visible:ring-offset-2 sm:bottom-6 sm:right-5"
     >
       <svg
         aria-hidden="true"
@@ -55,7 +55,7 @@ export default function FloatingWhatsApp({
         <path d="M8.8 9.2c.3 2.6 3.2 5.4 6 5.9" />
       </svg>
 
-      <span className="text-[11px] font-semibold uppercase tracking-[0.2em]">
+      <span className="hidden text-[11px] font-semibold uppercase tracking-[0.2em] xl:inline">
         WhatsApp
       </span>
     </a>

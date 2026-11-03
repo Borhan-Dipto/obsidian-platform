@@ -912,7 +912,7 @@ export default function ShopFilters({
           }
           aria-expanded={mobileFiltersOpen}
           aria-controls="shop-filter-controls"
-          className="mt-5 flex min-h-12 w-full items-center justify-between border border-black/15 bg-[#eee7dd] px-4 text-xs uppercase tracking-[0.22em] text-neutral-800 lg:hidden"
+          className="mt-5 flex min-h-12 w-full items-center justify-between border border-black/15 bg-[#eee7dd] px-4 text-xs uppercase tracking-[0.22em] text-neutral-800"
         >
           <span>
             Filter &amp; Sort
@@ -930,7 +930,7 @@ export default function ShopFilters({
           id="shop-filter-controls"
           className={`${
             mobileFiltersOpen ? "block" : "hidden"
-          } lg:block`}
+          }`}
         >
         <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-[1.35fr_0.85fr_0.85fr_0.95fr]">
           <label className="relative block">

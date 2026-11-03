@@ -824,7 +824,7 @@ function AnnouncementBar({
   );
 
   const className =
-    "group max-w-full text-[11px] font-semibold uppercase tracking-[0.28em] text-white/85 transition-colors duration-300 hover:text-white";
+    "group max-w-full truncate whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.14em] text-white/85 sm:text-[11px] sm:tracking-[0.28em] transition-colors duration-300 hover:text-white";
 
   return (
     <div className="relative z-[4] flex h-[26px] items-center justify-center overflow-hidden border-b border-white/10 bg-black/78 px-4 backdrop-blur-[28px]">
