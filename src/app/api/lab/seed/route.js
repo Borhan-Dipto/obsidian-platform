@@ -81,6 +81,7 @@ export async function POST(request) {
     const indexes = (await source.collection(name).indexes()).filter((index) => index.name !== "_id_");
 
     for (const index of indexes) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- drop server-only index fields
       const { key, name: indexName, v, ns, ...options } = index;
 
       try {
