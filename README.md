@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/cover.svg" alt="OBSIDIAN — premium fashion e-commerce" width="720" />
+  <img src="./docs/cover.svg" alt="OBSIDIAN — premium fashion e-commerce" width="100%" />
 </p>
 
 <p align="center">
