@@ -10,7 +10,8 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
-const MAX_REQUEST_SIZE_BYTES = 12 * 1024 * 1024;
+const MAX_REQUEST_SIZE_BYTES = 55 * 1024 * 1024; // up to 5 × 10 MB + overhead
+const MAX_FILES_PER_REQUEST = 5;
 const MAX_IMAGE_PIXELS = 40_000_000;
 const MAX_IMAGE_EDGE = 4096;
 const IMAGE_PROCESSING_TIMEOUT_SECONDS = 20;
@@ -1001,146 +1002,114 @@ export async function POST(request) {
       );
 
     if (
-      files.length !== 1 ||
-      !isUploadFile(
-        files[0]
-      )
+      files.length === 0 ||
+      !files.every(isUploadFile)
     ) {
       throw new UploadError(
-        "Upload exactly one valid image file."
+        "Upload at least one valid image file."
       );
     }
 
-    const file = files[0];
-
-    if (file.size <= 0) {
+    if (files.length > MAX_FILES_PER_REQUEST) {
       throw new UploadError(
-        "The selected image is empty."
+        `Upload at most ${MAX_FILES_PER_REQUEST} images at once.`,
+        400,
+        "TOO_MANY_FILES"
       );
     }
 
-    if (
-      file.size >
-      MAX_FILE_SIZE_BYTES
-    ) {
-      throw new UploadError(
-        "Image size must not exceed 10 MB.",
-        413,
-        "IMAGE_FILE_TOO_LARGE"
-      );
-    }
+    async function processSingleFile(file) {
+      if (file.size <= 0) {
+        throw new UploadError("The selected image is empty.");
+      }
 
-    const declaredMimeType =
-      normalizeText(
-        file.type,
-        120
-      ).toLowerCase();
-
-    const expectedFormat =
-      ALLOWED_IMAGE_TYPES.get(
-        declaredMimeType
-      );
-
-    if (!expectedFormat) {
-      throw new UploadError(
-        "Only JPEG, PNG, WebP, and AVIF images are allowed.",
-        415,
-        "UNSUPPORTED_IMAGE_TYPE"
-      );
-    }
-
-    let buffer;
-
-    try {
-      buffer =
-        Buffer.from(
-          await file.arrayBuffer()
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        throw new UploadError(
+          "Image size must not exceed 10 MB.",
+          413,
+          "IMAGE_FILE_TOO_LARGE"
         );
-    } catch {
-      throw new UploadError(
-        "The image could not be read."
+      }
+
+      const declaredMimeType = normalizeText(file.type, 120).toLowerCase();
+      const expectedFormat = ALLOWED_IMAGE_TYPES.get(declaredMimeType);
+
+      if (!expectedFormat) {
+        throw new UploadError(
+          "Only JPEG, PNG, WebP, and AVIF images are allowed.",
+          415,
+          "UNSUPPORTED_IMAGE_TYPE"
+        );
+      }
+
+      let buffer;
+      try {
+        buffer = Buffer.from(await file.arrayBuffer());
+      } catch {
+        throw new UploadError("The image could not be read.");
+      }
+
+      if (buffer.length <= 0 || buffer.length !== file.size) {
+        throw new UploadError("The uploaded image is incomplete or corrupted.");
+      }
+
+      const detectedFormat = detectImageFormat(buffer);
+
+      if (!detectedFormat) {
+        throw new UploadError(
+          "The uploaded file is not a supported image.",
+          415,
+          "INVALID_IMAGE_SIGNATURE"
+        );
+      }
+
+      if (detectedFormat !== expectedFormat) {
+        throw new UploadError(
+          "The file content does not match its declared image type.",
+          415,
+          "IMAGE_TYPE_MISMATCH"
+        );
+      }
+
+      const sanitizedImage = await sanitizeImage(buffer, detectedFormat);
+      const cloudinaryResult = await uploadToCloudinary(sanitizedImage.buffer);
+      const trustedResult = validateCloudinaryResult(cloudinaryResult);
+
+      return {
+        imageUrl: trustedResult.imageUrl,
+        publicId: trustedResult.publicId,
+        width: sanitizedImage.width,
+        height: sanitizedImage.height,
+        format: sanitizedImage.format,
+        sourceFormat: sanitizedImage.sourceFormat,
+        bytes: sanitizedImage.bytes,
+      };
+    }
+
+    const results = await Promise.all(files.map(processSingleFile));
+
+    // Single file: backward-compatible flat response
+    if (results.length === 1) {
+      return createJsonResponse(
+        {
+          success: true,
+          message: "Image uploaded successfully.",
+          ...results[0],
+        },
+        201
       );
     }
 
-    if (
-      buffer.length <= 0 ||
-      buffer.length !==
-        file.size
-    ) {
-      throw new UploadError(
-        "The uploaded image is incomplete or corrupted."
-      );
-    }
-
-    const detectedFormat =
-      detectImageFormat(
-        buffer
-      );
-
-    if (!detectedFormat) {
-      throw new UploadError(
-        "The uploaded file is not a supported image.",
-        415,
-        "INVALID_IMAGE_SIGNATURE"
-      );
-    }
-
-    if (
-      detectedFormat !==
-      expectedFormat
-    ) {
-      throw new UploadError(
-        "The file content does not match its declared image type.",
-        415,
-        "IMAGE_TYPE_MISMATCH"
-      );
-    }
-
-    const sanitizedImage =
-      await sanitizeImage(
-        buffer,
-        detectedFormat
-      );
-
-    const cloudinaryResult =
-      await uploadToCloudinary(
-        sanitizedImage.buffer
-      );
-
-    const trustedResult =
-      validateCloudinaryResult(
-        cloudinaryResult
-      );
-
+    // Multiple files: array response
     return createJsonResponse(
       {
         success: true,
-
-        message:
-          "Image uploaded successfully.",
-
-        imageUrl:
-          trustedResult.imageUrl,
-
-        publicId:
-          trustedResult.publicId,
-
-        width:
-          sanitizedImage.width,
-
-        height:
-          sanitizedImage.height,
-
-        format:
-          sanitizedImage.format,
-
-        sourceFormat:
-          sanitizedImage.sourceFormat,
-
-        bytes:
-          sanitizedImage.bytes,
+        message: `${results.length} images uploaded successfully.`,
+        images: results,
+        // convenience: first image at top level for callers that only read imageUrl
+        imageUrl: results[0].imageUrl,
+        publicId: results[0].publicId,
       },
-
       201
     );
   } catch (error) {

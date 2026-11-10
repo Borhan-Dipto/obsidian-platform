@@ -118,19 +118,25 @@ export async function POST(request, context) {
   );
   const comment = body.linkInComment === false ? "" : text(body.comment, SOCIAL_LIMITS.comment) || draft.comment;
 
-  const images = getProductImages(product)
-    .map((url) => toSocialImageUrl(url, siteUrl(request)))
-    .filter(Boolean)
-    .slice(0, 10);
+  const rawImages = getProductImages(product).filter(Boolean).slice(0, 10);
 
-  if (images.length === 0) {
+  if (rawImages.length === 0) {
     return NextResponse.json({ success: false, message: "Add a product photo first." }, { status: 400 });
   }
+
+  const facebookImages = rawImages
+    .map((url) => toSocialImageUrl(url, siteUrl(request), "facebook"))
+    .filter(Boolean);
+
+  const instagramImages = rawImages
+    .map((url) => toSocialImageUrl(url, siteUrl(request), "instagram"))
+    .filter(Boolean);
 
   const result = { postedAt: new Date(), errors: [] };
 
   if (wantFacebook) {
     try {
+      const images = facebookImages;
       const facebook = await publishToFacebook(config, { images, message: facebookText, comment });
       result.facebookPostId = facebook.postId;
       result.facebookCommentId = facebook.commentId;
@@ -145,6 +151,7 @@ export async function POST(request, context) {
 
   if (wantInstagram) {
     try {
+      const images = instagramImages;
       result.instagramMediaId = (await publishToInstagram(config, { images, caption: instagramText })).mediaId;
     } catch (error) {
       result.errors.push(`Instagram: ${error.message}`);

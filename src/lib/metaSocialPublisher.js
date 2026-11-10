@@ -31,8 +31,13 @@ export function getSocialConfig() {
   };
 }
 
-/* Absolute, Meta-friendly image URLs (Cloudinary images are served as JPEG). */
-export function toSocialImageUrl(url, siteUrl) {
+/*
+ * Absolute, Meta-friendly image URLs.
+ * platform: "facebook" → 1200×628 (1.91:1 landscape, cropped from centre)
+ *           "instagram" → 1080×1080 (1:1 square, cropped from centre)
+ *           undefined   → original image converted to JPEG at q_90
+ */
+export function toSocialImageUrl(url, siteUrl, platform) {
   const value = String(url || "").trim();
 
   if (!value) {
@@ -44,7 +49,17 @@ export function toSocialImageUrl(url, siteUrl) {
     : `${String(siteUrl || "").replace(/\/+$/, "")}${value.startsWith("/") ? "" : "/"}${value}`;
 
   if (/^https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\//.test(absolute)) {
-    return absolute.replace("/image/upload/", "/image/upload/f_jpg,q_90/");
+    let transform;
+    if (platform === "facebook") {
+      // 1200×628 centre-crop, JPEG
+      transform = "c_fill,g_center,w_1200,h_628,f_jpg,q_90";
+    } else if (platform === "instagram") {
+      // 1080×1080 centre-crop, JPEG
+      transform = "c_fill,g_center,w_1080,h_1080,f_jpg,q_90";
+    } else {
+      transform = "f_jpg,q_90";
+    }
+    return absolute.replace("/image/upload/", `/image/upload/${transform}/`);
   }
 
   return absolute;

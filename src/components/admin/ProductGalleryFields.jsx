@@ -7,14 +7,24 @@ import { MAX_GALLERY_IMAGES } from "../../lib/productImages";
  * Extra product photos shown in the product page gallery after the
  * main image. Suggested order: back, print close-up, fabric close-up,
  * on-model front, on-model back. Best size: 1600×2000 px (4:5).
+ *
+ * Props:
+ *   gallery    – string[]  current gallery URLs
+ *   mainImage  – string    current main/cover image URL
+ *   onChange   – (gallery: string[]) => void  called when gallery changes
+ *   onMainImageChange – (url: string) => void  called when main image changes
+ *   disabled   – boolean
  */
 export default function ProductGalleryFields({
   gallery = [],
+  mainImage = "",
   onChange,
+  onMainImageChange,
   disabled = false,
 }) {
   const images = Array.isArray(gallery) ? gallery.filter(Boolean) : [];
-  const canAddMore = images.length < MAX_GALLERY_IMAGES;
+  const remaining = MAX_GALLERY_IMAGES - images.length;
+  const canAddMore = remaining > 0;
 
   function updateAt(index, url) {
     const next = [...images];
@@ -28,10 +38,13 @@ export default function ProductGalleryFields({
     onChange(next);
   }
 
-  function addImage(url) {
-    if (url) {
-      onChange([...images, url]);
-    }
+  // Add one or more URLs from multi-upload
+  function addImages(urlOrUrls) {
+    if (!urlOrUrls) return;
+    const incoming = Array.isArray(urlOrUrls) ? urlOrUrls : [urlOrUrls];
+    const toAdd = incoming.filter(Boolean).slice(0, remaining);
+    if (toAdd.length === 0) return;
+    onChange([...images, ...toAdd]);
   }
 
   function move(index, direction) {
@@ -45,6 +58,25 @@ export default function ProductGalleryFields({
     [next[index], next[target]] = [next[target], next[index]];
     onChange(next);
   }
+
+  // Swap a gallery image into the main image slot
+  function promoteToMain(index) {
+    if (!onMainImageChange) return;
+    const galleryUrl = images[index];
+    const next = [...images];
+
+    if (mainImage) {
+      // Put the current main image into the gallery slot
+      next[index] = mainImage;
+    } else {
+      next.splice(index, 1);
+    }
+
+    onMainImageChange(galleryUrl);
+    onChange(next);
+  }
+
+  const canPromote = typeof onMainImageChange === "function";
 
   return (
     <fieldset className="space-y-5 border border-white/10 p-5">
@@ -65,7 +97,19 @@ export default function ProductGalleryFields({
               Photo {index + 2}
             </p>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              {canPromote ? (
+                <button
+                  type="button"
+                  onClick={() => promoteToMain(index)}
+                  disabled={disabled}
+                  title="Move this photo to the main image slot (Photo 1)"
+                  className="border border-white/15 px-3 py-2 text-[10px] uppercase tracking-[0.2em] disabled:opacity-30 hover:border-[#f1ece4]/40"
+                >
+                  ★ Make Main
+                </button>
+              ) : null}
+
               <button
                 type="button"
                 onClick={() => move(index, -1)}
@@ -100,9 +144,12 @@ export default function ProductGalleryFields({
           <ImageUploader
             key={`new-${images.length}`}
             value=""
-            label="Add another photo"
+            label={`Add photo${remaining > 1 ? "s" : ""}`}
+            helperText={`JPEG, PNG, WebP or AVIF — up to ${remaining} photo${remaining > 1 ? "s" : ""} at once, max 10 MB each.`}
+            multiple={remaining > 1}
+            maxFiles={remaining}
             disabled={disabled}
-            onChange={addImage}
+            onChange={addImages}
           />
         </div>
       ) : null}
