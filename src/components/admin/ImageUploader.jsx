@@ -69,6 +69,8 @@ export default function ImageUploader({
     DEFAULT_ACCEPTED_TYPES,
   accept = DEFAULT_ACCEPT,
   allowRemove = true,
+  multiple = false,
+  maxFiles = 5,
   onUploadingChange,
   onError,
 }) {
@@ -463,9 +465,83 @@ export default function ImageUploader({
     }
   }
 
+  async function uploadMultipleImages(files) {
+    if (disabled || isUploading) return;
+
+    const fileArray = Array.from(files).slice(0, maxFiles);
+
+    for (const file of fileArray) {
+      const err = validateFile(file);
+      if (err) { reportError(`${file.name}: ${err}`); return; }
+    }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    setStatus({ type: "info", message: `Uploading ${fileArray.length} image${fileArray.length > 1 ? "s" : ""}...` });
+    updateUploadingState(true);
+
+    try {
+      const formData = new FormData();
+      for (const file of fileArray) {
+        formData.append("file", file);
+      }
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+        signal: controller.signal,
+      });
+
+      const data = await readJsonResponse(response);
+
+      if (!response.ok || !data?.success) {
+        if (response.status === 401) throw new Error("Your admin session has expired. Sign in again and retry.");
+        if (response.status === 413) throw new Error(`An image is too large. Maximum allowed size is ${maxSizeMB} MB.`);
+        throw new Error(data?.message || "Image upload failed.");
+      }
+
+      if (!mountedRef.current) return;
+
+      // multi-file response has data.images array; single-file has data.imageUrl
+      const urls = data.images
+        ? data.images.map((img) => img.imageUrl).filter(Boolean)
+        : data.imageUrl
+          ? [data.imageUrl]
+          : [];
+
+      if (typeof onChange === "function") {
+        onChange(urls);
+      }
+
+      setStatus({ type: "success", message: `${urls.length} image${urls.length > 1 ? "s" : ""} uploaded successfully.` });
+
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      reportError(error?.message || "Something went wrong while uploading.");
+    } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+        updateUploadingState(false);
+      }
+    }
+  }
+
   function handleFileChange(
     event
   ) {
+    if (multiple) {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+      void uploadMultipleImages(files);
+      return;
+    }
+
     const file =
       event.target
         .files?.[0];
@@ -545,6 +621,12 @@ export default function ImageUploader({
       disabled ||
       isUploading
     ) {
+      return;
+    }
+
+    if (multiple) {
+      const files = event.dataTransfer.files;
+      if (files && files.length > 0) void uploadMultipleImages(files);
       return;
     }
 
@@ -691,6 +773,7 @@ export default function ImageUploader({
           id={inputId}
           type="file"
           accept={accept}
+          multiple={multiple}
           onChange={
             handleFileChange
           }
@@ -712,10 +795,10 @@ export default function ImageUploader({
         >
           <span className="block text-sm text-[#f1ece4]">
             {isUploading
-              ? "Uploading image..."
+              ? multiple ? "Uploading images..." : "Uploading image..."
               : isDragging
-                ? "Drop the image here"
-                : "Choose an image or drag it here"}
+                ? multiple ? "Drop images here" : "Drop the image here"
+                : multiple ? `Choose up to ${maxFiles} images or drag them here` : "Choose an image or drag it here"}
           </span>
 
           <span className="mt-2 block text-xs leading-6 text-neutral-500">

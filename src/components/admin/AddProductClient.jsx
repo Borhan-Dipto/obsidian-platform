@@ -354,10 +354,17 @@ export default function AddProductClient() {
 
           <ProductGalleryFields
             gallery={formData.gallery}
+            mainImage={formData.image}
             onChange={(gallery) =>
               setFormData((currentFormData) => ({
                 ...currentFormData,
                 gallery,
+              }))
+            }
+            onMainImageChange={(image) =>
+              setFormData((currentFormData) => ({
+                ...currentFormData,
+                image,
               }))
             }
           />
