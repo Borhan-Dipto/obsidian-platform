@@ -231,8 +231,11 @@ export default function AddProductClient() {
         return;
       }
 
+      /* Open the new product so it can be posted to social media right away. */
       router.push(
-        "/admin/products"
+        data.product?.id
+          ? `/admin/products/${encodeURIComponent(data.product.id)}/edit`
+          : "/admin/products"
       );
 
       router.refresh();
