@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import ImageUploader from "./ImageUploader";
 import ProductGalleryFields from "./ProductGalleryFields";
+import SocialPostPanel from "./SocialPostPanel";
 import ProductInventoryFields from "./ProductInventoryFields";
 import ProductDetailsFields, {
   EMPTY_PRODUCT_DETAILS_FORM,
@@ -645,6 +646,10 @@ export default function EditProductClient() {
               : "Update Product"}
           </button>
         </form>
+
+        <div className="mt-10">
+          <SocialPostPanel productId={productId} />
+        </div>
       </div>
     </main>
   );
